@@ -31,6 +31,12 @@ function library:toggle(options)
 
     flags[cfg.flag] = cfg.default
 
+    local mobile_switch = library.is_mobile and cfg.type ~= "checkbox"
+    local switch_width = mobile_switch and 48 or 40
+    local switch_height = mobile_switch and 26 or 22
+    local thumb_size = mobile_switch and 18 or 14
+    local thumb_y = (switch_height - 2 - thumb_size) / 2
+
     local items = cfg.items; do
         items[ "toggle" ] = library:create( "TextButton" , {
             FontFace = fonts.small;
@@ -172,11 +178,12 @@ function library:toggle(options)
                 BorderColor3 = rgb(0, 0, 0);
                 Text = "";
                 LayoutOrder = 2;
+                AutoButtonColor = false;
                 AnchorPoint = vec2(1, 0.5);
                 Parent = items[ "right_components" ];
                 Name = "\0";
                 Position = dim2(1, -9, 0.5, 0);
-                Size = dim2(0, 36, 0, 18);
+                Size = dim2(0, switch_width, 0, switch_height);
                 BorderSizePixel = 0;
                 TextSize = 14;
                 BackgroundColor3 = themes.preset.accent
@@ -203,17 +210,12 @@ function library:toggle(options)
                 CornerRadius = dim(0, 999)
             });
 
-            library:create( "UIGradient" , {
-                Color = rgbseq{rgbkey(0, rgb(211, 211, 211)), rgbkey(1, rgb(211, 211, 211))};
-                Parent = items[ "inline" ]
-            });
-
             items[ "circle" ] = library:create( "Frame" , {
                 Parent = items[ "inline" ];
                 Name = "\0";
-                Position = dim2(1, -14, 0, 2);
+                Position = dim2(1, -(thumb_size + 3), 0, thumb_y);
                 BorderColor3 = rgb(0, 0, 0);
-                Size = dim2(0, 12, 0, 12);
+                Size = dim2(0, thumb_size, 0, thumb_size);
                 BorderSizePixel = 0;
                 BackgroundColor3 = rgb(255, 255, 255)
             });
@@ -233,9 +235,12 @@ function library:toggle(options)
             library:tween(items[ "toggle_button" ], {BackgroundColor3 = bool and themes.preset.accent or rgb(67, 67, 68)})
             library:tween(items[ "outline" ], {BackgroundColor3 = bool and themes.preset.accent or rgb(22, 22, 24)})
         else
-            library:tween(items[ "toggle_button" ], {BackgroundColor3 = bool and themes.preset.accent or rgb(58, 58, 62)}, Enum.EasingStyle.Quad)
-            library:tween(items[ "inline" ], {BackgroundColor3 = bool and themes.preset.accent or rgb(50, 50, 50)}, Enum.EasingStyle.Quad)
-            library:tween(items[ "circle" ], {BackgroundColor3 = bool and rgb(255, 255, 255) or rgb(86, 86, 88), Position = bool and dim2(1, -14, 0, 2) or dim2(0, 2, 0, 2)}, Enum.EasingStyle.Quad)
+            library:tween(items[ "toggle_button" ], {BackgroundColor3 = bool and themes.preset.accent or rgb(62, 62, 66)}, Enum.EasingStyle.Quad)
+            library:tween(items[ "inline" ], {BackgroundColor3 = bool and themes.preset.accent or rgb(48, 48, 52)}, Enum.EasingStyle.Quad)
+            library:tween(items[ "circle" ], {
+                BackgroundColor3 = bool and rgb(255, 255, 255) or rgb(205, 205, 212),
+                Position = bool and dim2(1, -(thumb_size + 3), 0, thumb_y) or dim2(0, 2, 0, thumb_y),
+            }, Enum.EasingStyle.Quad)
         end
 
         safe_callback(cfg.callback, bool)
@@ -257,11 +262,11 @@ function library:toggle(options)
         })
         library:create("UIListLayout", {Parent = items.elements, Padding = dim(0, 6), SortOrder = Enum.SortOrder.LayoutOrder})
     end
-    items[ "toggle" ].MouseButton1Click:Connect(function()
+    items[ "toggle" ].Activated:Connect(function()
         cfg.set(not cfg.enabled)
     end)
 
-    items[ "toggle_button" ].MouseButton1Click:Connect(function()
+    items[ "toggle_button" ].Activated:Connect(function()
         cfg.set(not cfg.enabled)
     end)
 

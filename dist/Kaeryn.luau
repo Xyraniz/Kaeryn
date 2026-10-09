@@ -2761,6 +2761,12 @@ function library:toggle(options)
 
     flags[cfg.flag] = cfg.default
 
+    local mobile_switch = library.is_mobile and cfg.type ~= "checkbox"
+    local switch_width = mobile_switch and 48 or 40
+    local switch_height = mobile_switch and 26 or 22
+    local thumb_size = mobile_switch and 18 or 14
+    local thumb_y = (switch_height - 2 - thumb_size) / 2
+
     local items = cfg.items; do
         items[ "toggle" ] = library:create( "TextButton" , {
             FontFace = fonts.small;
@@ -2902,11 +2908,12 @@ function library:toggle(options)
                 BorderColor3 = rgb(0, 0, 0);
                 Text = "";
                 LayoutOrder = 2;
+                AutoButtonColor = false;
                 AnchorPoint = vec2(1, 0.5);
                 Parent = items[ "right_components" ];
                 Name = "\0";
                 Position = dim2(1, -9, 0.5, 0);
-                Size = dim2(0, 36, 0, 18);
+                Size = dim2(0, switch_width, 0, switch_height);
                 BorderSizePixel = 0;
                 TextSize = 14;
                 BackgroundColor3 = themes.preset.accent
@@ -2933,17 +2940,12 @@ function library:toggle(options)
                 CornerRadius = dim(0, 999)
             });
 
-            library:create( "UIGradient" , {
-                Color = rgbseq{rgbkey(0, rgb(211, 211, 211)), rgbkey(1, rgb(211, 211, 211))};
-                Parent = items[ "inline" ]
-            });
-
             items[ "circle" ] = library:create( "Frame" , {
                 Parent = items[ "inline" ];
                 Name = "\0";
-                Position = dim2(1, -14, 0, 2);
+                Position = dim2(1, -(thumb_size + 3), 0, thumb_y);
                 BorderColor3 = rgb(0, 0, 0);
-                Size = dim2(0, 12, 0, 12);
+                Size = dim2(0, thumb_size, 0, thumb_size);
                 BorderSizePixel = 0;
                 BackgroundColor3 = rgb(255, 255, 255)
             });
@@ -2963,9 +2965,12 @@ function library:toggle(options)
             library:tween(items[ "toggle_button" ], {BackgroundColor3 = bool and themes.preset.accent or rgb(67, 67, 68)})
             library:tween(items[ "outline" ], {BackgroundColor3 = bool and themes.preset.accent or rgb(22, 22, 24)})
         else
-            library:tween(items[ "toggle_button" ], {BackgroundColor3 = bool and themes.preset.accent or rgb(58, 58, 62)}, Enum.EasingStyle.Quad)
-            library:tween(items[ "inline" ], {BackgroundColor3 = bool and themes.preset.accent or rgb(50, 50, 50)}, Enum.EasingStyle.Quad)
-            library:tween(items[ "circle" ], {BackgroundColor3 = bool and rgb(255, 255, 255) or rgb(86, 86, 88), Position = bool and dim2(1, -14, 0, 2) or dim2(0, 2, 0, 2)}, Enum.EasingStyle.Quad)
+            library:tween(items[ "toggle_button" ], {BackgroundColor3 = bool and themes.preset.accent or rgb(62, 62, 66)}, Enum.EasingStyle.Quad)
+            library:tween(items[ "inline" ], {BackgroundColor3 = bool and themes.preset.accent or rgb(48, 48, 52)}, Enum.EasingStyle.Quad)
+            library:tween(items[ "circle" ], {
+                BackgroundColor3 = bool and rgb(255, 255, 255) or rgb(205, 205, 212),
+                Position = bool and dim2(1, -(thumb_size + 3), 0, thumb_y) or dim2(0, 2, 0, thumb_y),
+            }, Enum.EasingStyle.Quad)
         end
 
         safe_callback(cfg.callback, bool)
@@ -2987,11 +2992,11 @@ function library:toggle(options)
         })
         library:create("UIListLayout", {Parent = items.elements, Padding = dim(0, 6), SortOrder = Enum.SortOrder.LayoutOrder})
     end
-    items[ "toggle" ].MouseButton1Click:Connect(function()
+    items[ "toggle" ].Activated:Connect(function()
         cfg.set(not cfg.enabled)
     end)
 
-    items[ "toggle_button" ].MouseButton1Click:Connect(function()
+    items[ "toggle_button" ].Activated:Connect(function()
         cfg.set(not cfg.enabled)
     end)
 
@@ -3410,13 +3415,20 @@ function library:mobile_format_control(items, kind)
     name.TextYAlignment = Enum.TextYAlignment.Top
     local name_offset = -8
     if kind == "toggle" then
-        name_offset = -61
+        name_offset = items.outline and -61 or -69
     elseif kind == "keybind" then
         name_offset = -82
     elseif kind == "label" then
         name_offset = -41
     end
     name.Size = dim2(1, name_offset, 0, 0)
+    if kind == "toggle" then
+        name.TextSize = 15
+        name.TextWrapped = false
+        name.TextTruncate = Enum.TextTruncate.AtEnd
+        name.AutomaticSize = Enum.AutomaticSize.None
+        name.Size = dim2(1, name_offset, 0, 22)
+    end
     if items.info then
         items.info.TextSize = 12
         items.info.TextWrapped = true
@@ -3428,13 +3440,17 @@ function library:mobile_format_control(items, kind)
     if kind == "toggle" or kind == "keybind" or kind == "label" then
         if items.right_components then
             items.right_components.AnchorPoint = vec2(1, 0)
-            items.right_components.Position = dim2(1, -4, 0, 4)
-            items.right_components.Size = dim_offset(kind == "keybind" and 68 or (kind == "label" and 26 or 48), 25)
+            items.right_components.Position = dim2(1, -4, 0, kind == "toggle" and 0 or 4)
+            if kind == "toggle" then
+                items.right_components.Size = dim_offset(items.outline and 32 or 57, 26)
+            else
+                items.right_components.Size = dim_offset(kind == "keybind" and 68 or 26, 25)
+            end
         end
         if kind == "keybind" then name.Size = dim2(1, -82, 0, 0) end
         if kind == "label" and not items.right_components then name.Size = dim2(1, -8, 0, 0) end
         if kind == "toggle" and items.toggle_button then
-            items.toggle_button.Size = dim_offset(items.tick and 24 or 40, 22)
+            items.toggle_button.Size = dim_offset(items.outline and 24 or 48, items.outline and 22 or 26)
         end
     elseif kind == "dropdown" then
         items.right_components.AnchorPoint = vec2(0, 0)
@@ -3458,6 +3474,9 @@ function library:mobile_format_control(items, kind)
                 items.info.Position = dim_offset(4, label_y + 38)
             elseif kind == "textbox" then
                 items.info.Position = dim_offset(4, label_y + 39)
+            elseif kind == "toggle" then
+                items.info.TextSize = 13
+                items.info.Position = dim_offset(4, label_y + 6)
             else
                 items.info.Position = dim_offset(4, label_y + 3)
             end

@@ -65,13 +65,20 @@ function library:mobile_format_control(items, kind)
     name.TextYAlignment = Enum.TextYAlignment.Top
     local name_offset = -8
     if kind == "toggle" then
-        name_offset = -61
+        name_offset = items.outline and -61 or -69
     elseif kind == "keybind" then
         name_offset = -82
     elseif kind == "label" then
         name_offset = -41
     end
     name.Size = dim2(1, name_offset, 0, 0)
+    if kind == "toggle" then
+        name.TextSize = 15
+        name.TextWrapped = false
+        name.TextTruncate = Enum.TextTruncate.AtEnd
+        name.AutomaticSize = Enum.AutomaticSize.None
+        name.Size = dim2(1, name_offset, 0, 22)
+    end
     if items.info then
         items.info.TextSize = 12
         items.info.TextWrapped = true
@@ -83,13 +90,17 @@ function library:mobile_format_control(items, kind)
     if kind == "toggle" or kind == "keybind" or kind == "label" then
         if items.right_components then
             items.right_components.AnchorPoint = vec2(1, 0)
-            items.right_components.Position = dim2(1, -4, 0, 4)
-            items.right_components.Size = dim_offset(kind == "keybind" and 68 or (kind == "label" and 26 or 48), 25)
+            items.right_components.Position = dim2(1, -4, 0, kind == "toggle" and 0 or 4)
+            if kind == "toggle" then
+                items.right_components.Size = dim_offset(items.outline and 32 or 57, 26)
+            else
+                items.right_components.Size = dim_offset(kind == "keybind" and 68 or 26, 25)
+            end
         end
         if kind == "keybind" then name.Size = dim2(1, -82, 0, 0) end
         if kind == "label" and not items.right_components then name.Size = dim2(1, -8, 0, 0) end
         if kind == "toggle" and items.toggle_button then
-            items.toggle_button.Size = dim_offset(items.tick and 24 or 40, 22)
+            items.toggle_button.Size = dim_offset(items.outline and 24 or 48, items.outline and 22 or 26)
         end
     elseif kind == "dropdown" then
         items.right_components.AnchorPoint = vec2(0, 0)
@@ -113,6 +124,9 @@ function library:mobile_format_control(items, kind)
                 items.info.Position = dim_offset(4, label_y + 38)
             elseif kind == "textbox" then
                 items.info.Position = dim_offset(4, label_y + 39)
+            elseif kind == "toggle" then
+                items.info.TextSize = 13
+                items.info.Position = dim_offset(4, label_y + 6)
             else
                 items.info.Position = dim_offset(4, label_y + 3)
             end
