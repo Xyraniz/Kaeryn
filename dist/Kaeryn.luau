@@ -1,5 +1,5 @@
 local __kaeryn_modules = {
-    ["src/Kaeryn/Bootstrap.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Bootstrap.luau"] = function(__kaeryn_require)
 local uis = game:GetService("UserInputService")
 local players = game:GetService("Players")
 local ws = game:GetService("Workspace")
@@ -340,7 +340,7 @@ return {
 }
 
     end,
-    ["src/Kaeryn/Config/ConfigManager.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Config/ConfigManager.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local http_service = __kaeryn.http_service
     local hex = __kaeryn.hex
@@ -460,7 +460,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Config/ConfigUI.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Config/ConfigUI.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local color = __kaeryn.color
     local library = __kaeryn.library
@@ -528,7 +528,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Controls/Button.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Controls/Button.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local vec2 = __kaeryn.vec2
     local dim2 = __kaeryn.dim2
@@ -607,7 +607,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Controls/Colorpicker.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Controls/Colorpicker.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local uis = __kaeryn.uis
     local vec2 = __kaeryn.vec2
@@ -1133,7 +1133,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Controls/Dropdown.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Controls/Dropdown.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local ws = __kaeryn.ws
     local gui_service = __kaeryn.gui_service
@@ -1541,7 +1541,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Controls/Keybind.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Controls/Keybind.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local uis = __kaeryn.uis
     local ws = __kaeryn.ws
@@ -1905,7 +1905,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Controls/Label.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Controls/Label.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local vec2 = __kaeryn.vec2
     local dim2 = __kaeryn.dim2
@@ -2020,7 +2020,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Controls/List.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Controls/List.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local dim2 = __kaeryn.dim2
     local dim = __kaeryn.dim
@@ -2125,7 +2125,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Controls/Settings.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Controls/Settings.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local dim2 = __kaeryn.dim2
     local dim = __kaeryn.dim
@@ -2234,7 +2234,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Controls/Slider.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Controls/Slider.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local uis = __kaeryn.uis
     local vec2 = __kaeryn.vec2
@@ -2509,7 +2509,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Controls/Textbox.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Controls/Textbox.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local dim2 = __kaeryn.dim2
     local dim = __kaeryn.dim
@@ -2657,7 +2657,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Controls/Toggle.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Controls/Toggle.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local vec2 = __kaeryn.vec2
     local dim2 = __kaeryn.dim2
@@ -2950,7 +2950,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Core.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Core.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local uis = __kaeryn.uis
     local ws = __kaeryn.ws
@@ -3163,34 +3163,34 @@ end
 end
 
     end,
-    ["src/Kaeryn/Init.lua"] = function(__kaeryn_require)
-local context = __kaeryn_require("src/Kaeryn/Bootstrap.lua")
+    ["src/Kaeryn/Init.luau"] = function(__kaeryn_require)
+local context = __kaeryn_require("src/Kaeryn/Bootstrap.luau")
 
-__kaeryn_require("src/Kaeryn/Core.lua")(context)
-__kaeryn_require("src/Kaeryn/Config/ConfigManager.lua")(context)
-__kaeryn_require("src/Kaeryn/Themes.lua")(context)
-__kaeryn_require("src/Kaeryn/Lifecycle.lua")(context)
-__kaeryn_require("src/Kaeryn/InputManager.lua")(context)
-__kaeryn_require("src/Kaeryn/Layout.lua")(context)
-__kaeryn_require("src/Kaeryn/Window.lua")(context)
-__kaeryn_require("src/Kaeryn/Navigation.lua")(context)
-__kaeryn_require("src/Kaeryn/Controls/Toggle.lua")(context)
-__kaeryn_require("src/Kaeryn/Controls/Slider.lua")(context)
-__kaeryn_require("src/Kaeryn/Controls/Dropdown.lua")(context)
-__kaeryn_require("src/Kaeryn/Controls/Label.lua")(context)
-__kaeryn_require("src/Kaeryn/Controls/Colorpicker.lua")(context)
-__kaeryn_require("src/Kaeryn/Controls/Textbox.lua")(context)
-__kaeryn_require("src/Kaeryn/Controls/Keybind.lua")(context)
-__kaeryn_require("src/Kaeryn/Controls/Button.lua")(context)
-__kaeryn_require("src/Kaeryn/Controls/Settings.lua")(context)
-__kaeryn_require("src/Kaeryn/Controls/List.lua")(context)
-__kaeryn_require("src/Kaeryn/Config/ConfigUI.lua")(context)
-__kaeryn_require("src/Kaeryn/Notifications.lua")(context)
+__kaeryn_require("src/Kaeryn/Core.luau")(context)
+__kaeryn_require("src/Kaeryn/Config/ConfigManager.luau")(context)
+__kaeryn_require("src/Kaeryn/Themes.luau")(context)
+__kaeryn_require("src/Kaeryn/Lifecycle.luau")(context)
+__kaeryn_require("src/Kaeryn/InputManager.luau")(context)
+__kaeryn_require("src/Kaeryn/Layout.luau")(context)
+__kaeryn_require("src/Kaeryn/Window.luau")(context)
+__kaeryn_require("src/Kaeryn/Navigation.luau")(context)
+__kaeryn_require("src/Kaeryn/Controls/Toggle.luau")(context)
+__kaeryn_require("src/Kaeryn/Controls/Slider.luau")(context)
+__kaeryn_require("src/Kaeryn/Controls/Dropdown.luau")(context)
+__kaeryn_require("src/Kaeryn/Controls/Label.luau")(context)
+__kaeryn_require("src/Kaeryn/Controls/Colorpicker.luau")(context)
+__kaeryn_require("src/Kaeryn/Controls/Textbox.luau")(context)
+__kaeryn_require("src/Kaeryn/Controls/Keybind.luau")(context)
+__kaeryn_require("src/Kaeryn/Controls/Button.luau")(context)
+__kaeryn_require("src/Kaeryn/Controls/Settings.luau")(context)
+__kaeryn_require("src/Kaeryn/Controls/List.luau")(context)
+__kaeryn_require("src/Kaeryn/Config/ConfigUI.luau")(context)
+__kaeryn_require("src/Kaeryn/Notifications.luau")(context)
 
 return context.library
 
     end,
-    ["src/Kaeryn/InputManager.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/InputManager.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local uis = __kaeryn.uis
     local library = __kaeryn.library
@@ -3236,7 +3236,7 @@ end)
 end
 
     end,
-    ["src/Kaeryn/Layout.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Layout.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local uis = __kaeryn.uis
     local ws = __kaeryn.ws
@@ -3553,7 +3553,7 @@ library.unload = library.unload_menu
 end
 
     end,
-    ["src/Kaeryn/Lifecycle.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Lifecycle.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local insert = __kaeryn.insert
     local library = __kaeryn.library
@@ -3591,7 +3591,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Navigation.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Navigation.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local vec2 = __kaeryn.vec2
     local dim2 = __kaeryn.dim2
@@ -4304,7 +4304,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Notifications.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Notifications.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local vec2 = __kaeryn.vec2
     local dim2 = __kaeryn.dim2
@@ -4476,7 +4476,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Themes.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Themes.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local insert = __kaeryn.insert
     local library = __kaeryn.library
@@ -4559,7 +4559,7 @@ end
 end
 
     end,
-    ["src/Kaeryn/Window.lua"] = function(__kaeryn_require)
+    ["src/Kaeryn/Window.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local ws = __kaeryn.ws
     local coregui = __kaeryn.coregui
@@ -4911,4 +4911,4 @@ local function __kaeryn_require(id)
     return value
 end
 
-return __kaeryn_require("src/Kaeryn/Init.lua")
+return __kaeryn_require("src/Kaeryn/Init.luau")

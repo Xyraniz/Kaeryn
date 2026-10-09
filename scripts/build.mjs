@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = path.join(root, "src", "Kaeryn");
-const entry = path.join(sourceRoot, "Init.lua");
+const entry = path.join(sourceRoot, "Init.luau");
 const modules = new Map();
 const requirePattern = /require\((['"])(\.\/[^'"]+)\1\)/g;
 
@@ -14,7 +14,7 @@ function moduleId(file) {
 
 function resolveModule(from, request) {
     let target = path.resolve(path.dirname(from), request);
-    if (path.extname(target) === "") target += ".lua";
+    if (path.extname(target) === "") target += ".luau";
     if (!target.startsWith(sourceRoot + path.sep) && target !== sourceRoot) {
         throw new Error(`Module path escapes src/Kaeryn: ${request}`);
     }
@@ -46,7 +46,7 @@ const factories = entries.map(([file, module]) => {
 
 const bundle = `local __kaeryn_modules = {\n${factories}\n}\n\nlocal __kaeryn_cache = {}\nlocal function __kaeryn_require(id)\n    if __kaeryn_cache[id] ~= nil then return __kaeryn_cache[id] end\n    local factory = __kaeryn_modules[id]\n    if not factory then error("Unknown bundled module: " .. tostring(id), 2) end\n    local value = factory(__kaeryn_require)\n    __kaeryn_cache[id] = value\n    return value\nend\n\nreturn __kaeryn_require(${JSON.stringify(moduleId(entry))})\n`;
 
-const output = path.join(root, "dist", "Kaeryn.lua");
+const output = path.join(root, "dist", "Kaeryn.luau");
 fs.mkdirSync(path.dirname(output), {recursive: true});
 fs.writeFileSync(output, bundle, "utf8");
 process.stdout.write(`Built ${path.relative(root, output)} from ${modules.size} modules\n`);

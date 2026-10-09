@@ -1,6 +1,6 @@
 # Kaeryn
 
-Kaeryn is a modular Luau UI library. Its source lives in `src/Kaeryn/`, and the generated `dist/Kaeryn.lua` stays self-contained for simple loading.
+Kaeryn is a modular Luau UI library. Its source lives in `src/Kaeryn/` as `.luau` files, and the generated `dist/Kaeryn.luau` stays self-contained for simple loading.
 
 ## Build
 
@@ -14,7 +14,7 @@ npm test
 ## Use the single-file bundle
 
 ```lua
-local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Xyraniz/Kaeryn/main/dist/Kaeryn.lua"))()
+local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Xyraniz/Kaeryn/main/dist/Kaeryn.luau"))()
 ```
 
 Give controls explicit, stable flags for saved configs. If omitted, named controls use a key derived from their type, section, and name. Unnamed controls need an explicit flag or name. Duplicate keys stop setup with a warning and an error so one control cannot silently take over another control's config setter.
