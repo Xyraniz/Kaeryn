@@ -5,8 +5,6 @@ local library = loadstring(source)()
 
 local window = library:window({
     name = "Kaeryn",
-    gameInfo = "Full showcase",
-    suffix = "demo",
     size = UDim2.fromOffset(760, 560),
 })
 

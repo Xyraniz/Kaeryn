@@ -57,14 +57,13 @@ function library:refresh_responsive_layout(window)
 
     local side = breakpoint == "phone" and 54 or breakpoint == "tablet" and 164 or 196
     local header = breakpoint == "phone" and 48 or 56
-    local footer = 25
     library.responsive_sidebar_width = side
     library.responsive_header_height = header
-    items.side_frame.Size = dim2(0, side, 1, -footer)
+    items.side_frame.Size = dim2(0, side, 1, 0)
     items.multi_holder.Position = dim_offset(side, 0)
     items.multi_holder.Size = dim2(1, -side, 0, header)
     items.global_fade.Position = dim_offset(side, header)
-    items.global_fade.Size = dim2(1, -side, 1, -(header + footer))
+    items.global_fade.Size = dim2(1, -side, 1, -header)
     items.title.Position = dim_offset(breakpoint == "phone" and 0 or 11, 0)
     items.title.Size = dim_offset(breakpoint == "phone" and side or side - 22, 48)
     items.title.TextSize = breakpoint == "phone" and 18 or breakpoint == "tablet" and 19 or 28
@@ -72,7 +71,7 @@ function library:refresh_responsive_layout(window)
     items.title.TextWrapped = false
     items.title.TextTruncate = Enum.TextTruncate.AtEnd
     items.title.Text = breakpoint == "phone" and string.upper(window.name:match("[%w]") or "?")
-        or string.format('<u>%s</u><font color = "rgb(255, 255, 255)">%s</font>', window.name, window.suffix)
+        or string.format('<u>%s</u>', window.name)
     items.button_holder.Position = dim_offset(0, header)
     items.button_holder.Size = dim2(1, 0, 1, -(header + 4))
     for _, child in ipairs(items.button_holder:GetChildren()) do
@@ -86,7 +85,7 @@ function library:refresh_responsive_layout(window)
         local tab_items = tab.items
         if tab_items and tab_items.tab_holder then
             tab_items.tab_holder.Position = dim_offset(side, header)
-            tab_items.tab_holder.Size = dim2(1, -side, 1, -(header + footer))
+            tab_items.tab_holder.Size = dim2(1, -side, 1, -header)
             tab_items.multi_section_button_holder.Size = dim2(1, -82, 1, 0)
             tab_items.name.Visible = breakpoint ~= "phone"
             tab_items.name.AutomaticSize = Enum.AutomaticSize.None
@@ -256,7 +255,6 @@ function library:refresh_mobile_layout()
     if compact == nil then compact = false end
     local side = compact and 54 or min(216, max(156, floor(width * 0.28)))
     local header = 42
-    local footer = 20
     local previous_viewport = library.mobile_viewport
     local changed = previous_viewport ~= viewport
     local old_position = it.main.Position
@@ -278,7 +276,7 @@ function library:refresh_mobile_layout()
     if changed or it.main.Position ~= dim_offset(left, y) then
         it.main.Position = dim_offset(left, y)
     end
-    it.side_frame.Size = dim2(0, side, 1, -footer)
+    it.side_frame.Size = dim2(0, side, 1, 0)
     it.title.Text = compact and win.name:sub(1, 1):upper() or win.name
     it.title.TextSize = compact and 18 or (side < 185 and 13 or 14)
     it.title.TextTruncate = compact and Enum.TextTruncate.AtEnd or Enum.TextTruncate.None
@@ -295,11 +293,7 @@ function library:refresh_mobile_layout()
     it.multi_holder.Position = dim_offset(side, 0)
     it.multi_holder.Size = dim2(1, -side, 0, header)
     it.global_fade.Position = dim_offset(side, header)
-    it.global_fade.Size = dim2(1, -side, 1, -(header + footer))
-    it.info.Size = dim2(1, 0, 0, footer)
-    it.game.Visible = false
-    it.other_info.Visible = not compact
-    it.other_info.TextSize = 11
+    it.global_fade.Size = dim2(1, -side, 1, -header)
     for _, child in it.button_holder:GetChildren() do
         if child:IsA("TextLabel") then
             child.Visible = not compact
@@ -325,7 +319,7 @@ function library:refresh_mobile_layout()
             end
             t.button.Size = dim2(1, 0, 0, 39)
             t.tab_holder.Position = dim_offset(side, header)
-            t.tab_holder.Size = dim2(1, -side - 6, 1, -(header + footer + 6))
+            t.tab_holder.Size = dim2(1, -side - 6, 1, -(header + 6))
             t.multi_section_button_holder.Size = dim2(1, -82, 1, 0)
         end
     end

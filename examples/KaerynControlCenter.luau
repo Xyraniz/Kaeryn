@@ -105,8 +105,6 @@ end, {
 
 local window = library:window({
 	name = "Kaeryn",
-	suffix = " | OPERATIONS",
-	gameInfo = "Operations Center",
 	size = UDim2.fromOffset(780, 590),
 	min_size = Vector2.new(560, 420),
 	max_size = Vector2.new(1180, 900),
@@ -280,7 +278,7 @@ overview_section:button({
 
 local controls_left = operation_controls:column({})
 local controls_right = operation_controls:column({})
-local range_section = controls_left:section({name = "Ranges", default = true, size = 1, icon = "lucide:sliders-horizontal"})
+local range_section = controls_left:section({name = "Ranges", default = true, size = 1, icon = "lucide:sliders-horizontal", background_transparency = 0.18})
 local power = range_section:slider({
 	id = "render.power",
 	name = "Intensity",
@@ -342,7 +340,7 @@ range_section:button({
 	end,
 })
 
-local modes_section = controls_right:section({name = "Modes and color", default = true, size = 1, icon = "lucide:circle-check"})
+local modes_section = controls_right:section({name = "Modes and color", default = true, size = 1, icon = "lucide:circle-check", background_transparency = 0.18})
 local render_mode = modes_section:segmented({
 	id = "render.mode",
 	name = "Image quality",
@@ -662,6 +660,21 @@ record_actions:button({
 local system_left = system_utilities:column({})
 local system_right = system_utilities:column({})
 local appearance_section = system_left:section({name = "Appearance", default = true, size = 1, icon = "lucide:settings"})
+appearance_section:slider({
+	id = "appearance.section_transparency",
+	name = "Section transparency",
+	info = "Adjust the Ranges and Modes cards.",
+	min = 0,
+	max = 100,
+	interval = 1,
+	default = 18,
+	suffix = "%",
+	callback = function(value)
+		local transparency = value / 100
+		range_section:SetBackgroundTransparency(transparency)
+		modes_section:SetBackgroundTransparency(transparency)
+	end,
+})
 local background_amount = appearance_section:slider({
 	id = "appearance.background_transparency",
 	name = "Background transparency",

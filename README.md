@@ -152,6 +152,17 @@ window:SetBackgroundImageTransparency(0.6)
 window:SetBackgroundImage(nil) -- clear it
 ```
 
+Sections can also reveal the window background through their cards. Set `background_transparency` from `0` (opaque) to `1` (invisible) when creating a section, or update it later with `SetBackgroundTransparency()`:
+
+```lua
+local ranges = column:section({
+    name = "Ranges",
+    background_transparency = 0.18,
+})
+
+ranges:SetBackgroundTransparency(0.35)
+```
+
 ## Page lifecycle and lazy content
 
 Tabs and pages accept `on_enter` and `on_leave` callbacks. A page definition can use `lazy` to build its controls on its first open; page IDs remain independent of the displayed name and are used when restoring a saved layout.

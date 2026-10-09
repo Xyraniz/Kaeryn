@@ -34,9 +34,7 @@ function library:window(properties)
         "window background_transparency must be a number between 0 and 1")
 
     local cfg = {
-        suffix = properties.suffix or properties.Suffix or "tech";
         name = properties.name or properties.Name or "nebula";
-        game_name = properties.gameInfo or properties.game_info or properties.GameInfo or "Kaeryn";
         size = properties.size or properties.Size or dim2(0, 700, 0, 565);
         background = background_image;
         background_transparency = background_transparency;
@@ -172,7 +170,7 @@ function library:window(properties)
             BorderColor3 = rgb(0, 0, 0);
             Parent = items[ "side_frame" ];
             Name = "\0";
-            Text = string.format('<u>%s</u><font color = "rgb(255, 255, 255)">%s</font>', cfg.name, cfg.suffix);
+            Text = string.format('<u>%s</u>', cfg.name);
             BackgroundTransparency = 1;
             Size = dim2(1, 0, 0, 70);
             TextColor3 = themes.preset.accent;
@@ -238,67 +236,6 @@ function library:window(properties)
             CornerRadius = dim(0, 5)
         });
 
-        items[ "info" ] = library:create( "Frame" , {
-            AnchorPoint = vec2(0, 1);
-            Parent = items[ "main" ];
-            Name = "\0";
-            Position = dim2(0, 0, 1, 0);
-            BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(1, 0, 0, 25);
-            BorderSizePixel = 0;
-            BackgroundColor3 = rgb(23, 23, 25)
-        });
-
-        library:create( "UICorner" , {
-            Parent = items[ "info" ];
-            CornerRadius = dim(0, 10)
-        });
-
-        items[ "grey_fill" ] = library:create( "Frame" , {
-            Name = "\0";
-            Parent = items[ "info" ];
-            BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(1, 0, 0, 6);
-            BorderSizePixel = 0;
-            BackgroundColor3 = rgb(23, 23, 25)
-        });
-
-        items[ "game" ] = library:create( "TextLabel" , {
-            FontFace = fonts.font;
-            Parent = items[ "info" ];
-            TextColor3 = rgb(72, 72, 73);
-            BorderColor3 = rgb(0, 0, 0);
-            Text = cfg.game_name;
-            Name = "\0";
-            Size = dim2(1, 0, 0, 0);
-            AnchorPoint = vec2(0, 0.5);
-            Position = dim2(0, 10, 0.5, -1);
-            BackgroundTransparency = 1;
-            TextXAlignment = Enum.TextXAlignment.Left;
-            BorderSizePixel = 0;
-            AutomaticSize = Enum.AutomaticSize.XY;
-            TextSize = 14;
-            BackgroundColor3 = rgb(255, 255, 255)
-        });
-
-        items[ "other_info" ] = library:create( "TextLabel" , {
-            Parent = items[ "info" ];
-            RichText = true;
-            Name = "\0";
-            TextColor3 = themes.preset.accent;
-            BorderColor3 = rgb(0, 0, 0);
-            Text = cfg.name .. cfg.suffix;
-            Size = dim2(1, 0, 0, 0);
-            Position = dim2(0, -10, 0.5, -1);
-            AnchorPoint = vec2(0, 0.5);
-            BorderSizePixel = 0;
-            BackgroundTransparency = 1;
-            TextXAlignment = Enum.TextXAlignment.Right;
-            AutomaticSize = Enum.AutomaticSize.XY;
-            FontFace = fonts.font;
-            TextSize = 14;
-            BackgroundColor3 = rgb(255, 255, 255)
-        }); library:apply_theme(items[ "other_info" ], "accent", "TextColor3");
     end
 
     do

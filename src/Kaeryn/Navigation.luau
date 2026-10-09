@@ -620,6 +620,12 @@ end
 
 function library:section(properties)
     properties = properties or {}
+    local background_transparency = properties.background_transparency
+    if background_transparency == nil then background_transparency = 0 end
+    assert(type(background_transparency) == "number" and background_transparency == background_transparency
+        and background_transparency >= 0 and background_transparency <= 1,
+        "section background_transparency must be a number between 0 and 1")
+    local layer_transparency = math.sqrt(background_transparency)
     local cfg = {
         name = properties.name or properties.Name or "section";
         side = properties.side or properties.Side or "left";
@@ -627,6 +633,7 @@ function library:section(properties)
         size = properties.size or properties.Size or self.size or 0.5;
         icon = properties.icon or properties.Icon or "lucide:settings";
         fading_toggle = properties.fading or properties.Fading or false;
+        background_transparency = background_transparency;
         items = {};
     };
     cfg._column = self
@@ -639,6 +646,7 @@ function library:section(properties)
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(0, 0, cfg.size, -3);
             BorderSizePixel = 0;
+            BackgroundTransparency = layer_transparency;
             BackgroundColor3 = rgb(25, 25, 29)
         });
 
@@ -654,8 +662,20 @@ function library:section(properties)
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(1, -2, 1, -2);
             BorderSizePixel = 0;
+            BackgroundTransparency = layer_transparency;
             BackgroundColor3 = rgb(22, 22, 24)
         });
+
+        function cfg:SetBackgroundTransparency(transparency)
+            if type(transparency) ~= "number" or transparency ~= transparency or transparency < 0 or transparency > 1 then
+                return false, "section background transparency must be a number between 0 and 1"
+            end
+            self.background_transparency = transparency
+            local layer_transparency = math.sqrt(transparency)
+            items.outline.BackgroundTransparency = layer_transparency
+            items.inline.BackgroundTransparency = layer_transparency
+            return true
+        end
 
         library:create( "UICorner" , {
             Parent = items[ "inline" ];

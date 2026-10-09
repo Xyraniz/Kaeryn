@@ -6137,14 +6137,13 @@ function library:refresh_responsive_layout(window)
 
     local side = breakpoint == "phone" and 54 or breakpoint == "tablet" and 164 or 196
     local header = breakpoint == "phone" and 48 or 56
-    local footer = 25
     library.responsive_sidebar_width = side
     library.responsive_header_height = header
-    items.side_frame.Size = dim2(0, side, 1, -footer)
+    items.side_frame.Size = dim2(0, side, 1, 0)
     items.multi_holder.Position = dim_offset(side, 0)
     items.multi_holder.Size = dim2(1, -side, 0, header)
     items.global_fade.Position = dim_offset(side, header)
-    items.global_fade.Size = dim2(1, -side, 1, -(header + footer))
+    items.global_fade.Size = dim2(1, -side, 1, -header)
     items.title.Position = dim_offset(breakpoint == "phone" and 0 or 11, 0)
     items.title.Size = dim_offset(breakpoint == "phone" and side or side - 22, 48)
     items.title.TextSize = breakpoint == "phone" and 18 or breakpoint == "tablet" and 19 or 28
@@ -6152,7 +6151,7 @@ function library:refresh_responsive_layout(window)
     items.title.TextWrapped = false
     items.title.TextTruncate = Enum.TextTruncate.AtEnd
     items.title.Text = breakpoint == "phone" and string.upper(window.name:match("[%w]") or "?")
-        or string.format('<u>%s</u><font color = "rgb(255, 255, 255)">%s</font>', window.name, window.suffix)
+        or string.format('<u>%s</u>', window.name)
     items.button_holder.Position = dim_offset(0, header)
     items.button_holder.Size = dim2(1, 0, 1, -(header + 4))
     for _, child in ipairs(items.button_holder:GetChildren()) do
@@ -6166,7 +6165,7 @@ function library:refresh_responsive_layout(window)
         local tab_items = tab.items
         if tab_items and tab_items.tab_holder then
             tab_items.tab_holder.Position = dim_offset(side, header)
-            tab_items.tab_holder.Size = dim2(1, -side, 1, -(header + footer))
+            tab_items.tab_holder.Size = dim2(1, -side, 1, -header)
             tab_items.multi_section_button_holder.Size = dim2(1, -82, 1, 0)
             tab_items.name.Visible = breakpoint ~= "phone"
             tab_items.name.AutomaticSize = Enum.AutomaticSize.None
@@ -6336,7 +6335,6 @@ function library:refresh_mobile_layout()
     if compact == nil then compact = false end
     local side = compact and 54 or min(216, max(156, floor(width * 0.28)))
     local header = 42
-    local footer = 20
     local previous_viewport = library.mobile_viewport
     local changed = previous_viewport ~= viewport
     local old_position = it.main.Position
@@ -6358,7 +6356,7 @@ function library:refresh_mobile_layout()
     if changed or it.main.Position ~= dim_offset(left, y) then
         it.main.Position = dim_offset(left, y)
     end
-    it.side_frame.Size = dim2(0, side, 1, -footer)
+    it.side_frame.Size = dim2(0, side, 1, 0)
     it.title.Text = compact and win.name:sub(1, 1):upper() or win.name
     it.title.TextSize = compact and 18 or (side < 185 and 13 or 14)
     it.title.TextTruncate = compact and Enum.TextTruncate.AtEnd or Enum.TextTruncate.None
@@ -6375,11 +6373,7 @@ function library:refresh_mobile_layout()
     it.multi_holder.Position = dim_offset(side, 0)
     it.multi_holder.Size = dim2(1, -side, 0, header)
     it.global_fade.Position = dim_offset(side, header)
-    it.global_fade.Size = dim2(1, -side, 1, -(header + footer))
-    it.info.Size = dim2(1, 0, 0, footer)
-    it.game.Visible = false
-    it.other_info.Visible = not compact
-    it.other_info.TextSize = 11
+    it.global_fade.Size = dim2(1, -side, 1, -header)
     for _, child in it.button_holder:GetChildren() do
         if child:IsA("TextLabel") then
             child.Visible = not compact
@@ -6405,7 +6399,7 @@ function library:refresh_mobile_layout()
             end
             t.button.Size = dim2(1, 0, 0, 39)
             t.tab_holder.Position = dim_offset(side, header)
-            t.tab_holder.Size = dim2(1, -side - 6, 1, -(header + footer + 6))
+            t.tab_holder.Size = dim2(1, -side - 6, 1, -(header + 6))
             t.multi_section_button_holder.Size = dim2(1, -82, 1, 0)
         end
     end
@@ -9105,6 +9099,12 @@ end
 
 function library:section(properties)
     properties = properties or {}
+    local background_transparency = properties.background_transparency
+    if background_transparency == nil then background_transparency = 0 end
+    assert(type(background_transparency) == "number" and background_transparency == background_transparency
+        and background_transparency >= 0 and background_transparency <= 1,
+        "section background_transparency must be a number between 0 and 1")
+    local layer_transparency = math.sqrt(background_transparency)
     local cfg = {
         name = properties.name or properties.Name or "section";
         side = properties.side or properties.Side or "left";
@@ -9112,6 +9112,7 @@ function library:section(properties)
         size = properties.size or properties.Size or self.size or 0.5;
         icon = properties.icon or properties.Icon or "lucide:settings";
         fading_toggle = properties.fading or properties.Fading or false;
+        background_transparency = background_transparency;
         items = {};
     };
     cfg._column = self
@@ -9124,6 +9125,7 @@ function library:section(properties)
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(0, 0, cfg.size, -3);
             BorderSizePixel = 0;
+            BackgroundTransparency = layer_transparency;
             BackgroundColor3 = rgb(25, 25, 29)
         });
 
@@ -9139,8 +9141,20 @@ function library:section(properties)
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(1, -2, 1, -2);
             BorderSizePixel = 0;
+            BackgroundTransparency = layer_transparency;
             BackgroundColor3 = rgb(22, 22, 24)
         });
+
+        function cfg:SetBackgroundTransparency(transparency)
+            if type(transparency) ~= "number" or transparency ~= transparency or transparency < 0 or transparency > 1 then
+                return false, "section background transparency must be a number between 0 and 1"
+            end
+            self.background_transparency = transparency
+            local layer_transparency = math.sqrt(transparency)
+            items.outline.BackgroundTransparency = layer_transparency
+            items.inline.BackgroundTransparency = layer_transparency
+            return true
+        end
 
         library:create( "UICorner" , {
             Parent = items[ "inline" ];
@@ -10210,9 +10224,7 @@ function library:window(properties)
         "window background_transparency must be a number between 0 and 1")
 
     local cfg = {
-        suffix = properties.suffix or properties.Suffix or "tech";
         name = properties.name or properties.Name or "nebula";
-        game_name = properties.gameInfo or properties.game_info or properties.GameInfo or "Kaeryn";
         size = properties.size or properties.Size or dim2(0, 700, 0, 565);
         background = background_image;
         background_transparency = background_transparency;
@@ -10348,7 +10360,7 @@ function library:window(properties)
             BorderColor3 = rgb(0, 0, 0);
             Parent = items[ "side_frame" ];
             Name = "\0";
-            Text = string.format('<u>%s</u><font color = "rgb(255, 255, 255)">%s</font>', cfg.name, cfg.suffix);
+            Text = string.format('<u>%s</u>', cfg.name);
             BackgroundTransparency = 1;
             Size = dim2(1, 0, 0, 70);
             TextColor3 = themes.preset.accent;
@@ -10414,67 +10426,6 @@ function library:window(properties)
             CornerRadius = dim(0, 5)
         });
 
-        items[ "info" ] = library:create( "Frame" , {
-            AnchorPoint = vec2(0, 1);
-            Parent = items[ "main" ];
-            Name = "\0";
-            Position = dim2(0, 0, 1, 0);
-            BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(1, 0, 0, 25);
-            BorderSizePixel = 0;
-            BackgroundColor3 = rgb(23, 23, 25)
-        });
-
-        library:create( "UICorner" , {
-            Parent = items[ "info" ];
-            CornerRadius = dim(0, 10)
-        });
-
-        items[ "grey_fill" ] = library:create( "Frame" , {
-            Name = "\0";
-            Parent = items[ "info" ];
-            BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(1, 0, 0, 6);
-            BorderSizePixel = 0;
-            BackgroundColor3 = rgb(23, 23, 25)
-        });
-
-        items[ "game" ] = library:create( "TextLabel" , {
-            FontFace = fonts.font;
-            Parent = items[ "info" ];
-            TextColor3 = rgb(72, 72, 73);
-            BorderColor3 = rgb(0, 0, 0);
-            Text = cfg.game_name;
-            Name = "\0";
-            Size = dim2(1, 0, 0, 0);
-            AnchorPoint = vec2(0, 0.5);
-            Position = dim2(0, 10, 0.5, -1);
-            BackgroundTransparency = 1;
-            TextXAlignment = Enum.TextXAlignment.Left;
-            BorderSizePixel = 0;
-            AutomaticSize = Enum.AutomaticSize.XY;
-            TextSize = 14;
-            BackgroundColor3 = rgb(255, 255, 255)
-        });
-
-        items[ "other_info" ] = library:create( "TextLabel" , {
-            Parent = items[ "info" ];
-            RichText = true;
-            Name = "\0";
-            TextColor3 = themes.preset.accent;
-            BorderColor3 = rgb(0, 0, 0);
-            Text = cfg.name .. cfg.suffix;
-            Size = dim2(1, 0, 0, 0);
-            Position = dim2(0, -10, 0.5, -1);
-            AnchorPoint = vec2(0, 0.5);
-            BorderSizePixel = 0;
-            BackgroundTransparency = 1;
-            TextXAlignment = Enum.TextXAlignment.Right;
-            AutomaticSize = Enum.AutomaticSize.XY;
-            FontFace = fonts.font;
-            TextSize = 14;
-            BackgroundColor3 = rgb(255, 255, 255)
-        }); library:apply_theme(items[ "other_info" ], "accent", "TextColor3");
     end
 
     do
