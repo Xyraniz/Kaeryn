@@ -57,6 +57,7 @@ function library:tab(properties)
             Parent = library.cache;
             Name = "\0";
             Visible = false;
+            AnchorPoint = vec2(0.5, 0);
             BackgroundTransparency = 1;
             Position = dim2(0, 196, 0, 56);
             BorderColor3 = rgb(0, 0, 0);
@@ -426,7 +427,10 @@ function library:tab(properties)
                 library:tween(self.items[ "global_fade" ], {BackgroundTransparency = 1}, Enum.EasingStyle.Quad, 0.4)
                 local side = library.responsive_sidebar_width or 196
                 local header = library.responsive_header_height or 56
-                selected_tab[ 4 ].Size = library.is_mobile and selected_tab[ 4 ].Size or dim2(1, -side - 20, 1, -(header + 25 + 20))
+                if not library.is_mobile then
+                    local _, collapsed_size = library:tab_content_geometry(library.window.items.main.AbsoluteSize.X, side, header, 45)
+                    selected_tab[ 4 ].Size = collapsed_size
+                end
             end
 
             library:tween(selected_tab[ 1 ], {BackgroundTransparency = 1})
@@ -451,7 +455,8 @@ function library:tab(properties)
         if not library.is_mobile then
             local side = library.responsive_sidebar_width or 196
             local header = library.responsive_header_height or 56
-            library:tween(items[ "tab_holder" ], {Size = dim2(1, -side, 1, -(header + 25))}, Enum.EasingStyle.Quad, 0.4)
+            local position, size = library:tab_content_geometry(library.window.items.main.AbsoluteSize.X, side, header, 25)
+            library:tween(items[ "tab_holder" ], {Position = position, Size = size}, Enum.EasingStyle.Quad, 0.4)
         end
 
         items[ "tab_holder" ].Visible = true

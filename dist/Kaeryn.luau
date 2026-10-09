@@ -166,6 +166,7 @@ function library:round(number, interval)
 end
 
 library.is_mobile = uis.TouchEnabled and (not uis.MouseEnabled or not uis.KeyboardEnabled)
+library.tab_content_width = library.is_mobile and 0.86 or 0.80
 library.section_content_width = library.is_mobile and 0.86 or 0.76
 library.section_control_width = library.is_mobile and 0.92 or 0.88
 library.mobile_tabs = {}
@@ -6497,6 +6498,13 @@ function library:get_breakpoint(viewport)
     return "desktop"
 end
 
+function library:tab_content_geometry(main_width, side, header, bottom)
+    local available = max(1, main_width - side)
+    local center = floor(side + available / 2)
+    local width = max(1, floor(available * library.tab_content_width))
+    return dim_offset(center, header), dim2(0, width, 1, -(header + (bottom or 0)))
+end
+
 function library:refresh_responsive_layout(window)
     if library.unloaded or not window or library.is_mobile then return end
     local camera = ws.CurrentCamera
@@ -6534,6 +6542,7 @@ function library:refresh_responsive_layout(window)
     local header = breakpoint == "phone" and 48 or 56
     library.responsive_sidebar_width = side
     library.responsive_header_height = header
+    local content_position, content_size = library:tab_content_geometry(width, side, header)
     items.side_frame.Size = dim2(0, side, 1, 0)
     items.multi_holder.Position = dim_offset(side, 0)
     items.multi_holder.Size = dim2(1, -side, 0, header)
@@ -6559,8 +6568,9 @@ function library:refresh_responsive_layout(window)
     for _, tab in ipairs(window.tabs or {}) do
         local tab_items = tab.items
         if tab_items and tab_items.tab_holder then
-            tab_items.tab_holder.Position = dim_offset(side, header)
-            tab_items.tab_holder.Size = dim2(1, -side, 1, -header)
+            tab_items.tab_holder.AnchorPoint = vec2(0.5, 0)
+            tab_items.tab_holder.Position = content_position
+            tab_items.tab_holder.Size = content_size
             tab_items.multi_section_button_holder.Size = dim2(1, -82, 1, 0)
             tab_items.name.Visible = breakpoint ~= "phone"
             tab_items.name.AutomaticSize = Enum.AutomaticSize.None
@@ -6730,6 +6740,7 @@ function library:refresh_mobile_layout()
     if compact == nil then compact = false end
     local side = compact and 54 or min(216, max(156, floor(width * 0.28)))
     local header = 42
+    local content_position, content_size = library:tab_content_geometry(width, side, header, 6)
     local previous_viewport = library.mobile_viewport
     local changed = previous_viewport ~= viewport
     local old_position = it.main.Position
@@ -6793,8 +6804,9 @@ function library:refresh_mobile_layout()
                 t.compact_mark.Size = dim_offset(28, 28)
             end
             t.button.Size = dim2(1, 0, 0, 39)
-            t.tab_holder.Position = dim_offset(side, header)
-            t.tab_holder.Size = dim2(1, -side - 6, 1, -(header + 6))
+            t.tab_holder.AnchorPoint = vec2(0.5, 0)
+            t.tab_holder.Position = content_position
+            t.tab_holder.Size = content_size
             t.multi_section_button_holder.Size = dim2(1, -82, 1, 0)
         end
     end
@@ -8933,6 +8945,7 @@ function library:tab(properties)
             Parent = library.cache;
             Name = "\0";
             Visible = false;
+            AnchorPoint = vec2(0.5, 0);
             BackgroundTransparency = 1;
             Position = dim2(0, 196, 0, 56);
             BorderColor3 = rgb(0, 0, 0);
@@ -9302,7 +9315,10 @@ function library:tab(properties)
                 library:tween(self.items[ "global_fade" ], {BackgroundTransparency = 1}, Enum.EasingStyle.Quad, 0.4)
                 local side = library.responsive_sidebar_width or 196
                 local header = library.responsive_header_height or 56
-                selected_tab[ 4 ].Size = library.is_mobile and selected_tab[ 4 ].Size or dim2(1, -side - 20, 1, -(header + 25 + 20))
+                if not library.is_mobile then
+                    local _, collapsed_size = library:tab_content_geometry(library.window.items.main.AbsoluteSize.X, side, header, 45)
+                    selected_tab[ 4 ].Size = collapsed_size
+                end
             end
 
             library:tween(selected_tab[ 1 ], {BackgroundTransparency = 1})
@@ -9327,7 +9343,8 @@ function library:tab(properties)
         if not library.is_mobile then
             local side = library.responsive_sidebar_width or 196
             local header = library.responsive_header_height or 56
-            library:tween(items[ "tab_holder" ], {Size = dim2(1, -side, 1, -(header + 25))}, Enum.EasingStyle.Quad, 0.4)
+            local position, size = library:tab_content_geometry(library.window.items.main.AbsoluteSize.X, side, header, 25)
+            library:tween(items[ "tab_holder" ], {Position = position, Size = size}, Enum.EasingStyle.Quad, 0.4)
         end
 
         items[ "tab_holder" ].Visible = true
