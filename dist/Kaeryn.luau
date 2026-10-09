@@ -10791,9 +10791,16 @@ function library:window(properties)
             BackgroundColor3 = rgb(21, 21, 23)
         });
 
-        items[ "button_holder" ] = library:create( library.is_mobile and "ScrollingFrame" or "Frame" , {
+        items[ "button_holder" ] = library:create( "ScrollingFrame" , {
             Parent = items[ "side_frame" ];
             Name = "\0";
+            Active = true;
+            ScrollingDirection = Enum.ScrollingDirection.Y;
+            AutomaticCanvasSize = Enum.AutomaticSize.Y;
+            ScrollBarThickness = 2;
+            ScrollBarImageColor3 = themes.preset.muted;
+            CanvasSize = dim_offset(0, 0);
+            ClipsDescendants = true;
             BackgroundTransparency = 1;
             Position = dim2(0, 0, 0, 60);
             BorderColor3 = rgb(0, 0, 0);
@@ -10801,14 +10808,7 @@ function library:window(properties)
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 255, 255)
         }); cfg.button_holder = items[ "button_holder" ];
-        if library.is_mobile then
-            items.button_holder.Active = true
-            items.button_holder.ScrollingDirection = Enum.ScrollingDirection.Y
-            items.button_holder.AutomaticCanvasSize = Enum.AutomaticSize.Y
-            items.button_holder.ScrollBarThickness = 2
-            items.button_holder.CanvasSize = dim_offset(0, 0)
-            items.button_holder.ClipsDescendants = true
-        end
+        library:apply_theme(items[ "button_holder" ], "muted", "ScrollBarImageColor3")
 
         library:create( "UIListLayout" , {
             Parent = items[ "button_holder" ];
