@@ -135,7 +135,11 @@ library:connection(uis.InputBegan, function(input, game_processed)
 
     local binding = matches[1]
     if binding.mode == "Toggle" then
-        library:with_change_context("user", "change", binding.set, not binding.active)
+        local current = binding.active
+        if binding.toggle_target and not binding.toggle_target._destroyed then
+            current = binding.toggle_target.enabled == true
+        end
+        library:with_change_context("user", "change", binding.set, not current)
     elseif binding.mode == "Hold" then
         library:with_change_context("user", "change", binding.set, true)
     end

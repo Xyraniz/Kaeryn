@@ -305,12 +305,21 @@ Dropdown configs save the stable `value`. During loading, old label-based values
 
 Keybinds are handled by one manager. Global bindings work in every context; scoped bindings run only while their exact context is active. Duplicate keys whose scopes overlap are reported by `GetConflicts()` and suppressed until resolved. `Rebind()` starts key capture on keyboard/mouse layouts, `Reset()` restores the configured key and mode, and `library:set_keybind_context()` switches the active scope.
 
+To have a keybind control a toggle, create the toggle first and pass its flag as `toggle_flag`. Pressing the key updates the toggle through its normal setter, so its visual state, callbacks, and saved flag stay in sync. Changing the toggle directly also keeps the keybind's active state in sync.
+
 ```lua
-local toggle_map = section:keybind({
-    id = "combat.map",
+local map_enabled = section:toggle({
+    id = "combat.map.enabled",
     name = "Map",
+    default = false,
+})
+
+local toggle_map = section:keybind({
+    id = "combat.map.hotkey",
+    name = "Map hotkey",
     key = Enum.KeyCode.M,
     context = "combat",
+    toggle_flag = map_enabled.flag,
 })
 
 library:set_keybind_context("combat")

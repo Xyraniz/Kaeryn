@@ -482,10 +482,14 @@ local category_list = account_section:list({
 })
 
 local inputs_buttons = inputs_right:section({name = "Input actions", default = true, size = 0.55, icon = "lucide:wrench"})
-local keybind_status = inputs_buttons:label({
-	id = "input.quick_action_status",
-	name = "Action status: Off",
-	info = "Desktop: click the key field and press a key; Escape clears it.",
+local quick_action = inputs_buttons:toggle({
+	id = "input.quick_action",
+	name = "Quick action",
+	default = false,
+	info = "Use the hotkey below to toggle this action.",
+	callback = function(active, change)
+		report_change("Quick action", active and "On" or "Off", change)
+	end,
 })
 local keybind = inputs_buttons:keybind({
 	id = "account.quick_action",
@@ -493,8 +497,8 @@ local keybind = inputs_buttons:keybind({
 	key = "NONE",
 	mode = "Toggle",
 	context = "inputs",
+	toggle_flag = quick_action.flag,
 	callback = function(active, change)
-		keybind_status.set("Action status: " .. (active and "On" or "Off"))
 		if change and change.source == "user" then
 			if change.phase == "commit" then
 				announce("Hotkey assigned", "Press the new key to toggle the action.")

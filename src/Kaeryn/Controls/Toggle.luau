@@ -232,7 +232,7 @@ function library:toggle(options)
         end
     end;
 
-    function cfg.set(bool)
+    function cfg.set(bool, explicit_context)
         bool = bool == true
         cfg.enabled = bool
         if cfg.type == "checkbox" then
@@ -253,7 +253,7 @@ function library:toggle(options)
         end
 
         flags[cfg.flag] = bool
-        library:dispatch_control_callback(cfg, cfg.callback, nil, bool)
+        library:dispatch_control_callback(cfg, cfg.callback, explicit_context, bool)
     end
 
     if cfg.folding then

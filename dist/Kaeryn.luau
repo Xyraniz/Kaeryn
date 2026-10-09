@@ -2274,7 +2274,20 @@ return function(__kaeryn)
     local fonts = __kaeryn.fonts
 
 function library:keybind(options)
+    local default_was_set = type(options) == "table" and options.default ~= nil
     options = library:normalize_options("keybind", options)
+    local toggle_target
+    if options.toggle_flag ~= nil then
+        assert(options.toggle_flag:gsub("%s", "") ~= "", "keybind toggle_flag must be a non-empty toggle flag")
+        for _, control in pairs(library.controls_by_id) do
+            if control.flag == options.toggle_flag then
+                assert(control.control_type == "toggle", "keybind toggle_flag '" .. options.toggle_flag .. "' must reference a toggle")
+                toggle_target = control
+                break
+            end
+        end
+        assert(toggle_target, "keybind toggle_flag '" .. options.toggle_flag .. "' must reference a toggle created before the keybind")
+    end
     local id, flag = library:resolve_identity(options, "keybind", self.name, true)
     local cfg = {
         id = id,
@@ -2288,6 +2301,7 @@ function library:keybind(options)
         default_key = options.key or "NONE",
         default_mode = options.mode or "Toggle",
         default_active = options.default == true,
+        toggle_target = toggle_target,
 
         key = options.key or nil,
         mode = options.mode or "Toggle",
@@ -2299,6 +2313,11 @@ function library:keybind(options)
         hold_instances = {},
         items = {};
     }
+
+    if toggle_target and not default_was_set and cfg.mode ~= "Always" then
+        cfg.active = toggle_target.enabled == true
+        cfg.default_active = cfg.active
+    end
 
     flags[cfg.flag] = {
         mode = cfg.mode,
@@ -2515,6 +2534,7 @@ function library:keybind(options)
     end
 
     function cfg.set(input, explicit_context)
+        local previous_active = cfg.active
         if type(input) == "boolean" then
             cfg.active = cfg.mode == "Always" or input
         elseif typeof(input) == "EnumItem" then
@@ -2542,6 +2562,13 @@ function library:keybind(options)
         flags[cfg.flag] = {mode = cfg.mode, key = cfg.key or "NONE", active = cfg.active}
         cfg:refresh_key_label()
         if library.refresh_keybind_conflicts then library:refresh_keybind_conflicts() end
+        local should_sync_toggle = type(input) == "boolean"
+            or (type(input) == "table" and input.active ~= nil)
+            or previous_active ~= cfg.active
+        if should_sync_toggle and cfg.toggle_target and not cfg.toggle_target._destroyed
+            and cfg.toggle_target.enabled ~= cfg.active then
+            cfg.toggle_target.set(cfg.active, explicit_context)
+        end
         library:dispatch_control_callback(cfg, cfg.callback, explicit_context, cfg.active)
         return true
     end
@@ -2626,6 +2653,14 @@ function library:keybind(options)
 
     library:mobile_format_control(items, "keybind")
     library:attach_control(cfg, items.keybind_element, self)
+    if toggle_target then
+        local sync_connection = toggle_target:OnChanged(function(active)
+            if cfg._destroyed then return end
+            cfg.active = active == true
+            flags[cfg.flag] = {mode = cfg.mode, key = cfg.key or "NONE", active = cfg.active}
+        end)
+        cfg:AddCleanup(function() sync_connection:Disconnect() end)
+    end
     library:register_keybind(cfg)
     cfg:AddCleanup(function() library:unregister_keybind(cfg) end)
     cfg:refresh_key_label()
@@ -4157,7 +4192,7 @@ function library:toggle(options)
         end
     end;
 
-    function cfg.set(bool)
+    function cfg.set(bool, explicit_context)
         bool = bool == true
         cfg.enabled = bool
         if cfg.type == "checkbox" then
@@ -4178,7 +4213,7 @@ function library:toggle(options)
         end
 
         flags[cfg.flag] = bool
-        library:dispatch_control_callback(cfg, cfg.callback, nil, bool)
+        library:dispatch_control_callback(cfg, cfg.callback, explicit_context, bool)
     end
 
     if cfg.folding then
@@ -4317,7 +4352,7 @@ library.option_schemas = {
     },
     keybind = {
         fields = fields({name = descriptor("string"), key = descriptor({"string", "EnumItem"}), mode = descriptor("string", "Toggle", {values = {"Toggle", "Hold", "Always"}}),
-            default = descriptor("boolean", false), ignore = descriptor("boolean", false), context = descriptor("string", "global"), callback = descriptor("function", function() end)}),
+            default = descriptor("boolean", false), ignore = descriptor("boolean", false), context = descriptor("string", "global"), toggle_flag = descriptor("string"), callback = descriptor("function", function() end)}),
         aliases = {Name = "name"},
     },
     segmented = {
@@ -6050,7 +6085,11 @@ library:connection(uis.InputBegan, function(input, game_processed)
 
     local binding = matches[1]
     if binding.mode == "Toggle" then
-        library:with_change_context("user", "change", binding.set, not binding.active)
+        local current = binding.active
+        if binding.toggle_target and not binding.toggle_target._destroyed then
+            current = binding.toggle_target.enabled == true
+        end
+        library:with_change_context("user", "change", binding.set, not current)
     elseif binding.mode == "Hold" then
         library:with_change_context("user", "change", binding.set, true)
     end

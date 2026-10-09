@@ -89,7 +89,7 @@ library.option_schemas = {
     },
     keybind = {
         fields = fields({name = descriptor("string"), key = descriptor({"string", "EnumItem"}), mode = descriptor("string", "Toggle", {values = {"Toggle", "Hold", "Always"}}),
-            default = descriptor("boolean", false), ignore = descriptor("boolean", false), context = descriptor("string", "global"), callback = descriptor("function", function() end)}),
+            default = descriptor("boolean", false), ignore = descriptor("boolean", false), context = descriptor("string", "global"), toggle_flag = descriptor("string"), callback = descriptor("function", function() end)}),
         aliases = {Name = "name"},
     },
     segmented = {
