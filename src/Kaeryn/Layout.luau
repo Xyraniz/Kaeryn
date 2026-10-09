@@ -367,8 +367,8 @@ function library:refresh_mobile_layout()
             sec.layout.Padding = dim(0, 9)
         end
     end
-    if win.mobile_button then
-        win.mobile_button.Position = dim2(1, -49, 0, max(8, floor(inset.Y + 7)))
+    if win.mobile_button and not win.toggle_button.draggable then
+        win.mobile_button.Position = dim2(1, -11, 0, max(8, floor(inset.Y + 7)))
     end
 end
 

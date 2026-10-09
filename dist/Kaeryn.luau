@@ -6449,8 +6449,8 @@ function library:refresh_mobile_layout()
             sec.layout.Padding = dim(0, 9)
         end
     end
-    if win.mobile_button then
-        win.mobile_button.Position = dim2(1, -49, 0, max(8, floor(inset.Y + 7)))
+    if win.mobile_button and not win.toggle_button.draggable then
+        win.mobile_button.Position = dim2(1, -11, 0, max(8, floor(inset.Y + 7)))
     end
 end
 
@@ -10204,7 +10204,9 @@ end
     end,
     ["src/Kaeryn/Window.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
+    local uis = __kaeryn.uis
     local ws = __kaeryn.ws
+    local gui_service = __kaeryn.gui_service
     local coregui = __kaeryn.coregui
     local vec2 = __kaeryn.vec2
     local dim2 = __kaeryn.dim2
@@ -10238,11 +10240,37 @@ function library:window(properties)
         and background_transparency >= 0 and background_transparency <= 1,
         "window background_transparency must be a number between 0 and 1")
 
+    local toggle_button_options = properties.toggle_button
+    if toggle_button_options == nil then toggle_button_options = {} end
+    assert(type(toggle_button_options) == "table", "window toggle_button must be a table")
+    local toggle_button_size = toggle_button_options.size
+    if toggle_button_size == nil then toggle_button_size = dim_offset(38, 38) end
+    local function valid_size_axis(axis)
+        return axis.Scale == axis.Scale and axis.Offset == axis.Offset
+            and math.abs(axis.Scale) < math.huge and math.abs(axis.Offset) < math.huge
+            and axis.Scale >= 0 and axis.Offset >= 0 and (axis.Scale > 0 or axis.Offset > 0)
+    end
+    assert(typeof(toggle_button_size) == "UDim2" and valid_size_axis(toggle_button_size.X) and valid_size_axis(toggle_button_size.Y),
+        "window toggle_button.size must be a UDim2 with positive width and height")
+    local toggle_button_icon = toggle_button_options.icon
+    if toggle_button_icon ~= nil then
+        assert(type(toggle_button_icon) == "string" and toggle_button_icon ~= "", "window toggle_button.icon must be a non-empty icon string")
+        library:resolve_icon(toggle_button_icon)
+    end
+    local toggle_button_draggable = toggle_button_options.draggable
+    if toggle_button_draggable == nil then toggle_button_draggable = false end
+    assert(type(toggle_button_draggable) == "boolean", "window toggle_button.draggable must be a boolean")
+
     local cfg = {
         name = properties.name or properties.Name or "nebula";
         size = properties.size or properties.Size or dim2(0, 700, 0, 565);
         background = background_image;
         background_transparency = background_transparency;
+        toggle_button = {
+            size = toggle_button_size;
+            icon = toggle_button_icon;
+            draggable = toggle_button_draggable;
+        };
         min_size = properties.min_size or properties.MinSize or vec2(420, 320);
         max_size = properties.max_size or properties.MaxSize;
         selected_tab;
@@ -10473,18 +10501,77 @@ function library:window(properties)
             cfg.mobile_button = library:create("TextButton", {
                 Parent = library.items,
                 Name = "MobileMenu",
-                Text = "☰",
+                Text = toggle_button_icon and "" or "☰",
                 FontFace = fonts.font,
                 TextSize = 24,
                 TextColor3 = rgb(255, 255, 255),
                 BackgroundColor3 = rgb(25, 25, 29),
+                AnchorPoint = vec2(1, 0),
                 BorderSizePixel = 0,
-                Size = dim_offset(38, 38),
-                Position = dim2(1, -49, 0, 8),
+                Size = toggle_button_size,
+                Position = dim2(1, -11, 0, 8),
                 ZIndex = 50
             })
             library:create("UICorner", {Parent = cfg.mobile_button, CornerRadius = dim(0, 9)})
-            library:connection(cfg.mobile_button.Activated, function() cfg:Toggle() end, cfg)
+            if toggle_button_icon then
+                library:create("ImageLabel", {
+                    Parent = cfg.mobile_button,
+                    Name = "MenuIcon",
+                    AnchorPoint = vec2(0.5, 0.5),
+                    Position = dim2(0.5, 0, 0.5, 0),
+                    Size = dim2(0.56, 0, 0.56, 0),
+                    BackgroundTransparency = 1,
+                    BorderSizePixel = 0,
+                    Image = toggle_button_icon,
+                    ImageColor3 = rgb(255, 255, 255),
+                    ScaleType = Enum.ScaleType.Fit,
+                    ZIndex = 51,
+                })
+            end
+
+            local active_drag
+            local drag_origin
+            local initial_position
+            local moved_during_drag = false
+            if toggle_button_draggable then
+                library:connection(cfg.mobile_button.InputBegan, function(input)
+                    local input_type = input.UserInputType
+                    if input_type ~= Enum.UserInputType.MouseButton1 and input_type ~= Enum.UserInputType.Touch then return end
+                    active_drag = input
+                    drag_origin = input.Position
+                    initial_position = cfg.mobile_button.Position
+                    moved_during_drag = false
+                end, cfg)
+                library:connection(uis.InputChanged, function(input)
+                    if not active_drag then return end
+                    local pointer_position
+                    if active_drag.UserInputType == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseMovement then
+                        pointer_position = input.Position
+                    elseif active_drag.UserInputType == Enum.UserInputType.Touch and input == active_drag then
+                        pointer_position = input.Position
+                    else
+                        return
+                    end
+
+                    local delta = pointer_position - drag_origin
+                    if delta.X * delta.X + delta.Y * delta.Y > 16 then moved_during_drag = true end
+                    cfg.mobile_button.Position = dim2(initial_position.X.Scale, initial_position.X.Offset + delta.X,
+                        initial_position.Y.Scale, initial_position.Y.Offset + delta.Y)
+                end, cfg)
+                library:connection(uis.InputEnded, function(input)
+                    if not active_drag then return end
+                    local ended = active_drag.UserInputType == Enum.UserInputType.MouseButton1
+                        and input.UserInputType == Enum.UserInputType.MouseButton1 or input == active_drag
+                    if ended then active_drag = nil end
+                end, cfg)
+            end
+            library:connection(cfg.mobile_button.Activated, function()
+                if moved_during_drag then
+                    moved_during_drag = false
+                    return
+                end
+                cfg:Toggle()
+            end, cfg)
             local viewport_connection
             local function track_viewport()
                 if viewport_connection then viewport_connection:Disconnect() end
@@ -10561,6 +10648,14 @@ function library:window(properties)
         end
         self.background_transparency = transparency
         items.background_image.ImageTransparency = transparency
+        return true
+    end
+
+    function cfg:ResetToggleButtonPosition()
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if not self.mobile_button then return false, "toggle button is only available on mobile" end
+        local inset = gui_service:GetGuiInset()
+        self.mobile_button.Position = dim2(1, -11, 0, math.max(8, floor(inset.Y + 7)))
         return true
     end
 

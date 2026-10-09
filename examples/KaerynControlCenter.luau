@@ -110,6 +110,11 @@ local window = library:window({
 	max_size = Vector2.new(1180, 900),
 	background = "rbxassetid://85347758476506",
 	background_transparency = 0.48,
+	toggle_button = {
+		size = UDim2.fromOffset(46, 46),
+		icon = "rbxassetid://77021539815611",
+		draggable = true,
+	},
 })
 
 local saved_layout

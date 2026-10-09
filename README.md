@@ -108,6 +108,20 @@ Use `library:alert`, `library:confirm`, and `library:prompt` for shared modal di
 
 Window layout adapts to phone, tablet, and desktop viewports. The current breakpoint is available as `library.breakpoint` (`phone`, `tablet`, or `desktop`) and can be queried with `library:get_breakpoint(viewport_size)`.
 
+On mobile, the floating menu button accepts a `toggle_button` options table. Its `size` is a `UDim2`; `icon` accepts the same Lucide names, Roblox asset IDs, and image URLs as other icons; and `draggable = true` lets users move it freely, including off-screen.
+If it gets moved out of reach, `window:ResetToggleButtonPosition()` places it back in its default top-right spot.
+
+```lua
+local window = library:window({
+    name = "Kaeryn",
+    toggle_button = {
+        size = UDim2.fromOffset(48, 48),
+        icon = "rbxassetid://1234567890", -- replace with your image asset
+        draggable = true,
+    },
+})
+```
+
 ## Window lifecycle and saved layout
 
 Windows expose explicit lifecycle methods and callbacks. `OnClose` runs when the user or script closes the window; `OnDestroy` runs once when the Kaeryn instance unloads.
