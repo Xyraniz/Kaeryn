@@ -416,10 +416,15 @@ function library:mobile_drag(handle, frame)
 end
 
 function library:unload_menu()
-    if library.unloaded then return end
+    if library.unloaded then return false end
     if library.cancel_pointer_drag then library:cancel_pointer_drag() end
     if library.clear_keybinds then library:clear_keybinds() end
+    if library.window and library.window._fire_destroy then library.window:_fire_destroy() end
     library.unloaded = true
+    for index = #library.scopes, 1, -1 do
+        local scope = library.scopes[index]
+        if scope then scope:Destroy() end
+    end
     if library.search_locale_connection then
         library.search_locale_connection:Disconnect()
         library.search_locale_connection = nil
@@ -446,6 +451,7 @@ function library:unload_menu()
         for _, objects in pairs(group) do table.clear(objects) end
     end
     for _, objects in pairs(themes.scale_utility) do table.clear(objects) end
+    return true
 end
 
 library.unload = library.unload_menu

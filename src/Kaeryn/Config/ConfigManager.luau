@@ -49,7 +49,19 @@ function library:get_config()
     return http_service:JSONEncode(data)
 end
 
-function library:load_config(config_json)
+local function values_equal(first, second)
+    if type(first) ~= type(second) then return false end
+    if type(first) ~= "table" then return first == second end
+    for key, value in pairs(first) do
+        if not values_equal(value, second[key]) then return false end
+    end
+    for key in pairs(second) do
+        if first[key] == nil then return false end
+    end
+    return true
+end
+
+local function prepare_config(self, config_json)
     local ok, data = pcall(function() return http_service:JSONDecode(config_json) end)
     if not ok or type(data) ~= "table" then return false, "Invalid configuration JSON" end
 
@@ -113,8 +125,29 @@ function library:load_config(config_json)
     end
     if #errors > 0 then return false, table.concat(errors, "; ") end
 
-    local applied = {}
+    local changes = {}
     for _, entry in ipairs(staged) do
+        local before = copy_value(flags[entry.key])
+        if not values_equal(before, entry.value) then
+            table.insert(changes, {flag = entry.key, before = before, after = copy_value(entry.value)})
+        end
+    end
+    table.sort(changes, function(first, second) return first.flag < second.flag end)
+    return true, {staged = staged, migrations = applied_keys, changes = changes}
+end
+
+function library:preview_config(config_json)
+    local ok, prepared = prepare_config(self, config_json)
+    if not ok then return false, prepared end
+    return true, {changes = prepared.changes, migrations = prepared.migrations}
+end
+
+function library:load_config(config_json)
+    local ok, prepared = prepare_config(self, config_json)
+    if not ok then return false, prepared end
+
+    local applied = {}
+    for _, entry in ipairs(prepared.staged) do
         local key, value = entry.key, entry.value
         local snapshot = copy_value(flags[key])
         table.insert(applied, {key = key, value = snapshot})
@@ -143,6 +176,6 @@ function library:load_config(config_json)
             return false, message
         end
     end
-    return true, applied_keys
+    return true, prepared.migrations
 end
 end

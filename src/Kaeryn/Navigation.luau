@@ -10,12 +10,25 @@ return function(__kaeryn)
     local library = __kaeryn.library
     local themes = __kaeryn.themes
     local fonts = __kaeryn.fonts
+    local safe_callback = __kaeryn.safe_callback
 
 function library:tab(properties)
     properties = properties or {}
+    local tab_name = properties.name or properties.Name or "visuals"
+    local tab_id = properties.id or tab_name
+    assert(type(tab_id) == "string" and tab_id:gsub("%s", "") ~= "", "tab id must be a non-empty string")
+    assert(type(tab_name) == "string" and tab_name:gsub("%s", "") ~= "", "tab name must be a non-empty string")
+    assert(properties.on_enter == nil or type(properties.on_enter) == "function", "tab on_enter must be a function")
+    assert(properties.on_leave == nil or type(properties.on_leave) == "function", "tab on_leave must be a function")
+    for _, registered_tab in ipairs(library.tabs or {}) do
+        assert(registered_tab.id ~= tab_id, "duplicate tab id '" .. tab_id .. "'")
+    end
     local cfg = {
-        name = properties.name or properties.Name or "visuals";
-        icon = properties.icon or properties.Icon or "http://www.roblox.com/asset/?id=6034767608";
+        id = tab_id;
+        name = tab_name;
+        on_enter = properties.on_enter;
+        on_leave = properties.on_leave;
+        icon = properties.icon or properties.Icon or "lucide:layout-dashboard";
         custom_icon = properties.icon ~= nil or properties.Icon ~= nil;
 
         tabs = properties.tabs or properties.Tabs or {"Main", "Misc.", "Settings"};
@@ -26,6 +39,18 @@ function library:tab(properties)
     }
     self.tabs = self.tabs or {}
     insert(self.tabs, cfg)
+
+    function cfg:OnEnter(callback)
+        assert(type(callback) == "function", "OnEnter expects a function")
+        self.on_enter = callback
+        return self
+    end
+
+    function cfg:OnLeave(callback)
+        assert(type(callback) == "function", "OnLeave expects a function")
+        self.on_leave = callback
+        return self
+    end
 
     local items = cfg.items; do
         items[ "tab_holder" ] = library:create( "Frame" , {
@@ -157,8 +182,29 @@ function library:tab(properties)
             PaddingLeft = dim(0, 7)
         });
 
-        for _, section in cfg.tabs do
-            local data = {items = {}, _tab = cfg}
+        for _, section in ipairs(cfg.tabs) do
+            local definition = type(section) == "table" and section or {name = section}
+            local section_name = definition.name or definition.Name
+            local section_id = definition.id or section_name
+            assert(type(section_name) == "string" and section_name:gsub("%s", "") ~= "", "tab page name must be a non-empty string")
+            assert(type(section_id) == "string" and section_id:gsub("%s", "") ~= "", "tab page id must be a non-empty string")
+            for _, existing_page in ipairs(cfg.pages) do
+                assert(existing_page.id ~= section_id, "duplicate page id '" .. section_id .. "' in tab '" .. tab_id .. "'")
+            end
+            assert(definition.lazy == nil or type(definition.lazy) == "function", "tab page lazy must be a function")
+            assert(definition.on_enter == nil or type(definition.on_enter) == "function", "tab page on_enter must be a function")
+            assert(definition.on_leave == nil or type(definition.on_leave) == "function", "tab page on_leave must be a function")
+            local data = {
+                id = section_id,
+                name = section_name,
+                items = {},
+                _tab = cfg,
+                _lazy_builder = definition.lazy,
+                _built = definition.lazy == nil,
+                _on_enter = definition.on_enter,
+                _on_leave = definition.on_leave,
+                _scopes = {},
+            }
 
             local multi_items = data.items; do
                 multi_items[ "button" ] = library:create( "TextButton" , {
@@ -182,7 +228,7 @@ function library:tab(properties)
                     FontFace = fonts.font;
                     TextColor3 = rgb(62, 62, 63);
                     BorderColor3 = rgb(0, 0, 0);
-                    Text = section;
+                    Text = section_name;
                     Parent = multi_items[ "button" ];
                     Name = "\0";
                     Size = dim2(0, 0, 1, 0);
@@ -263,8 +309,49 @@ function library:tab(properties)
             data.page = multi_items[ "tab" ]
             data.parent = setmetatable(data, library):sub_tab({}).items[ "tab_parent" ]
 
+            function data:OnEnter(callback)
+                assert(type(callback) == "function", "OnEnter expects a function")
+                self._on_enter = callback
+                return self
+            end
+
+            function data:OnLeave(callback)
+                assert(type(callback) == "function", "OnLeave expects a function")
+                self._on_leave = callback
+                return self
+            end
+
+            function data:CreateScope()
+                local scope = library:scope()
+                table.insert(self._scopes, scope)
+                return scope
+            end
+
+            local function leave_page(page)
+                if not page or not page._active then return end
+                page._active = false
+                if page._on_leave then safe_callback(page._on_leave, page) end
+                for scope_index = #page._scopes, 1, -1 do
+                    page._scopes[scope_index]:Destroy()
+                    page._scopes[scope_index] = nil
+                end
+            end
+
             function data.open_page()
+                if data._active then return true end
+                if data._build_error then return false, data._build_error end
+                if not data._built and data._lazy_builder then
+                    data._built = true
+                    local build_ok, build_error = pcall(data._lazy_builder, data)
+                    if not build_ok then
+                        data._build_error = tostring(build_error)
+                        warn("[Kaeryn] lazy builder failed for page '" .. data.id .. "': " .. data._build_error)
+                        return false, data._build_error
+                    end
+                end
                 local page = cfg.current_multi;
+
+                if page and page ~= data then leave_page(page) end
 
                 if page and page.text ~= data.text then
                     self.items[ "global_fade" ].BackgroundTransparency = 0
@@ -292,8 +379,11 @@ function library:tab(properties)
                 data.page.Parent = items["tab_holder"]
 
                 cfg.current_multi = data
+                data._active = true
+                if data._on_enter then safe_callback(data._on_enter, data) end
 
                 library:close_element()
+                return true
             end
 
             multi_items[ "button" ].Activated:Connect(function()
@@ -303,11 +393,26 @@ function library:tab(properties)
             cfg.pages[#cfg.pages + 1] = setmetatable(data, library)
         end
 
-        if cfg.pages[1] then cfg.pages[1].open_page() end
     end
 
-    function cfg.open_tab()
+    function cfg.open_tab(skip_default_page)
+        if self._selected_tab_object == cfg then return true end
         local selected_tab = self.selected_tab
+        local previous_tab = self._selected_tab_object
+        if previous_tab then
+            if previous_tab.on_leave then safe_callback(previous_tab.on_leave, previous_tab) end
+            if previous_tab.current_multi then
+                local current = previous_tab.current_multi
+                if current._active then
+                    current._active = false
+                    if current._on_leave then safe_callback(current._on_leave, current) end
+                    for scope_index = #current._scopes, 1, -1 do
+                        current._scopes[scope_index]:Destroy()
+                        current._scopes[scope_index] = nil
+                    end
+                end
+            end
+        end
 
         if selected_tab then
             if selected_tab[ 4 ] ~= items[ "tab_holder" ] then
@@ -357,9 +462,19 @@ function library:tab(properties)
             items[ "multi_section_button_holder" ];
             items["compact_mark"];
         }
+        self._selected_tab_object = cfg
 
         library:close_element()
+        if not skip_default_page and cfg.current_multi and not cfg.current_multi._active then
+            cfg.current_multi._active = true
+            if cfg.current_multi._on_enter then safe_callback(cfg.current_multi._on_enter, cfg.current_multi) end
+        elseif cfg.pages[1] and not skip_default_page then
+            local opened, reason = cfg.pages[1].open_page()
+            if not opened then return false, reason end
+        end
+        if cfg.on_enter then safe_callback(cfg.on_enter, cfg) end
         if library.is_mobile then library:queue_mobile_layout() end
+        return true
     end
 
     items[ "button" ].Activated:Connect(function()
@@ -367,7 +482,7 @@ function library:tab(properties)
     end)
 
     if not self.selected_tab then
-        cfg.open_tab(true)
+        cfg.open_tab()
     end
 
     if library.is_mobile then
@@ -510,7 +625,7 @@ function library:section(properties)
         side = properties.side or properties.Side or "left";
         default = properties.default or properties.Default or false;
         size = properties.size or properties.Size or self.size or 0.5;
-        icon = properties.icon or properties.Icon or "http://www.roblox.com/asset/?id=6022668898";
+        icon = properties.icon or properties.Icon or "lucide:settings";
         fading_toggle = properties.fading or properties.Fading or false;
         items = {};
     };

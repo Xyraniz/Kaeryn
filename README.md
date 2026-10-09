@@ -106,6 +106,136 @@ Use `library:alert`, `library:confirm`, and `library:prompt` for shared modal di
 
 Window layout adapts to phone, tablet, and desktop viewports. The current breakpoint is available as `library.breakpoint` (`phone`, `tablet`, or `desktop`) and can be queried with `library:get_breakpoint(viewport_size)`.
 
+## Window lifecycle and saved layout
+
+Windows expose explicit lifecycle methods and callbacks. `OnClose` runs when the user or script closes the window; `OnDestroy` runs once when the Kaeryn instance unloads.
+
+```lua
+window:Close()
+window:OnOpen(function() print("menu opened") end)
+window:OnClose(function() print("menu closed") end)
+window:OnDestroy(function() print("menu destroyed") end)
+
+window:Open()
+window:Toggle()
+local is_open = window:IsOpen()
+```
+
+Desktop windows can set resize limits with `min_size` and optional `max_size` `Vector2` values, or update them with `SetResizeLimits`. `SaveLayout()` returns a versioned table with normalized position and size plus the active tab and page IDs. `LoadLayout(layout)` validates and clamps it to the current viewport. Store that table separately from control configs if it should persist across sessions.
+
+```lua
+local window = library:window({
+    name = "Kaeryn",
+    min_size = Vector2.new(440, 340),
+    max_size = Vector2.new(1100, 800),
+})
+
+local layout = window:SaveLayout()
+window:LoadLayout(layout)
+```
+
+## Page lifecycle and lazy content
+
+Tabs and pages accept `on_enter` and `on_leave` callbacks. A page definition can use `lazy` to build its controls on its first open; page IDs remain independent of the displayed name and are used when restoring a saved layout.
+
+```lua
+local page = window:tab({
+    id = "account",
+    name = "Account",
+    tabs = {
+        {
+            id = "profile",
+            name = "Profile",
+            lazy = function(page)
+                local column = page:column({})
+                column:section({name = "Profile"}):textbox({id = "account.name", name = "Name"})
+            end,
+            on_enter = function(page) print("entered", page.id) end,
+            on_leave = function(page) print("leaving", page.id) end,
+        },
+    },
+})
+```
+
+Page callbacks run when a page becomes active. Scopes created by `page:CreateScope()` are cleaned when the page is left, then can be recreated in `on_enter`.
+
+## Data tables
+
+`data_table` displays rows with stable IDs, selectable rows, sortable columns, and incremental updates. `SetRows()` reuses views for rows whose IDs remain present.
+
+```lua
+local users = section:data_table({
+    id = "admin.users",
+    name = "Users",
+    columns = {
+        {key = "user", label = "User", width = 0.55},
+        {key = "status", label = "Status", width = 0.45},
+    },
+    rows = {
+        {id = "u-1", user = "Ari", status = "Online"},
+        {id = "u-2", user = "Noa", status = "Away"},
+    },
+})
+
+users:UpdateRow("u-2", {status = "Online"})
+users:Sort("user", true)
+print(users:Get()) -- selected row ID
+```
+
+Rows and columns are validated before they are applied. Row IDs cannot be changed by `UpdateRow`; replace a row with a new ID through `SetRows()` instead.
+
+## Preview configuration changes
+
+`preview_config(json)` uses the same migrations and validators as `load_config`, but does not call setters. It returns the changed flags and migrations so a host can ask for confirmation first. The built-in config screen shows a short preview before loading.
+
+```lua
+local ok, preview = library:preview_config(config_json)
+if ok then
+    for _, change in ipairs(preview.changes) do
+        print(change.flag, change.before, change.after)
+    end
+    for _, migration in ipairs(preview.migrations) do
+        print(migration.from, "->", migration.to)
+    end
+end
+```
+
+## Resource scopes
+
+Use a scope for connections, instances, tasks, or cleanup callbacks that belong together. Destroying a scope cleans its resources in reverse order; scopes are also destroyed when the Kaeryn window unloads.
+
+```lua
+local scope = library:scope()
+scope:Connect(signal, function() print("updated") end)
+scope:Give(instance)
+scope:AddCleanup(function() print("released") end)
+scope:Destroy()
+```
+
+## Lucide icons
+
+Kaeryn bundles the Lucide name map from [Footagesus/Icons](https://github.com/Footagesus/Icons), the same icon repository used by WindUI. Use `lucide:name` or the short `name` form for built-in icon options. Names are resolved locally; unknown icon names raise an error instead of substituting another icon. Existing `rbxassetid://...` values remain valid for custom images. The map is pinned in `src/Kaeryn/LucideIcons.luau`, and its MIT license and source revision are recorded under `third_party/`.
+
+```lua
+window:tab({name = "Settings", icon = "lucide:settings"})
+local asset_id = library:resolve_icon("search")
+```
+
+## Locale fallback, validation, and plurals
+
+Missing translations fall back to English, then to the original key. `validate_locale()` reports keys observed by the UI that are missing or malformed. Translation strings support `{name}` placeholders and plural entries with `zero`, `one`, and `other` forms.
+
+```lua
+library:register_locale("en", {
+    files = {one = "{count} file", other = "{count} files"},
+})
+library:register_locale("fr", {Find = "Rechercher"})
+
+local text = library:translate("files", {count = 3})
+local complete, report = library:validate_locale("fr")
+print(text, complete, report.missing)
+```
+
 ## Dropdown values, labels, and large option lists
 
 Dropdowns keep config values stable while showing a separate label. Existing string options still work. Add `group` and `disabled` where needed; lists with eight or more items get search by default, and `searchable = false` or `true` can override that choice. The popup virtualizes its visible rows for long lists.

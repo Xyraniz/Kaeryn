@@ -30,6 +30,9 @@ function library:create(instance, options)
     local ins = Instance.new(instance)
 
     for prop, value in options do
+        if prop == "Image" and type(value) == "string" then
+            value = library:resolve_icon(value)
+        end
         ins[prop] = value
         if library.track_theme then library:track_theme(ins, prop, value) end
         if library.track_theme_scale then library:track_theme_scale(ins, prop, value) end

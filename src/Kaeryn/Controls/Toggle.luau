@@ -156,7 +156,7 @@ function library:toggle(options)
             items[ "tick" ] = library:create( "ImageLabel" , {
                 ImageTransparency = 1;
                 BorderColor3 = rgb(0, 0, 0);
-                Image = "rbxassetid://111862698467575";
+                Image = "lucide:check";
                 BackgroundTransparency = 1;
                 Position = dim2(0, -1, 0, 0);
                 Parent = items[ "outline" ];

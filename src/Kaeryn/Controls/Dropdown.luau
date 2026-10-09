@@ -177,7 +177,7 @@ function library:dropdown(options)
             BorderColor3 = rgb(0, 0, 0);
             Parent = items[ "dropdown" ];
             AnchorPoint = vec2(1, 0.5);
-            Image = "rbxassetid://101025591575185";
+            Image = "lucide:chevron-down";
             BackgroundTransparency = 1;
             Position = dim2(1, -5, 0.5, 0);
             Name = "\0";

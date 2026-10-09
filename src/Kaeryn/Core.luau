@@ -117,6 +117,13 @@ library.option_schemas = {
             callback = descriptor("function", function() end)}),
         aliases = common_aliases,
     },
+    data_table = {
+        fields = fields({name = descriptor("string", "Table"), info = descriptor("string"), columns = descriptor("table", {}),
+            rows = descriptor("table", {}), default = descriptor({"string", "number"}), max_height = descriptor("number", 260, {min = 72}),
+            row_height = descriptor("number", 30, {min = 20, max = 80}), sortable = descriptor("boolean", true),
+            callback = descriptor("function", function() end), separator = descriptor("boolean", false)}),
+        aliases = common_aliases,
+    },
 }
 
 local function type_matches(value, expected)
@@ -235,6 +242,16 @@ function library:normalize_options(control_type, options, schema)
             end
             if not found then error("Option 'default' for segmented must match an enabled option", 2) end
         end
+    elseif control_type == "data_table" then
+        local valid, reason = self:validate_data_table(normalized.columns, normalized.rows)
+        if not valid then error("Invalid data_table options: " .. reason, 2) end
+        if normalized.default ~= nil then
+            local found = false
+            for _, row in ipairs(normalized.rows) do
+                if tostring(row.id) == tostring(normalized.default) then found = true; break end
+            end
+            if not found then error("Option 'default' for data_table must match a row id", 2) end
+        end
     end
     if control_type == "dropdown" or control_type == "list" then
         local option_key = control_type == "dropdown" and "items" or "options"
@@ -304,6 +321,61 @@ function library:validate_option_list(control_type, options)
     return true
 end
 
+function library:validate_data_table(columns, rows)
+    if type(columns) ~= "table" or #columns == 0 then return false, "columns must be a non-empty array" end
+    if type(rows) ~= "table" then return false, "rows must be an array" end
+
+    local column_keys, column_count, fixed_widths, flexible_columns = {}, 0, 0, 0
+    for index, column in pairs(columns) do
+        if type(index) ~= "number" or index < 1 or index % 1 ~= 0 then return false, "columns must be a dense array" end
+        if type(column) ~= "table" then return false, "column " .. tostring(index) .. " must be a table" end
+        for key in pairs(column) do
+            if key ~= "key" and key ~= "label" and key ~= "width" and key ~= "sortable" then
+                return false, "column " .. tostring(index) .. " has unknown field '" .. tostring(key) .. "'"
+            end
+        end
+        if type(column.key) ~= "string" or column.key:gsub("%s", "") == "" then return false, "column " .. tostring(index) .. " needs a non-empty key" end
+        if column_keys[column.key] then return false, "duplicate column key '" .. column.key .. "'" end
+        if column.label ~= nil and type(column.label) ~= "string" then return false, "column '" .. column.key .. "' label must be a string" end
+        if column.width ~= nil and (type(column.width) ~= "number" or column.width ~= column.width or column.width <= 0 or column.width > 1) then
+            return false, "column '" .. column.key .. "' width must be between 0 and 1"
+        end
+        if column.width then fixed_widths += column.width else flexible_columns += 1 end
+        if column.sortable ~= nil and type(column.sortable) ~= "boolean" then return false, "column '" .. column.key .. "' sortable must be a boolean" end
+        column_keys[column.key] = true
+        column_count += 1
+    end
+    if column_count ~= #columns then return false, "columns must be a dense array" end
+    if fixed_widths > 1 or (flexible_columns > 0 and fixed_widths >= 1) then return false, "column widths leave no room for the remaining columns" end
+
+    local row_ids, row_count = {}, 0
+    for index, row in pairs(rows) do
+        if type(index) ~= "number" or index < 1 or index % 1 ~= 0 then return false, "rows must be a dense array" end
+        if type(row) ~= "table" then return false, "row " .. tostring(index) .. " must be a table" end
+        if (type(row.id) ~= "string" and type(row.id) ~= "number") or tostring(row.id):gsub("%s", "") == "" then
+            return false, "row " .. tostring(index) .. " needs a non-empty string or numeric id"
+        end
+        if type(row.id) == "number" and (row.id ~= row.id or row.id == math.huge or row.id == -math.huge) then
+            return false, "row " .. tostring(index) .. " id must be finite"
+        end
+        local id = tostring(row.id)
+        if row_ids[id] then return false, "duplicate row id '" .. id .. "'" end
+        row_ids[id] = true
+        for key, value in pairs(row) do
+            if key ~= "id" and not column_keys[key] then return false, "row '" .. id .. "' has unknown column '" .. tostring(key) .. "'" end
+            if key ~= "id" and value ~= nil and type(value) ~= "string" and type(value) ~= "number" and type(value) ~= "boolean" then
+                return false, "row '" .. id .. "' cell '" .. tostring(key) .. "' must be a string, number, or boolean"
+            end
+            if key ~= "id" and type(value) == "number" and (value ~= value or value == math.huge or value == -math.huge) then
+                return false, "row '" .. id .. "' cell '" .. tostring(key) .. "' must be finite"
+            end
+        end
+        row_count += 1
+    end
+    if row_count ~= #rows then return false, "rows must be a dense array" end
+    return true
+end
+
 function library:tween(obj, properties, easing_style, time)
     if library.unloaded or not obj then return nil end
     for property, value in pairs(properties) do
@@ -317,7 +389,8 @@ function library:tween(obj, properties, easing_style, time)
     return tween
 end
 
-function library:resizify(frame)
+function library:resizify(frame, window_config)
+    window_config = window_config or {min_size = frame.AbsoluteSize}
     local Frame = Instance.new("TextButton")
     Frame.Position = dim2(1, -10, 1, -10)
     Frame.BorderColor3 = rgb(0, 0, 0)
@@ -330,14 +403,15 @@ function library:resizify(frame)
 
     local resizing = false
     local start_size
+    local start_absolute
     local start
-    local og_size = frame.Size
 
     Frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             resizing = true
             start = input.Position
             start_size = frame.Size
+            start_absolute = frame.AbsoluteSize
         end
     end)
 
@@ -352,20 +426,22 @@ function library:resizify(frame)
             local viewport = (ws.CurrentCamera and ws.CurrentCamera.ViewportSize) or camera.ViewportSize
             local viewport_x = viewport.X
             local viewport_y = viewport.Y
+            local minimum = window_config.min_size
+            local maximum = window_config.max_size
+            local min_width = min(minimum.X, viewport_x)
+            local min_height = min(minimum.Y, viewport_y)
+            local max_width = min(maximum and maximum.X or viewport_x, viewport_x)
+            local max_height = min(maximum and maximum.Y or viewport_y, viewport_y)
+            if max_width < min_width then min_width = max_width end
+            if max_height < min_height then min_height = max_height end
+            local width = clamp(start_absolute.X + input.Position.X - start.X, min_width, max_width)
+            local height = clamp(start_absolute.Y + input.Position.Y - start.Y, min_height, max_height)
 
             local current_size = dim2(
                 start_size.X.Scale,
-                math.clamp(
-                    start_size.X.Offset + (input.Position.X - start.X),
-                    min(og_size.X.Offset, viewport_x),
-                    viewport_x
-                ),
+                start_size.X.Offset + width - start_absolute.X,
                 start_size.Y.Scale,
-                math.clamp(
-                    start_size.Y.Offset + (input.Position.Y - start.Y),
-                    min(og_size.Y.Offset, viewport_y),
-                    viewport_y
-                )
+                start_size.Y.Offset + height - start_absolute.Y
             )
 
             library:tween(frame, {Size = current_size}, Enum.EasingStyle.Linear, 0.05)

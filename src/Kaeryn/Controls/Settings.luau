@@ -70,7 +70,7 @@ function library:settings(options)
         });
 
         items[ "tick" ] = library:create( "ImageButton" , {
-            Image = "rbxassetid://128797200442698";
+            Image = "lucide:settings";
             Name = "\0";
             AutoButtonColor = false;
             Parent = self.items[ "right_components" ];

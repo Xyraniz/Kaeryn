@@ -22,11 +22,21 @@ function library:window(properties)
         name = properties.name or properties.Name or "nebula";
         game_name = properties.gameInfo or properties.game_info or properties.GameInfo or "Kaeryn";
         size = properties.size or properties.Size or dim2(0, 700, 0, 565);
+        min_size = properties.min_size or properties.MinSize or vec2(420, 320);
+        max_size = properties.max_size or properties.MaxSize;
         selected_tab;
         items = {};
 
         tween;
     }
+    assert(typeof(cfg.min_size) == "Vector2" and cfg.min_size.X > 0 and cfg.min_size.Y > 0
+        and cfg.min_size.X < math.huge and cfg.min_size.Y < math.huge, "window min_size must be a finite positive Vector2")
+    assert(cfg.max_size == nil or typeof(cfg.max_size) == "Vector2", "window max_size must be a Vector2")
+    if cfg.max_size then
+        assert(cfg.max_size.X > 0 and cfg.max_size.Y > 0 and cfg.max_size.X < math.huge and cfg.max_size.Y < math.huge,
+            "window max_size values must be finite and positive")
+        assert(cfg.max_size.X >= cfg.min_size.X and cfg.max_size.Y >= cfg.min_size.Y, "window max_size must be greater than or equal to min_size")
+    end
 
     library[ "items" ] = library:create( "ScreenGui" , {
         Parent = coregui;
@@ -300,10 +310,7 @@ function library:window(properties)
                 ZIndex = 50
             })
             library:create("UICorner", {Parent = cfg.mobile_button, CornerRadius = dim(0, 9)})
-            cfg.mobile_button.MouseButton1Click:Connect(function()
-                items.main.Visible = not items.main.Visible
-                if not items.main.Visible then library:close_element() end
-            end)
+            library:connection(cfg.mobile_button.Activated, function() cfg:Toggle() end, cfg)
             local viewport_connection
             local function track_viewport()
                 if viewport_connection then viewport_connection:Disconnect() end
@@ -319,7 +326,7 @@ function library:window(properties)
             library:refresh_mobile_layout()
         else
             library:draggify(items[ "main" ])
-            library:resizify(items[ "main" ])
+            library:resizify(items[ "main" ], cfg)
             local viewport_connection
             local function track_viewport()
                 if viewport_connection then viewport_connection:Disconnect() end
@@ -335,18 +342,172 @@ function library:window(properties)
         end
     end
 
-    function cfg.toggle_menu(bool)
-        if library.is_mobile then
-            items.main.Visible = bool
-            library:close_element()
-        else
-            library[ "items" ].Enabled = bool
+    local function fire_lifecycle(event)
+        local callback = cfg["_on_" .. event]
+        if type(callback) ~= "function" then return end
+        local ok, err = pcall(callback, cfg)
+        if not ok then warn("[Kaeryn] window " .. event .. " callback failed: " .. tostring(err)) end
+    end
+
+    function cfg:OnOpen(callback)
+        assert(type(callback) == "function", "OnOpen expects a function")
+        self._on_open = callback
+        return self
+    end
+
+    function cfg:OnClose(callback)
+        assert(type(callback) == "function", "OnClose expects a function")
+        self._on_close = callback
+        return self
+    end
+
+    function cfg:OnDestroy(callback)
+        assert(type(callback) == "function", "OnDestroy expects a function")
+        self._on_destroy = callback
+        return self
+    end
+
+    function cfg:IsOpen()
+        if self._destroyed_window then return false end
+        if library.is_mobile then return items.main.Visible end
+        return library.items.Enabled
+    end
+
+    function cfg:Open()
+        if self._destroyed_window then return false, "window has been destroyed" end
+        local was_open = self:IsOpen()
+        if library.is_mobile then items.main.Visible = true else library.items.Enabled = true end
+        if not was_open then fire_lifecycle("open") end
+        return true
+    end
+
+    function cfg:Close()
+        if self._destroyed_window then return false, "window has been destroyed" end
+        local was_open = self:IsOpen()
+        if library.is_mobile then items.main.Visible = false else library.items.Enabled = false end
+        library:close_element()
+        if was_open then fire_lifecycle("close") end
+        return true
+    end
+
+    function cfg:Toggle()
+        if self:IsOpen() then self:Close() else self:Open() end
+        return self:IsOpen()
+    end
+
+    function cfg:_fire_destroy()
+        if self._destroyed_window then return false end
+        if self:IsOpen() then self:Close() end
+        self._destroyed_window = true
+        fire_lifecycle("destroy")
+        return true
+    end
+
+    function cfg:Destroy()
+        return library:unload_menu()
+    end
+
+    function cfg:SetResizeLimits(minimum, maximum)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if typeof(minimum) ~= "Vector2" or minimum.X ~= minimum.X or minimum.Y ~= minimum.Y
+            or minimum.X <= 0 or minimum.Y <= 0 or minimum.X == math.huge or minimum.Y == math.huge then
+            return false, "min_size must be a positive Vector2"
         end
+        if maximum ~= nil and (typeof(maximum) ~= "Vector2" or maximum.X ~= maximum.X or maximum.Y ~= maximum.Y
+            or maximum.X <= 0 or maximum.Y <= 0 or maximum.X < minimum.X or maximum.Y < minimum.Y
+            or maximum.X == math.huge or maximum.Y == math.huge) then
+            return false, "max_size must be a Vector2 greater than or equal to min_size"
+        end
+        self.min_size, self.max_size = minimum, maximum
+        local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(1440, 900)
+        local max_width = math.min(maximum and maximum.X or viewport.X, viewport.X)
+        local max_height = math.min(maximum and maximum.Y or viewport.Y, viewport.Y)
+        local min_width = math.min(minimum.X, max_width)
+        local min_height = math.min(minimum.Y, max_height)
+        local width = math.clamp(items.main.AbsoluteSize.X, min_width, max_width)
+        local height = math.clamp(items.main.AbsoluteSize.Y, min_height, max_height)
+        local left = math.clamp(items.main.AbsolutePosition.X, 0, math.max(0, viewport.X - width))
+        local top = math.clamp(items.main.AbsolutePosition.Y, 0, math.max(0, viewport.Y - height))
+        items.main.Size = dim_offset(width, height)
+        items.main.Position = dim_offset(left, top)
+        if library.is_mobile then library:queue_mobile_layout() else library:refresh_responsive_layout(self) end
+        return true
+    end
+
+    function cfg:SaveLayout()
+        if self._destroyed_window then return nil, "window has been destroyed" end
+        local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(1440, 900)
+        local position, size = items.main.AbsolutePosition, items.main.AbsoluteSize
+        local available_x, available_y = math.max(0, viewport.X - size.X), math.max(0, viewport.Y - size.Y)
+        local current_tab = self._selected_tab_object
+        local current_page = current_tab and current_tab.current_multi
+        return {
+            version = 1,
+            position = {x = available_x > 0 and position.X / available_x or 0, y = available_y > 0 and position.Y / available_y or 0},
+            size = {x = viewport.X > 0 and size.X / viewport.X or 1, y = viewport.Y > 0 and size.Y / viewport.Y or 1},
+            tab = current_tab and current_tab.id or nil,
+            page = current_page and current_page.id or nil,
+        }
+    end
+
+    function cfg:LoadLayout(layout)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if type(layout) ~= "table" or type(layout.position) ~= "table" or type(layout.size) ~= "table" then
+            return false, "layout must contain position and size tables"
+        end
+        if layout.version ~= nil and layout.version ~= 1 then return false, "unsupported layout version" end
+        local function valid_fraction(value)
+            return type(value) == "number" and value == value and math.abs(value) < math.huge
+        end
+        local fractions = {layout.position.x, layout.position.y, layout.size.x, layout.size.y}
+        for index = 1, 4 do
+            if not valid_fraction(fractions[index]) then return false, "layout fractions must be finite numbers" end
+        end
+        local target_tab, target_page
+        for _, tab in ipairs(library.tabs or {}) do
+            if layout.tab ~= nil and tab.id == layout.tab then target_tab = tab; break end
+        end
+        if layout.tab ~= nil and not target_tab then return false, "layout references unknown tab '" .. tostring(layout.tab) .. "'" end
+        if layout.page ~= nil then
+            for _, page in ipairs(target_tab and target_tab.pages or {}) do
+                if page.id == layout.page then target_page = page; break end
+            end
+            if not target_page then return false, "layout references unknown page '" .. tostring(layout.page) .. "'" end
+        end
+
+        local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(1440, 900)
+        local max_width = math.min(self.max_size and self.max_size.X or viewport.X, viewport.X)
+        local max_height = math.min(self.max_size and self.max_size.Y or viewport.Y, viewport.Y)
+        local min_width = math.min(self.min_size.X, max_width)
+        local min_height = math.min(self.min_size.Y, max_height)
+        local width = math.clamp(layout.size.x * viewport.X, min_width, max_width)
+        local height = math.clamp(layout.size.y * viewport.Y, min_height, max_height)
+        local left = math.clamp(layout.position.x, 0, 1) * math.max(0, viewport.X - width)
+        local top = math.clamp(layout.position.y, 0, 1) * math.max(0, viewport.Y - height)
+        items.main.Size = dim_offset(width, height)
+        items.main.Position = dim_offset(left, top)
+        if library.is_mobile then library:queue_mobile_layout() else library:refresh_responsive_layout(self) end
+        if target_tab then
+            local opened, reason = target_tab.open_tab(target_page ~= nil)
+            if not opened then return false, reason end
+        end
+        if target_page then
+            local opened, reason = target_page.open_page()
+            if not opened then return false, reason end
+        end
+        return true
+    end
+
+    cfg.toggle_menu = function(bool)
+        if bool == nil then return cfg:Toggle() end
+        if bool then return cfg:Open() end
+        return cfg:Close()
     end
 
     library:init_search(cfg)
     if library.is_mobile then library:queue_mobile_layout() end
 
+    library.window = cfg
     return setmetatable(cfg, library)
 end
 end

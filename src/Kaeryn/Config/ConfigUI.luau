@@ -15,11 +15,11 @@ function library:init_config(window)
     window:separator({name = "Settings"})
     local main = window:tab({name = "Configs", tabs = {"Main"}})
     local left = main:column({})
-    local list_section = left:section({name = "Configs", size = 1, default = true, icon = "rbxassetid://139628202576511"})
+    local list_section = left:section({name = "Configs", size = 1, default = true, icon = "lucide:folder-open"})
     __kaeryn.config_holder = list_section:list({options = {}, flag = "config_name_list"})
 
     local right = main:column({})
-    local section = right:section({name = "Settings", side = "right", size = 1, default = true, icon = "rbxassetid://129380150574313"})
+    local section = right:section({name = "Settings", side = "right", size = 1, default = true, icon = "lucide:settings"})
     section:textbox({name = "Config name:", flag = "config_name_text"})
 
     local function notice(message)
@@ -44,8 +44,28 @@ function library:init_config(window)
         local path = config_path(selected)
         local content = path and read_file(path)
         if not content then notice("Select an existing configuration") return end
-        local ok, err = library:load_config(content)
-        notice(ok and ("Loaded config: " .. selected) or ("Load failed: " .. tostring(err)))
+        local ok, preview = library:preview_config(content)
+        if not ok then notice("Load failed: " .. tostring(preview)) return end
+        local changed_flags = {}
+        for index = 1, math.min(#preview.changes, 5) do
+            changed_flags[index] = preview.changes[index].flag
+        end
+        local message = #preview.changes == 0 and "This config will not change any control values."
+            or ("This config will change " .. tostring(#preview.changes) .. " control values.")
+        if #preview.migrations > 0 then message ..= "\n" .. tostring(#preview.migrations) .. " old flags will be migrated." end
+        if #changed_flags > 0 then message ..= "\n\n" .. table.concat(changed_flags, "\n") end
+        if #preview.changes > #changed_flags then message ..= "\n...and " .. tostring(#preview.changes - #changed_flags) .. " more." end
+        library:confirm({
+            title = "Load configuration?",
+            message = message,
+            confirm_text = "Load",
+            on_confirm = function(accepted)
+                if not accepted then return end
+                local loaded, migrations = library:load_config(content)
+                if not loaded then notice("Load failed: " .. tostring(migrations))
+                else notice("Loaded config: " .. selected) end
+            end,
+        })
     end})
     section:button({name = "Delete", callback = function()
         local selected = config_name(flags.config_name_list) or config_name(flags.config_name_text)
