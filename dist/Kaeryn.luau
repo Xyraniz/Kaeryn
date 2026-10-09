@@ -556,11 +556,11 @@ function library:init_config(window)
     window:separator({name = "Settings"})
     local main = window:tab({name = "Configs", tabs = {"Main"}})
     local left = main:column({})
-    local list_section = left:section({name = "Configs", size = 1, default = true, icon = "lucide:folder-open"})
+    local list_section = left:section({name = "Configs", default = true, icon = "lucide:folder-open"})
     __kaeryn.config_holder = list_section:list({options = {}, flag = "config_name_list"})
 
     local right = main:column({})
-    local section = right:section({name = "Settings", side = "right", size = 1, default = true, icon = "lucide:settings"})
+    local section = right:section({name = "Settings", side = "right", default = true, icon = "lucide:settings"})
     section:textbox({name = "Config name:", flag = "config_name_text"})
     local config_sections = {list = list_section, settings = section}
 
@@ -2730,11 +2730,11 @@ function library:keybind(options)
             Parent = items[ "right_components" ];
             AutoButtonColor = false;
             AnchorPoint = vec2(1, 0);
-            Size = dim2(0, 0, 0, 16);
+            Size = dim_offset(68, 22);
             Name = "\0";
             Position = dim2(1, 0, 0, 0);
             BorderSizePixel = 0;
-            AutomaticSize = Enum.AutomaticSize.X;
+            AutomaticSize = Enum.AutomaticSize.None;
             TextSize = 14;
             BackgroundColor3 = rgb(33, 33, 35)
         });
@@ -2746,17 +2746,19 @@ function library:keybind(options)
 
         items[ "key" ] = library:create( "TextLabel" , {
             FontFace = fonts.font;
-            TextColor3 = rgb(86, 86, 87);
+            TextColor3 = themes.preset.muted;
             BorderColor3 = rgb(0, 0, 0);
             Text = "LSHIFT";
             Parent = items[ "keybind_holder" ];
             Name = "\0";
-            Size = dim2(1, -12, 0, 0);
+            Size = dim2(1, -8, 1, 0);
             BackgroundTransparency = 1;
-            TextXAlignment = Enum.TextXAlignment.Left;
+            TextXAlignment = Enum.TextXAlignment.Center;
+            TextYAlignment = Enum.TextYAlignment.Center;
             BorderSizePixel = 0;
-            AutomaticSize = Enum.AutomaticSize.XY;
+            AutomaticSize = Enum.AutomaticSize.None;
             TextSize = 14;
+            TextTruncate = Enum.TextTruncate.AtEnd;
             BackgroundColor3 = rgb(255, 255, 255)
         });
 
@@ -2766,6 +2768,7 @@ function library:keybind(options)
             PaddingRight = dim(0, 5);
             PaddingLeft = dim(0, 5)
         });
+        library:apply_theme(items[ "key" ], "muted", "TextColor3")
 
         items["conflict"] = library:create("TextLabel", {
             FontFace = fonts.font;
@@ -2825,7 +2828,7 @@ function library:keybind(options)
         for _, option in options do
             local name = library:create( "TextButton" , {
                 FontFace = fonts.font;
-                TextColor3 = rgb(72, 72, 73);
+                TextColor3 = themes.preset.muted;
                 BorderColor3 = rgb(0, 0, 0);
                 Text = option;
                 Parent = items[ "inline" ];
@@ -2839,6 +2842,7 @@ function library:keybind(options)
                 BackgroundColor3 = rgb(255, 255, 255)
             }); cfg.hold_instances[option] = name
             library:apply_theme(name, "accent", "TextColor3")
+            library:apply_theme(name, "muted", "TextColor3")
 
             cfg.y_size += 25
 
@@ -2861,7 +2865,7 @@ function library:keybind(options)
 
     function cfg.modify_mode_color(path)
         for mode, control in pairs(cfg.hold_instances) do
-            control.TextColor3 = mode == path and themes.preset.accent or rgb(72, 72, 72)
+            control.TextColor3 = mode == path and themes.preset.accent or themes.preset.muted
         end
     end
 
@@ -2915,6 +2919,7 @@ function library:keybind(options)
 
     function cfg:refresh_key_label()
         items.key.Text = self.binding and "..." or library.get_keybind_label(self.key)
+        items.key.TextColor3 = self.binding and themes.preset.accent or themes.preset.muted
     end
 
     function cfg:GetConflicts()
@@ -2961,7 +2966,7 @@ function library:keybind(options)
         end
     end
 
-    items[ "keybind_holder" ].MouseButton1Down:Connect(function()
+    items[ "keybind_holder" ].Activated:Connect(function()
         if library.is_mobile then
             cfg.open = not cfg.open
             cfg.set_visible(cfg.open)
@@ -8949,7 +8954,7 @@ function library:tab(properties)
         });
 
         items[ "icon" ] = library:create( "ImageLabel" , {
-            ImageColor3 = rgb(72, 72, 73);
+            ImageColor3 = themes.preset.muted;
             BorderColor3 = rgb(0, 0, 0);
             Parent = items[ "button" ];
             AnchorPoint = vec2(0, 0.5);
@@ -8960,7 +8965,9 @@ function library:tab(properties)
             Size = dim2(0, 22, 0, 22);
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 255, 255)
-        }); library:apply_theme(items[ "icon" ], "accent", "ImageColor3");
+        });
+        library:apply_theme(items[ "icon" ], "accent", "ImageColor3")
+        library:apply_theme(items[ "icon" ], "muted", "ImageColor3")
 
         if not cfg.custom_icon then
             items["compact_mark"] = library:create("TextLabel", {
@@ -8973,16 +8980,17 @@ function library:tab(properties)
                 BorderSizePixel = 0,
                 FontFace = fonts.font,
                 Text = string.upper(cfg.name:match("[%w]") or "?"),
-                TextColor3 = rgb(72, 72, 73),
+                TextColor3 = themes.preset.muted,
                 TextSize = 15,
                 Visible = false,
             })
             library:apply_theme(items["compact_mark"], "accent", "TextColor3")
+            library:apply_theme(items["compact_mark"], "muted", "TextColor3")
         end
 
         items[ "name" ] = library:create( "TextLabel" , {
             FontFace = fonts.font;
-            TextColor3 = rgb(72, 72, 73);
+            TextColor3 = themes.preset.muted;
             BorderColor3 = rgb(0, 0, 0);
             Text = cfg.name;
             Parent = items[ "button" ];
@@ -8996,6 +9004,7 @@ function library:tab(properties)
             TextSize = 16;
             BackgroundColor3 = rgb(255, 255, 255)
         });
+        library:apply_theme(items[ "name" ], "muted", "TextColor3")
 
         library:create( "UIPadding" , {
             Parent = items[ "name" ];
@@ -9094,7 +9103,7 @@ function library:tab(properties)
 
                 multi_items[ "name" ] = library:create( "TextLabel" , {
                     FontFace = fonts.font;
-                    TextColor3 = rgb(62, 62, 63);
+                    TextColor3 = themes.preset.muted;
                     BorderColor3 = rgb(0, 0, 0);
                     Text = section_name;
                     Parent = multi_items[ "button" ];
@@ -9107,6 +9116,7 @@ function library:tab(properties)
                     TextSize = 16;
                     BackgroundColor3 = rgb(255, 255, 255)
                 });
+                library:apply_theme(multi_items[ "name" ], "muted", "TextColor3")
 
                 library:create( "UIPadding" , {
                     Parent = multi_items[ "name" ];
@@ -9230,7 +9240,7 @@ function library:tab(properties)
                 end
 
                 if page then
-                    library:tween(page.text, {TextColor3 = rgb(62, 62, 63)})
+                    library:tween(page.text, {TextColor3 = themes.preset.muted})
                     library:tween(page.accent, {BackgroundTransparency = 1})
                     library:tween(page.button, {BackgroundTransparency = 1})
 
@@ -9293,10 +9303,10 @@ function library:tab(properties)
             end
 
             library:tween(selected_tab[ 1 ], {BackgroundTransparency = 1})
-            library:tween(selected_tab[ 2 ], {ImageColor3 = rgb(72, 72, 73)})
-            library:tween(selected_tab[ 3 ], {TextColor3 = rgb(72, 72, 73)})
+            library:tween(selected_tab[ 2 ], {ImageColor3 = themes.preset.muted})
+            library:tween(selected_tab[ 3 ], {TextColor3 = themes.preset.muted})
             if selected_tab[6] then
-                library:tween(selected_tab[6], {TextColor3 = rgb(72, 72, 73)})
+                library:tween(selected_tab[6], {TextColor3 = themes.preset.muted})
             end
 
             selected_tab[ 4 ].Visible = false
@@ -9380,7 +9390,7 @@ function library:separator(properties)
     local items = cfg.items do
         items[ "name" ] = library:create( "TextLabel" , {
             FontFace = fonts.font;
-            TextColor3 = rgb(72, 72, 73);
+            TextColor3 = themes.preset.muted;
             BorderColor3 = rgb(0, 0, 0);
             Text = cfg.name;
             Parent = self.items[ "button_holder" ];
@@ -9394,6 +9404,7 @@ function library:separator(properties)
             TextSize = 16;
             BackgroundColor3 = rgb(255, 255, 255)
         });
+        library:apply_theme(items[ "name" ], "muted", "TextColor3")
 
         library:create( "UIPadding" , {
             Parent = items[ "name" ];
@@ -9413,8 +9424,28 @@ function library:seperator(properties)
     return self:separator(properties)
 end
 
+local function resize_auto_sections(column)
+    local count = #column._sections
+    if count == 0 then return end
+
+    local size = 1 / count
+    for _, section in ipairs(column._sections) do
+        section.size = size
+        local outline = section.items.outline
+        if outline and outline.Parent then
+            outline.Size = dim2(0, 0, size, -10)
+        end
+        for _, mobile_section in ipairs(library.mobile_sections) do
+            if mobile_section.outline == outline then
+                mobile_section.size = size
+                break
+            end
+        end
+    end
+end
+
 function library:column(properties)
-    local cfg = {items = {}, size = properties.size or 1}
+    local cfg = {items = {}, size = properties.size or 1, _sections = {}}
     cfg._page = self
 
     local items = cfg.items; do
@@ -9488,6 +9519,12 @@ end
 
 function library:section(properties)
     properties = properties or {}
+    if properties.size ~= nil or properties.Size ~= nil then
+        if not library.deprecated_option_warnings["section:size"] then
+            library.deprecated_option_warnings["section:size"] = true
+            warn("[Kaeryn] section size is deprecated and ignored; section heights are automatic now")
+        end
+    end
     local background_transparency = properties.background_transparency
     if background_transparency == nil then background_transparency = 0 end
     assert(type(background_transparency) == "number" and background_transparency == background_transparency
@@ -9498,7 +9535,7 @@ function library:section(properties)
         name = properties.name or properties.Name or "section";
         side = properties.side or properties.Side or "left";
         default = properties.default or properties.Default or false;
-        size = properties.size or properties.Size or self.size or 0.5;
+        size = 1;
         icon = properties.icon or properties.Icon or "lucide:settings";
         fading_toggle = properties.fading or properties.Fading or false;
         background_transparency = background_transparency;
@@ -9512,7 +9549,7 @@ function library:section(properties)
             Name = "\0";
             Parent = self.items[ "column" ];
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(0, 0, cfg.size, -3);
+            Size = dim2(0, 0, cfg.size, -10);
             BorderSizePixel = 0;
             BackgroundTransparency = layer_transparency;
             BackgroundColor3 = rgb(25, 25, 29)
@@ -9770,6 +9807,8 @@ function library:section(properties)
         end)
         library:queue_mobile_layout()
     end
+    insert(self._sections, cfg)
+    resize_auto_sections(self)
     return setmetatable(cfg, library)
 end
 end
@@ -10733,13 +10772,14 @@ function library:window(properties)
 
         items[ "side_frame" ] = library:create( "Frame" , {
             Parent = items[ "main" ];
-            BackgroundTransparency = 1;
+            BackgroundTransparency = 0.1;
             Name = "\0";
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(0, 196, 1, -25);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(14, 14, 16)
+            BackgroundColor3 = themes.preset.background
         });
+        library:apply_theme(items[ "side_frame" ], "background", "BackgroundColor3")
 
         library:create( "Frame" , {
             AnchorPoint = vec2(1, 0);
@@ -10803,13 +10843,14 @@ function library:window(properties)
         items[ "multi_holder" ] = library:create( "Frame" , {
             Parent = items[ "main" ];
             Name = "\0";
-            BackgroundTransparency = 1;
+            BackgroundTransparency = 0.1;
             Position = dim2(0, 196, 0, 0);
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(1, -196, 0, 56);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(255, 255, 255)
+            BackgroundColor3 = themes.preset.background
         }); cfg.multi_holder = items[ "multi_holder" ];
+        library:apply_theme(items[ "multi_holder" ], "background", "BackgroundColor3")
 
         library:create( "Frame" , {
             AnchorPoint = vec2(0, 1);

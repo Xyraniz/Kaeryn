@@ -81,7 +81,7 @@ function library:tab(properties)
         });
 
         items[ "icon" ] = library:create( "ImageLabel" , {
-            ImageColor3 = rgb(72, 72, 73);
+            ImageColor3 = themes.preset.muted;
             BorderColor3 = rgb(0, 0, 0);
             Parent = items[ "button" ];
             AnchorPoint = vec2(0, 0.5);
@@ -92,7 +92,9 @@ function library:tab(properties)
             Size = dim2(0, 22, 0, 22);
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 255, 255)
-        }); library:apply_theme(items[ "icon" ], "accent", "ImageColor3");
+        });
+        library:apply_theme(items[ "icon" ], "accent", "ImageColor3")
+        library:apply_theme(items[ "icon" ], "muted", "ImageColor3")
 
         if not cfg.custom_icon then
             items["compact_mark"] = library:create("TextLabel", {
@@ -105,16 +107,17 @@ function library:tab(properties)
                 BorderSizePixel = 0,
                 FontFace = fonts.font,
                 Text = string.upper(cfg.name:match("[%w]") or "?"),
-                TextColor3 = rgb(72, 72, 73),
+                TextColor3 = themes.preset.muted,
                 TextSize = 15,
                 Visible = false,
             })
             library:apply_theme(items["compact_mark"], "accent", "TextColor3")
+            library:apply_theme(items["compact_mark"], "muted", "TextColor3")
         end
 
         items[ "name" ] = library:create( "TextLabel" , {
             FontFace = fonts.font;
-            TextColor3 = rgb(72, 72, 73);
+            TextColor3 = themes.preset.muted;
             BorderColor3 = rgb(0, 0, 0);
             Text = cfg.name;
             Parent = items[ "button" ];
@@ -128,6 +131,7 @@ function library:tab(properties)
             TextSize = 16;
             BackgroundColor3 = rgb(255, 255, 255)
         });
+        library:apply_theme(items[ "name" ], "muted", "TextColor3")
 
         library:create( "UIPadding" , {
             Parent = items[ "name" ];
@@ -226,7 +230,7 @@ function library:tab(properties)
 
                 multi_items[ "name" ] = library:create( "TextLabel" , {
                     FontFace = fonts.font;
-                    TextColor3 = rgb(62, 62, 63);
+                    TextColor3 = themes.preset.muted;
                     BorderColor3 = rgb(0, 0, 0);
                     Text = section_name;
                     Parent = multi_items[ "button" ];
@@ -239,6 +243,7 @@ function library:tab(properties)
                     TextSize = 16;
                     BackgroundColor3 = rgb(255, 255, 255)
                 });
+                library:apply_theme(multi_items[ "name" ], "muted", "TextColor3")
 
                 library:create( "UIPadding" , {
                     Parent = multi_items[ "name" ];
@@ -362,7 +367,7 @@ function library:tab(properties)
                 end
 
                 if page then
-                    library:tween(page.text, {TextColor3 = rgb(62, 62, 63)})
+                    library:tween(page.text, {TextColor3 = themes.preset.muted})
                     library:tween(page.accent, {BackgroundTransparency = 1})
                     library:tween(page.button, {BackgroundTransparency = 1})
 
@@ -425,10 +430,10 @@ function library:tab(properties)
             end
 
             library:tween(selected_tab[ 1 ], {BackgroundTransparency = 1})
-            library:tween(selected_tab[ 2 ], {ImageColor3 = rgb(72, 72, 73)})
-            library:tween(selected_tab[ 3 ], {TextColor3 = rgb(72, 72, 73)})
+            library:tween(selected_tab[ 2 ], {ImageColor3 = themes.preset.muted})
+            library:tween(selected_tab[ 3 ], {TextColor3 = themes.preset.muted})
             if selected_tab[6] then
-                library:tween(selected_tab[6], {TextColor3 = rgb(72, 72, 73)})
+                library:tween(selected_tab[6], {TextColor3 = themes.preset.muted})
             end
 
             selected_tab[ 4 ].Visible = false
@@ -512,7 +517,7 @@ function library:separator(properties)
     local items = cfg.items do
         items[ "name" ] = library:create( "TextLabel" , {
             FontFace = fonts.font;
-            TextColor3 = rgb(72, 72, 73);
+            TextColor3 = themes.preset.muted;
             BorderColor3 = rgb(0, 0, 0);
             Text = cfg.name;
             Parent = self.items[ "button_holder" ];
@@ -526,6 +531,7 @@ function library:separator(properties)
             TextSize = 16;
             BackgroundColor3 = rgb(255, 255, 255)
         });
+        library:apply_theme(items[ "name" ], "muted", "TextColor3")
 
         library:create( "UIPadding" , {
             Parent = items[ "name" ];
@@ -545,8 +551,28 @@ function library:seperator(properties)
     return self:separator(properties)
 end
 
+local function resize_auto_sections(column)
+    local count = #column._sections
+    if count == 0 then return end
+
+    local size = 1 / count
+    for _, section in ipairs(column._sections) do
+        section.size = size
+        local outline = section.items.outline
+        if outline and outline.Parent then
+            outline.Size = dim2(0, 0, size, -10)
+        end
+        for _, mobile_section in ipairs(library.mobile_sections) do
+            if mobile_section.outline == outline then
+                mobile_section.size = size
+                break
+            end
+        end
+    end
+end
+
 function library:column(properties)
-    local cfg = {items = {}, size = properties.size or 1}
+    local cfg = {items = {}, size = properties.size or 1, _sections = {}}
     cfg._page = self
 
     local items = cfg.items; do
@@ -620,6 +646,12 @@ end
 
 function library:section(properties)
     properties = properties or {}
+    if properties.size ~= nil or properties.Size ~= nil then
+        if not library.deprecated_option_warnings["section:size"] then
+            library.deprecated_option_warnings["section:size"] = true
+            warn("[Kaeryn] section size is deprecated and ignored; section heights are automatic now")
+        end
+    end
     local background_transparency = properties.background_transparency
     if background_transparency == nil then background_transparency = 0 end
     assert(type(background_transparency) == "number" and background_transparency == background_transparency
@@ -630,7 +662,7 @@ function library:section(properties)
         name = properties.name or properties.Name or "section";
         side = properties.side or properties.Side or "left";
         default = properties.default or properties.Default or false;
-        size = properties.size or properties.Size or self.size or 0.5;
+        size = 1;
         icon = properties.icon or properties.Icon or "lucide:settings";
         fading_toggle = properties.fading or properties.Fading or false;
         background_transparency = background_transparency;
@@ -644,7 +676,7 @@ function library:section(properties)
             Name = "\0";
             Parent = self.items[ "column" ];
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(0, 0, cfg.size, -3);
+            Size = dim2(0, 0, cfg.size, -10);
             BorderSizePixel = 0;
             BackgroundTransparency = layer_transparency;
             BackgroundColor3 = rgb(25, 25, 29)
@@ -902,6 +934,8 @@ function library:section(properties)
         end)
         library:queue_mobile_layout()
     end
+    insert(self._sections, cfg)
+    resize_auto_sections(self)
     return setmetatable(cfg, library)
 end
 end

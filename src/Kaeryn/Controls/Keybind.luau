@@ -129,11 +129,11 @@ function library:keybind(options)
             Parent = items[ "right_components" ];
             AutoButtonColor = false;
             AnchorPoint = vec2(1, 0);
-            Size = dim2(0, 0, 0, 16);
+            Size = dim_offset(68, 22);
             Name = "\0";
             Position = dim2(1, 0, 0, 0);
             BorderSizePixel = 0;
-            AutomaticSize = Enum.AutomaticSize.X;
+            AutomaticSize = Enum.AutomaticSize.None;
             TextSize = 14;
             BackgroundColor3 = rgb(33, 33, 35)
         });
@@ -145,17 +145,19 @@ function library:keybind(options)
 
         items[ "key" ] = library:create( "TextLabel" , {
             FontFace = fonts.font;
-            TextColor3 = rgb(86, 86, 87);
+            TextColor3 = themes.preset.muted;
             BorderColor3 = rgb(0, 0, 0);
             Text = "LSHIFT";
             Parent = items[ "keybind_holder" ];
             Name = "\0";
-            Size = dim2(1, -12, 0, 0);
+            Size = dim2(1, -8, 1, 0);
             BackgroundTransparency = 1;
-            TextXAlignment = Enum.TextXAlignment.Left;
+            TextXAlignment = Enum.TextXAlignment.Center;
+            TextYAlignment = Enum.TextYAlignment.Center;
             BorderSizePixel = 0;
-            AutomaticSize = Enum.AutomaticSize.XY;
+            AutomaticSize = Enum.AutomaticSize.None;
             TextSize = 14;
+            TextTruncate = Enum.TextTruncate.AtEnd;
             BackgroundColor3 = rgb(255, 255, 255)
         });
 
@@ -165,6 +167,7 @@ function library:keybind(options)
             PaddingRight = dim(0, 5);
             PaddingLeft = dim(0, 5)
         });
+        library:apply_theme(items[ "key" ], "muted", "TextColor3")
 
         items["conflict"] = library:create("TextLabel", {
             FontFace = fonts.font;
@@ -224,7 +227,7 @@ function library:keybind(options)
         for _, option in options do
             local name = library:create( "TextButton" , {
                 FontFace = fonts.font;
-                TextColor3 = rgb(72, 72, 73);
+                TextColor3 = themes.preset.muted;
                 BorderColor3 = rgb(0, 0, 0);
                 Text = option;
                 Parent = items[ "inline" ];
@@ -238,6 +241,7 @@ function library:keybind(options)
                 BackgroundColor3 = rgb(255, 255, 255)
             }); cfg.hold_instances[option] = name
             library:apply_theme(name, "accent", "TextColor3")
+            library:apply_theme(name, "muted", "TextColor3")
 
             cfg.y_size += 25
 
@@ -260,7 +264,7 @@ function library:keybind(options)
 
     function cfg.modify_mode_color(path)
         for mode, control in pairs(cfg.hold_instances) do
-            control.TextColor3 = mode == path and themes.preset.accent or rgb(72, 72, 72)
+            control.TextColor3 = mode == path and themes.preset.accent or themes.preset.muted
         end
     end
 
@@ -314,6 +318,7 @@ function library:keybind(options)
 
     function cfg:refresh_key_label()
         items.key.Text = self.binding and "..." or library.get_keybind_label(self.key)
+        items.key.TextColor3 = self.binding and themes.preset.accent or themes.preset.muted
     end
 
     function cfg:GetConflicts()
@@ -360,7 +365,7 @@ function library:keybind(options)
         end
     end
 
-    items[ "keybind_holder" ].MouseButton1Down:Connect(function()
+    items[ "keybind_holder" ].Activated:Connect(function()
         if library.is_mobile then
             cfg.open = not cfg.open
             cfg.set_visible(cfg.open)

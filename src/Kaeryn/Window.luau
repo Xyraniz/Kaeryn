@@ -141,13 +141,14 @@ function library:window(properties)
 
         items[ "side_frame" ] = library:create( "Frame" , {
             Parent = items[ "main" ];
-            BackgroundTransparency = 1;
+            BackgroundTransparency = 0.1;
             Name = "\0";
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(0, 196, 1, -25);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(14, 14, 16)
+            BackgroundColor3 = themes.preset.background
         });
+        library:apply_theme(items[ "side_frame" ], "background", "BackgroundColor3")
 
         library:create( "Frame" , {
             AnchorPoint = vec2(1, 0);
@@ -211,13 +212,14 @@ function library:window(properties)
         items[ "multi_holder" ] = library:create( "Frame" , {
             Parent = items[ "main" ];
             Name = "\0";
-            BackgroundTransparency = 1;
+            BackgroundTransparency = 0.1;
             Position = dim2(0, 196, 0, 0);
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(1, -196, 0, 56);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(255, 255, 255)
+            BackgroundColor3 = themes.preset.background
         }); cfg.multi_holder = items[ "multi_holder" ];
+        library:apply_theme(items[ "multi_holder" ], "background", "BackgroundColor3")
 
         library:create( "Frame" , {
             AnchorPoint = vec2(0, 1);

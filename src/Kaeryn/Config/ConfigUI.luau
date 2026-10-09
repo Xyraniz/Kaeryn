@@ -15,11 +15,11 @@ function library:init_config(window)
     window:separator({name = "Settings"})
     local main = window:tab({name = "Configs", tabs = {"Main"}})
     local left = main:column({})
-    local list_section = left:section({name = "Configs", size = 1, default = true, icon = "lucide:folder-open"})
+    local list_section = left:section({name = "Configs", default = true, icon = "lucide:folder-open"})
     __kaeryn.config_holder = list_section:list({options = {}, flag = "config_name_list"})
 
     local right = main:column({})
-    local section = right:section({name = "Settings", side = "right", size = 1, default = true, icon = "lucide:settings"})
+    local section = right:section({name = "Settings", side = "right", default = true, icon = "lucide:settings"})
     section:textbox({name = "Config name:", flag = "config_name_text"})
     local config_sections = {list = list_section, settings = section}
 

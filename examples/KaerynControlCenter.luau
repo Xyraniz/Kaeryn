@@ -189,7 +189,7 @@ local operation_overview, operation_controls, operation_inputs, operation_collec
 			icon = "lucide:box",
 			lazy = function(page)
 				local column = page:column({})
-				local section = column:section({name = "On-demand loading", default = true, size = 1})
+				local section = column:section({name = "On-demand loading", default = true})
 				section_transparency_targets.resources = section
 				apply_section_transparency()
 				section:label({
@@ -225,7 +225,7 @@ local system_utilities = window:tab({
 
 local overview_left = operation_overview:column({})
 local overview_right = operation_overview:column({})
-local session_section = overview_left:section({name = "Session", default = true, size = 1, icon = "lucide:activity"})
+local session_section = overview_left:section({name = "Session", default = true, icon = "lucide:activity"})
 uptime_label = session_section:label({id = "session.uptime", name = "Uptime: 0 s"})
 
 local connected = session_section:toggle({
@@ -266,7 +266,7 @@ local compact_mode = session_section:toggle({
 	default = false,
 })
 
-local overview_section = overview_right:section({name = "Quick access", default = true, size = 1, icon = "lucide:monitor"})
+local overview_section = overview_right:section({name = "Quick access", default = true, icon = "lucide:monitor"})
 overview_section:label({id = "session.shortcuts", name = "Available shortcuts", info = "Try opening search, changing the state, or showing a notification."})
 overview_section:button({
 	id = "session.notify",
@@ -298,7 +298,7 @@ overview_section:button({
 
 local controls_left = operation_controls:column({})
 local controls_right = operation_controls:column({})
-local range_section = controls_left:section({name = "Ranges", default = true, size = 1, icon = "lucide:sliders-horizontal", background_transparency = 0.18})
+local range_section = controls_left:section({name = "Ranges", default = true, icon = "lucide:sliders-horizontal", background_transparency = 0.18})
 local power = range_section:slider({
 	id = "render.power",
 	name = "Intensity",
@@ -360,7 +360,7 @@ range_section:button({
 	end,
 })
 
-local modes_section = controls_right:section({name = "Modes and color", default = true, size = 1, icon = "lucide:circle-check", background_transparency = 0.18})
+local modes_section = controls_right:section({name = "Modes and color", default = true, icon = "lucide:circle-check", background_transparency = 0.18})
 local render_mode = modes_section:segmented({
 	id = "render.mode",
 	name = "Image quality",
@@ -412,7 +412,7 @@ modes_section:button({
 
 local inputs_left = operation_inputs:column({})
 local inputs_right = operation_inputs:column({})
-local dropdown_section = inputs_left:section({name = "Selection", default = true, size = 1, icon = "lucide:list"})
+local dropdown_section = inputs_left:section({name = "Selection", default = true, icon = "lucide:list"})
 local region = dropdown_section:dropdown({
 	id = "account.region",
 	name = "Service region",
@@ -452,7 +452,7 @@ local modules = dropdown_section:dropdown({
 	end,
 })
 
-local account_section = inputs_right:section({name = "Account settings", default = true, size = 1, icon = "lucide:settings"})
+local account_section = inputs_right:section({name = "Account settings", default = true, icon = "lucide:settings"})
 local operator_name = account_section:textbox({
 	id = "account.operator",
 	name = "Operator name",
@@ -481,7 +481,7 @@ local category_list = account_section:list({
 	end,
 })
 
-local inputs_buttons = inputs_right:section({name = "Input actions", default = true, size = 0.55, icon = "lucide:wrench"})
+local inputs_buttons = inputs_right:section({name = "Input actions", default = true, icon = "lucide:wrench"})
 local quick_action = inputs_buttons:toggle({
 	id = "input.quick_action",
 	name = "Quick action",
@@ -544,7 +544,7 @@ inputs_buttons:button({
 
 local collections_left = operation_collections:column({})
 local collections_right = operation_collections:column({})
-local rule_section = collections_left:section({name = "Rules", default = true, size = 1, icon = "lucide:list-check"})
+local rule_section = collections_left:section({name = "Rules", default = true, icon = "lucide:list-check"})
 local rules = rule_section:group({
 	id = "rules.targets",
 	name = "Monitored targets",
@@ -561,7 +561,7 @@ local backup_rule = rules:Add("backup", "Backup")
 backup_rule:toggle({id = "enabled", name = "Monitoring", default = false})
 backup_rule:slider({id = "threshold", name = "Threshold", min = 0, max = 100, default = 35, suffix = "%"})
 
-local rule_actions = collections_left:section({name = "Manage rules", default = true, size = 0.48, icon = "lucide:wrench"})
+local rule_actions = collections_left:section({name = "Manage rules", default = true, icon = "lucide:wrench"})
 rule_actions:button({
 	id = "rules.add",
 	name = "Add target",
@@ -592,7 +592,7 @@ rule_actions:button({
 	end,
 })
 
-local custom_section = collections_right:section({name = "Custom control", default = true, size = 1, icon = "lucide:box"})
+local custom_section = collections_right:section({name = "Custom control", default = true, icon = "lucide:box"})
 local service_state = custom_section:custom_control("status_badge", {
 	id = "system.service_state",
 	flag = "system.service_state",
@@ -613,7 +613,7 @@ custom_section:label({id = "system.custom_help", name = "The custom status is in
 
 local records_left = records_nodes:column({})
 local records_right = records_nodes:column({})
-local table_section = records_left:section({name = "Nodes", default = true, size = 1, icon = "lucide:database", background_transparency = 0.18})
+local table_section = records_left:section({name = "Nodes", default = true, icon = "lucide:database", background_transparency = 0.18})
 local initial_rows = {
 	{id = "node-west", zone = "West", status = "Operational", latency = 34},
 	{id = "node-east", zone = "East", status = "Operational", latency = 48},
@@ -640,7 +640,7 @@ local nodes = table_section:data_table({
 	end,
 })
 
-local record_actions = records_right:section({name = "Update records", default = true, size = 1, icon = "lucide:wrench", background_transparency = 0.18})
+local record_actions = records_right:section({name = "Update records", default = true, icon = "lucide:wrench", background_transparency = 0.18})
 record_actions:label({id = "records.selected", name = "Select a row to see its callback."})
 record_actions:button({
 	id = "records.update",
@@ -679,8 +679,8 @@ record_actions:button({
 
 local system_left = system_utilities:column({})
 local system_right = system_utilities:column({})
-local actions_section = system_right:section({name = "Window and dialogs", default = true, size = 1, icon = "lucide:bell"})
-local appearance_section = system_left:section({name = "Appearance", default = true, size = 1, icon = "lucide:settings", background_transparency = 0.18})
+local actions_section = system_right:section({name = "Window and dialogs", default = true, icon = "lucide:bell"})
+local appearance_section = system_left:section({name = "Appearance", default = true, icon = "lucide:settings", background_transparency = 0.18})
 section_transparency_targets = {
 	session = session_section,
 	quick_access = overview_section,

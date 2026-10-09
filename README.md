@@ -177,6 +177,8 @@ local ranges = column:section({
 ranges:SetBackgroundTransparency(0.35)
 ```
 
+Section heights are managed by the library: sections in a column share its available height automatically. The old `size` option is deprecated and ignored.
+
 ## Page lifecycle and lazy content
 
 Tabs and pages accept `on_enter` and `on_leave` callbacks. A page definition can use `lazy` to build its controls on its first open; page IDs remain independent of the displayed name and are used when restoring a saved layout.

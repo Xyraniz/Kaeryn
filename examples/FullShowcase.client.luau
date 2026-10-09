@@ -21,8 +21,8 @@ end
 
 local controlsLeft = controlsPage:column({})
 local controlsRight = controlsPage:column({})
-local basics = controlsLeft:section({name = "Toggles & sliders", size = 1, default = true})
-local textAndKeys = controlsRight:section({name = "Text & keybinds", size = 1, default = true})
+local basics = controlsLeft:section({name = "Toggles & sliders", default = true})
+local textAndKeys = controlsRight:section({name = "Text & keybinds", default = true})
 
 basics:label({
     name = "Every control in one place",
@@ -97,8 +97,8 @@ textAndKeys:keybind({
 
 local choicesLeft = choicesPage:column({})
 local choicesRight = choicesPage:column({})
-local dropdowns = choicesLeft:section({name = "Dropdowns", size = 1, default = true})
-local selections = choicesRight:section({name = "Color & list", size = 1, default = true})
+local dropdowns = choicesLeft:section({name = "Dropdowns", default = true})
+local selections = choicesRight:section({name = "Color & list", default = true})
 
 dropdowns:dropdown({
     name = "Quality",
@@ -141,8 +141,8 @@ selections:list({
 
 local toolsLeft = toolsPage:column({})
 local toolsRight = toolsPage:column({})
-local actions = toolsLeft:section({name = "Actions", size = 1, default = true})
-local themeTools = toolsRight:section({name = "Theme & config", size = 1, default = true})
+local actions = toolsLeft:section({name = "Actions", default = true})
+local themeTools = toolsRight:section({name = "Theme & config", default = true})
 
 actions:button({
     name = "Show notification",
