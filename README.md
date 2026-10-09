@@ -17,6 +17,8 @@ npm test
 local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Xyraniz/Kaeryn/main/dist/Kaeryn.luau"))()
 ```
 
+For a full runnable control panel covering Kaeryn's controls and APIs, see [`examples/KaerynControlCenter.luau`](examples/KaerynControlCenter.luau).
+
 Give controls explicit, stable IDs and flags for saved configs. If omitted, named controls keep the previous key derived from their type, section, and name. Unnamed persistent controls need an explicit `id` or `flag`. Duplicate IDs or flags stop setup with an error so one control cannot silently take over another control's identity or config setter.
 
 ```lua
