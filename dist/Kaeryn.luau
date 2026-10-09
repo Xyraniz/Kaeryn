@@ -166,6 +166,7 @@ function library:round(number, interval)
 end
 
 library.is_mobile = uis.TouchEnabled and (not uis.MouseEnabled or not uis.KeyboardEnabled)
+library.section_content_width = library.is_mobile and 0.86 or 0.76
 library.mobile_tabs = {}
 library.mobile_columns = {}
 library.mobile_pages = {}
@@ -6829,7 +6830,7 @@ function library:refresh_mobile_layout()
         if sec.outline.Parent then
             local content = max(sec.layout.AbsoluteContentSize.Y + 15, sec.elements.AbsoluteSize.Y)
             local target = max(92, math.ceil(content + 57))
-            local new_size = dim2(1, 0, 0, target)
+            local new_size = dim2(library.section_content_width, 0, 0, target)
             if sec.outline.Size ~= new_size then sec.outline.Size = new_size end
             sec.scrolling.ScrollingEnabled = false
             sec.scrolling.ScrollBarThickness = 0
@@ -9433,7 +9434,7 @@ local function resize_auto_sections(column)
         section.size = size
         local outline = section.items.outline
         if outline and outline.Parent then
-            outline.Size = dim2(0, 0, size, -10)
+            outline.Size = dim2(library.section_content_width, 0, size, -10)
         end
         for _, mobile_section in ipairs(library.mobile_sections) do
             if mobile_section.outline == outline then
@@ -9471,7 +9472,8 @@ function library:column(properties)
 
         library:create( "UIListLayout" , {
             Parent = items[ "column" ];
-            HorizontalFlex = Enum.UIFlexAlignment.Fill;
+            HorizontalAlignment = Enum.HorizontalAlignment.Center;
+            HorizontalFlex = Enum.UIFlexAlignment.None;
             Padding = dim(0, 10);
             FillDirection = Enum.FillDirection.Vertical;
             SortOrder = Enum.SortOrder.LayoutOrder

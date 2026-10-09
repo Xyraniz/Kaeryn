@@ -560,7 +560,7 @@ local function resize_auto_sections(column)
         section.size = size
         local outline = section.items.outline
         if outline and outline.Parent then
-            outline.Size = dim2(0, 0, size, -10)
+            outline.Size = dim2(library.section_content_width, 0, size, -10)
         end
         for _, mobile_section in ipairs(library.mobile_sections) do
             if mobile_section.outline == outline then
@@ -598,7 +598,8 @@ function library:column(properties)
 
         library:create( "UIListLayout" , {
             Parent = items[ "column" ];
-            HorizontalFlex = Enum.UIFlexAlignment.Fill;
+            HorizontalAlignment = Enum.HorizontalAlignment.Center;
+            HorizontalFlex = Enum.UIFlexAlignment.None;
             Padding = dim(0, 10);
             FillDirection = Enum.FillDirection.Vertical;
             SortOrder = Enum.SortOrder.LayoutOrder

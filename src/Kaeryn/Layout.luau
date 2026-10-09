@@ -356,7 +356,7 @@ function library:refresh_mobile_layout()
         if sec.outline.Parent then
             local content = max(sec.layout.AbsoluteContentSize.Y + 15, sec.elements.AbsoluteSize.Y)
             local target = max(92, math.ceil(content + 57))
-            local new_size = dim2(1, 0, 0, target)
+            local new_size = dim2(library.section_content_width, 0, 0, target)
             if sec.outline.Size ~= new_size then sec.outline.Size = new_size end
             sec.scrolling.ScrollingEnabled = false
             sec.scrolling.ScrollBarThickness = 0
