@@ -128,6 +128,7 @@ local section_transparency_value = 0.18
 local section_transparency_picker
 
 local function apply_section_transparency()
+	window:SetSidebarTransparency(section_transparency_value)
 	local apply_all = table.find(section_transparency_selection, "all") ~= nil
 	for id, section in pairs(section_transparency_targets) do
 		if apply_all or table.find(section_transparency_selection, id) then
@@ -745,7 +746,7 @@ section_transparency_picker = appearance_section:dropdown({
 appearance_section:slider({
 	id = "appearance.section_transparency",
 	name = "Section transparency",
-	info = "Adjust the selected section cards.",
+	info = "Adjust the selected section cards and the sidebar.",
 	min = 0,
 	max = 100,
 	interval = 1,

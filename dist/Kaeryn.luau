@@ -10801,7 +10801,7 @@ function library:window(properties)
 
         items[ "side_frame" ] = library:create( "Frame" , {
             Parent = items[ "main" ];
-            BackgroundTransparency = cfg.background_transparency;
+            BackgroundTransparency = 0.1;
             Name = "\0";
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(0, 196, 1, -25);
@@ -11105,6 +11105,15 @@ function library:window(properties)
         end
         self.background_transparency = transparency
         items.background_image.ImageTransparency = transparency
+        return true
+    end
+
+    function cfg:SetSidebarTransparency(transparency)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if type(transparency) ~= "number" or transparency ~= transparency or transparency < 0 or transparency > 1 then
+            return false, "sidebar transparency must be a number between 0 and 1"
+        end
+        self.sidebar_transparency = transparency
         items.side_frame.BackgroundTransparency = transparency
         return true
     end
