@@ -418,6 +418,7 @@ end
 function library:unload_menu()
     if library.unloaded then return end
     if library.cancel_pointer_drag then library:cancel_pointer_drag() end
+    if library.clear_keybinds then library:clear_keybinds() end
     library.unloaded = true
     if library.search_locale_connection then
         library.search_locale_connection:Disconnect()
@@ -440,9 +441,11 @@ function library:unload_menu()
     table.clear(library.mobile_columns)
     table.clear(library.mobile_sections)
     table.clear(library.notifications.notifs)
+    table.clear(library.notifications.records)
     for _, group in pairs(themes.utility) do
         for _, objects in pairs(group) do table.clear(objects) end
     end
+    for _, objects in pairs(themes.scale_utility) do table.clear(objects) end
 end
 
 library.unload = library.unload_menu

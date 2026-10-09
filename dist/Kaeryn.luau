@@ -86,13 +86,19 @@ local themes = {
         text_soft = rgb(245, 245, 245),
         muted = rgb(130, 130, 130),
         text_muted = rgb(72, 72, 73),
+        success = rgb(91, 190, 129),
+        warning = rgb(232, 174, 78),
+        error = rgb(227, 91, 91),
+        info = rgb(113, 165, 235),
     },
 
     utility = {
         accent = {}, background = {}, surface = {}, surface_alt = {},
         surface_hover = {}, border = {}, text = {}, text_soft = {},
-        muted = {}, text_muted = {},
-    }
+        muted = {}, text_muted = {}, success = {}, warning = {}, error = {}, info = {},
+    },
+    scale = {text_scale = 1, density = 1, radius_scale = 1, motion_scale = 1},
+    scale_utility = {text_scale = {}, density = {}, radius_scale = {}, motion_scale = {}},
 }
 
 local keys = {
@@ -1829,7 +1835,6 @@ end
     end,
     ["src/Kaeryn/Controls/Keybind.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
-    local uis = __kaeryn.uis
     local ws = __kaeryn.ws
     local vec2 = __kaeryn.vec2
     local dim2 = __kaeryn.dim2
@@ -1840,9 +1845,7 @@ return function(__kaeryn)
     local clamp = __kaeryn.clamp
     local library = __kaeryn.library
     local themes = __kaeryn.themes
-    local keys = __kaeryn.keys
     local flags = __kaeryn.flags
-    local config_flags = __kaeryn.config_flags
     local fonts = __kaeryn.fonts
 
 function library:keybind(options)
@@ -1856,6 +1859,10 @@ function library:keybind(options)
         callback = options.callback or function() end,
         name = options.name or nil,
         ignore_key = options.ignore or false,
+        context = options.context or "global",
+        default_key = options.key or "NONE",
+        default_mode = options.mode or "Toggle",
+        default_active = options.default == true,
 
         key = options.key or nil,
         mode = options.mode or "Toggle",
@@ -1976,6 +1983,18 @@ function library:keybind(options)
             PaddingLeft = dim(0, 5)
         });
 
+        items["conflict"] = library:create("TextLabel", {
+            FontFace = fonts.font;
+            TextColor3 = rgb(255, 100, 100);
+            Text = "!";
+            Visible = false;
+            Parent = items["right_components"];
+            Name = "KeybindConflict";
+            BackgroundTransparency = 1;
+            AutomaticSize = Enum.AutomaticSize.XY;
+            TextSize = 14;
+        })
+
         items[ "dropdown" ] = library:create( "Frame" , {
             BorderColor3 = rgb(0, 0, 0);
             Parent = library.items;
@@ -2070,7 +2089,7 @@ function library:keybind(options)
         cfg.set(cfg.active)
     end
 
-    function cfg.set(input)
+    function cfg.set(input, explicit_context)
         if type(input) == "boolean" then
             cfg.active = cfg.mode == "Always" or input
         elseif typeof(input) == "EnumItem" then
@@ -2096,9 +2115,36 @@ function library:keybind(options)
         end
         cfg.modify_mode_color(cfg.mode)
         flags[cfg.flag] = {mode = cfg.mode, key = cfg.key or "NONE", active = cfg.active}
-        local key_string = keys[cfg.key] or (typeof(cfg.key) == "EnumItem" and cfg.key.Name) or "NONE"
-        items.key.Text = tostring(key_string)
-        library:dispatch_control_callback(cfg, cfg.callback, nil, cfg.active)
+        cfg:refresh_key_label()
+        if library.refresh_keybind_conflicts then library:refresh_keybind_conflicts() end
+        library:dispatch_control_callback(cfg, cfg.callback, explicit_context, cfg.active)
+        return true
+    end
+
+    function cfg:refresh_key_label()
+        items.key.Text = self.binding and "..." or library.get_keybind_label(self.key)
+    end
+
+    function cfg:GetConflicts()
+        return library:get_keybind_conflicts(self)
+    end
+
+    function cfg:SetContext(context)
+        if type(context) ~= "string" or context:gsub("%s", "") == "" then
+            return false, "Keybind context must be a non-empty string"
+        end
+        self.context = context
+        library:refresh_keybind_conflicts()
+        return true
+    end
+
+    function cfg:Rebind()
+        if library.is_mobile then return false, "Key capture is unavailable on touch devices" end
+        return library:begin_keybind_capture(self) ~= nil
+    end
+
+    function cfg:Reset()
+        return self:Set({mode = self.default_mode, key = self.default_key, active = self.default_active})
     end
 
     function cfg.set_visible(bool)
@@ -2129,15 +2175,7 @@ function library:keybind(options)
             cfg.set_visible(cfg.open)
             return
         end
-        if cfg.binding then cfg.binding:Disconnect() end
-        items.key.Text = "..."
-        cfg.binding = library:connection(uis.InputBegan, function(keycode)
-            if cfg._destroyed or not cfg._enabled then return end
-            local next_key = keycode.KeyCode ~= Enum.KeyCode.Unknown and keycode.KeyCode or keycode.UserInputType
-            cfg.capture_ignored_input = keycode
-            if cfg.binding then cfg.binding:Disconnect(); cfg.binding = nil end
-            cfg.set(next_key)
-        end, cfg)
+        cfg:Rebind()
     end)
 
     items[ "keybind_holder" ].MouseButton2Down:Connect(function()
@@ -2145,35 +2183,6 @@ function library:keybind(options)
 
         cfg.set_visible(cfg.open)
     end)
-
-    library:connection(uis.InputBegan, function(input, game_event)
-        if not cfg._destroyed and cfg._enabled and not game_event and not cfg.binding and input ~= cfg.capture_ignored_input then
-            local selected_key = input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode or input.UserInputType
-
-            if selected_key == cfg.key then
-                if cfg.mode == "Toggle" then
-                    cfg.active = not cfg.active
-                    cfg.set(cfg.active)
-                elseif cfg.mode == "Hold" then
-                    cfg.set(true)
-                end
-            end
-        end
-    end, cfg)
-
-    library:connection(uis.InputEnded, function(input, game_event)
-        if cfg._destroyed or not cfg._enabled or game_event or cfg.binding then
-            return
-        end
-
-        local selected_key = input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode or input.UserInputType
-
-        if selected_key == cfg.key then
-            if cfg.mode == "Hold" then
-                cfg.set(false)
-            end
-        end
-    end, cfg)
 
     library:with_change_context("initialization", "initialize", cfg.set, {mode = cfg.mode, active = cfg.active, key = cfg.key})
     library:register_config_flag(cfg.flag, cfg.set, function(value)
@@ -2192,6 +2201,9 @@ function library:keybind(options)
 
     library:mobile_format_control(items, "keybind")
     library:attach_control(cfg, items.keybind_element, self)
+    library:register_keybind(cfg)
+    cfg:AddCleanup(function() library:unregister_keybind(cfg) end)
+    cfg:refresh_key_label()
     return setmetatable(cfg, library)
 end
 end
@@ -2438,6 +2450,196 @@ function library:list(properties)
         return false, nil, "value is not one of the list options"
     end, cfg.legacy_flags)
     library:attach_control(cfg, items.list, self)
+    return setmetatable(cfg, library)
+end
+end
+
+    end,
+    ["src/Kaeryn/Controls/Segmented.luau"] = function(__kaeryn_require)
+return function(__kaeryn)
+    local dim2 = __kaeryn.dim2
+    local dim = __kaeryn.dim
+    local rgb = __kaeryn.rgb
+    local library = __kaeryn.library
+    local themes = __kaeryn.themes
+    local flags = __kaeryn.flags
+    local fonts = __kaeryn.fonts
+
+function library:segmented(options)
+    options = library:normalize_options("segmented", options)
+    local id, flag = library:resolve_identity(options, "segmented", self.name, true)
+    local cfg = {
+        id = id,
+        control_type = "segmented",
+        flag = flag,
+        name = options.name,
+        options = table.clone(options.items),
+        default = options.default,
+        callback = options.callback,
+        separator = options.separator,
+        items = {},
+    }
+    local items = cfg.items
+
+    items.root = library:create("Frame", {
+        Parent = self.items.elements;
+        Name = "SegmentedControl";
+        Size = dim2(1, 0, 0, 0);
+        AutomaticSize = Enum.AutomaticSize.Y;
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+    })
+    items.name = library:create("TextLabel", {
+        Parent = items.root;
+        Name = "Name";
+        Text = cfg.name;
+        FontFace = fonts.small;
+        TextSize = 15;
+        TextColor3 = themes.preset.text_soft;
+        TextXAlignment = Enum.TextXAlignment.Left;
+        AutomaticSize = Enum.AutomaticSize.XY;
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+    })
+    items.container = library:create("Frame", {
+        Parent = items.root;
+        Name = "Options";
+        Position = dim2(0, 0, 0, 23);
+        Size = dim2(1, 0, 0, 30);
+        BackgroundColor3 = themes.preset.surface_alt;
+        BorderSizePixel = 0;
+        ClipsDescendants = true;
+    })
+    library:create("UICorner", {Parent = items.container; CornerRadius = dim(0, 5)})
+    items.layout = library:create("UIListLayout", {
+        Parent = items.container;
+        FillDirection = Enum.FillDirection.Horizontal;
+        SortOrder = Enum.SortOrder.LayoutOrder;
+    })
+
+    local function option_record(option)
+        if type(option) == "table" then
+            return {value = option.value, label = option.label or option.value, disabled = option.disabled == true}
+        end
+        return {value = option, label = option, disabled = false}
+    end
+
+    local function find_option(value)
+        for _, item in ipairs(cfg.options) do
+            local option = option_record(item)
+            if option.value == value and not option.disabled then return option end
+        end
+    end
+
+    local function update_selection()
+        local selected = flags[cfg.flag]
+        for value, button in pairs(items.buttons or {}) do
+            local active = value == selected
+            local background = active and themes.preset.accent or themes.preset.surface_alt
+            local foreground = active and themes.preset.text or themes.preset.muted
+            button.BackgroundColor3 = background
+            button.TextColor3 = foreground
+            library:track_theme(button, "BackgroundColor3", background)
+            library:track_theme(button, "TextColor3", foreground)
+        end
+    end
+
+    local function render()
+        items.buttons = {}
+        for _, child in ipairs(items.container:GetChildren()) do
+            if child:IsA("TextButton") then child:Destroy() end
+        end
+        local count = #cfg.options
+        for index, raw_option in ipairs(cfg.options) do
+            local option = option_record(raw_option)
+            local button = library:create("TextButton", {
+                Parent = items.container;
+                Name = "Option_" .. tostring(index);
+                LayoutOrder = index;
+                Size = dim2(1 / count, 0, 1, 0);
+                Text = library:translate(option.label);
+                FontFace = fonts.small;
+                TextSize = 13;
+                TextTruncate = Enum.TextTruncate.AtEnd;
+                TextColor3 = themes.preset.muted;
+                BackgroundColor3 = themes.preset.surface_alt;
+                BorderSizePixel = 0;
+                AutoButtonColor = false;
+                Active = not option.disabled;
+                Selectable = not option.disabled;
+            })
+            items.buttons[option.value] = button
+            button.Activated:Connect(function()
+                if not option.disabled then cfg.set(option.value, {source = "user", phase = "commit"}) end
+            end)
+        end
+        update_selection()
+    end
+
+    function cfg.set(value, explicit_context)
+        if not find_option(value) then return false, "Unknown or disabled segmented option" end
+        if flags[cfg.flag] == value then return true end
+        flags[cfg.flag] = value
+        update_selection()
+        library:dispatch_control_callback(cfg, cfg.callback, explicit_context, value)
+        return true
+    end
+
+    function cfg.refresh_options(new_options)
+        local valid, reason = library:validate_option_list("dropdown", new_options)
+        if not valid then return false, reason end
+        if #new_options < 2 or #new_options > 5 then return false, "Segmented controls need 2 to 5 options" end
+        local enabled = 0
+        for _, option in ipairs(new_options) do
+            if type(option) == "table" and option.group ~= nil then return false, "Segmented items cannot use groups" end
+            if type(option) ~= "table" or not option.disabled then enabled += 1 end
+        end
+        if enabled < 2 or enabled > 5 then return false, "Segmented controls need between 2 and 5 enabled options" end
+        cfg.options = table.clone(new_options)
+        local current = flags[cfg.flag]
+        local next_value = current
+        if not find_option(current) then
+            local first
+            for _, option in ipairs(cfg.options) do
+                local item = option_record(option)
+                if not item.disabled then first = item.value; break end
+            end
+            next_value = first
+        end
+        render()
+        if current ~= nil and current ~= next_value then return cfg.set(next_value) end
+        return true
+    end
+
+    if cfg.separator then
+        library:create("Frame", {
+            AnchorPoint = Vector2.new(0, 1);
+            Parent = self.items.elements;
+            Position = dim2(0, 0, 1, 0);
+            Size = dim2(1, 1, 0, 1);
+            BackgroundColor3 = rgb(36, 36, 37);
+            BorderSizePixel = 0;
+        })
+    end
+
+    cfg.default = cfg.default or (function()
+        for _, option in ipairs(cfg.options) do
+            local item = option_record(option)
+            if not item.disabled then return item.value end
+        end
+    end)()
+    flags[cfg.flag] = nil
+    cfg:refresh_options(cfg.options)
+    library:register_config_flag(cfg.flag, cfg.set, function(value)
+        if type(value) ~= "string" or not find_option(value) then return false, nil, "expected an enabled segmented option value" end
+        return true, value
+    end, options.legacy_flags)
+    library:with_change_context("initialization", "initialize", cfg.set, cfg.default)
+    library:attach_control(cfg, items.root, self)
+    if library.register_locale_callback then
+        cfg._locale_connection = library:register_locale_callback(render)
+        cfg:AddCleanup(function() if cfg._locale_connection then cfg._locale_connection:Disconnect() end end)
+    end
     return setmetatable(cfg, library)
 end
 end
@@ -2865,6 +3067,228 @@ end
 end
 
     end,
+    ["src/Kaeryn/Controls/Stepper.luau"] = function(__kaeryn_require)
+return function(__kaeryn)
+    local dim2 = __kaeryn.dim2
+    local dim = __kaeryn.dim
+    local rgb = __kaeryn.rgb
+    local clamp = __kaeryn.clamp
+    local library = __kaeryn.library
+    local themes = __kaeryn.themes
+    local flags = __kaeryn.flags
+    local fonts = __kaeryn.fonts
+
+function library:stepper(options)
+    options = library:normalize_options("stepper", options)
+    local id, flag = library:resolve_identity(options, "stepper", self.name, true)
+    local cfg = {
+        id = id,
+        control_type = "stepper",
+        flag = flag,
+        legacy_flags = options.legacy_flags,
+        name = options.name,
+        min = options.min,
+        max = options.max,
+        step = options.step,
+        suffix = options.suffix,
+        separator = options.separator,
+        value = options.default,
+        default = options.default,
+        callback = options.callback,
+        on_commit = options.on_commit,
+        items = {},
+    }
+    local items = cfg.items
+
+    items.root = library:create("Frame", {
+        Parent = self.items.elements;
+        Name = "NumericStepper";
+        Size = dim2(1, 0, 0, 0);
+        AutomaticSize = Enum.AutomaticSize.Y;
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+    })
+    items.name = library:create("TextLabel", {
+        Parent = items.root;
+        Name = "Name";
+        Text = cfg.name;
+        FontFace = fonts.small;
+        TextSize = 15;
+        TextColor3 = themes.preset.text_soft;
+        TextXAlignment = Enum.TextXAlignment.Left;
+        AutomaticSize = Enum.AutomaticSize.XY;
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+    })
+    items.row = library:create("Frame", {
+        Parent = items.root;
+        Name = "StepperRow";
+        Position = dim2(0, 0, 0, 23);
+        Size = dim2(1, 0, 0, 30);
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+    })
+    items.decrease = library:create("TextButton", {
+        Parent = items.row;
+        Name = "Decrease";
+        Size = dim2(0, 30, 1, 0);
+        Text = "−";
+        FontFace = fonts.font;
+        TextSize = 17;
+        TextColor3 = themes.preset.text_soft;
+        BackgroundColor3 = themes.preset.surface_alt;
+        BorderSizePixel = 0;
+        AutoButtonColor = false;
+    })
+    items.input = library:create("TextBox", {
+        Parent = items.row;
+        Name = "Value";
+        Position = dim2(0, 34, 0, 0);
+        Size = dim2(1, -68, 1, 0);
+        Text = "";
+        PlaceholderText = "0";
+        ClearTextOnFocus = false;
+        TextXAlignment = Enum.TextXAlignment.Center;
+        FontFace = fonts.small;
+        TextSize = 14;
+        TextColor3 = themes.preset.text_soft;
+        BackgroundColor3 = themes.preset.surface_alt;
+        BorderSizePixel = 0;
+    })
+    items.increase = library:create("TextButton", {
+        Parent = items.row;
+        Name = "Increase";
+        Position = dim2(1, -30, 0, 0);
+        Size = dim2(0, 30, 1, 0);
+        Text = "+";
+        FontFace = fonts.font;
+        TextSize = 17;
+        TextColor3 = themes.preset.text_soft;
+        BackgroundColor3 = themes.preset.surface_alt;
+        BorderSizePixel = 0;
+        AutoButtonColor = false;
+    })
+    for _, button in ipairs({items.decrease, items.input, items.increase}) do
+        library:create("UICorner", {Parent = button; CornerRadius = dim(0, 4)})
+    end
+    items.error = library:create("TextLabel", {
+        Parent = items.root;
+        Name = "ValidationMessage";
+        Position = dim2(0, 2, 0, 55);
+        Size = dim2(1, -4, 0, 0);
+        AutomaticSize = Enum.AutomaticSize.Y;
+        Text = "";
+        TextSize = 12;
+        TextWrapped = true;
+        TextXAlignment = Enum.TextXAlignment.Left;
+        TextColor3 = rgb(255, 112, 112);
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+        Visible = false;
+    })
+    items.suffix = library:create("TextLabel", {
+        Parent = items.row;
+        Name = "Suffix";
+        AnchorPoint = Vector2.new(1, 0.5);
+        Position = dim2(1, -36, 0.5, 0);
+        Size = dim2(0, 0, 1, 0);
+        AutomaticSize = Enum.AutomaticSize.X;
+        Text = cfg.suffix;
+        TextSize = 12;
+        TextColor3 = themes.preset.muted;
+        FontFace = fonts.small;
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+        Visible = cfg.suffix ~= "";
+    })
+
+    local function snap(value)
+        return clamp(cfg.min + library:round(value - cfg.min, cfg.step), cfg.min, cfg.max)
+    end
+
+    local function render()
+        items.input.Text = tostring(cfg.value)
+        items.error.Visible = false
+        items.error.Text = ""
+    end
+
+    function cfg.set(value, explicit_context)
+        value = tonumber(value)
+        if not value or value ~= value or value == math.huge or value == -math.huge then
+            items.error.Text = "Enter a number"
+            items.error.Visible = true
+            return false, "expected a finite number"
+        end
+        cfg.value = snap(value)
+        flags[cfg.flag] = cfg.value
+        render()
+        library:dispatch_control_callback(cfg, cfg.callback, explicit_context, cfg.value)
+        return true
+    end
+
+    function cfg.set_range(minimum, maximum, step)
+        minimum, maximum, step = tonumber(minimum), tonumber(maximum), step == nil and cfg.step or tonumber(step)
+        if not minimum or not maximum or not step or minimum ~= minimum or maximum ~= maximum or step ~= step
+            or minimum == math.huge or minimum == -math.huge or maximum == math.huge or maximum == -math.huge
+            or step == math.huge or step == -math.huge or maximum < minimum or step <= 0 then
+            return false, "invalid stepper range"
+        end
+        cfg.min, cfg.max, cfg.step = minimum, maximum, step
+        local success = cfg.set(clamp(cfg.value, minimum, maximum), {source = "code", phase = "commit"})
+        return success
+    end
+
+    local function commit_user_value(value)
+        local success = cfg.set(value, {source = "user", phase = "change"})
+        if success then
+            library:commit_control(cfg, {source = "user"}, flags[cfg.flag])
+            if cfg.on_commit then library:dispatch_control_callback(cfg, cfg.on_commit, {source = "user", phase = "commit"}, flags[cfg.flag]) end
+        end
+    end
+
+    items.decrease.Activated:Connect(function()
+        if cfg._enabled then commit_user_value(cfg.value - cfg.step) end
+    end)
+    items.increase.Activated:Connect(function()
+        if cfg._enabled then commit_user_value(cfg.value + cfg.step) end
+    end)
+    items.input.FocusLost:Connect(function()
+        if not cfg._enabled then render(); return end
+        local value = tonumber(items.input.Text)
+        if value then
+            commit_user_value(value)
+        else
+            items.error.Text = "Enter a number"
+            items.error.Visible = true
+        end
+    end)
+
+    if cfg.separator then
+        library:create("Frame", {
+            AnchorPoint = Vector2.new(0, 1);
+            Parent = self.items.elements;
+            Position = dim2(0, 0, 1, 0);
+            Size = dim2(1, 1, 0, 1);
+            BackgroundColor3 = rgb(36, 36, 37);
+            BorderSizePixel = 0;
+        })
+    end
+
+    flags[cfg.flag] = nil
+    render()
+    library:register_config_flag(cfg.flag, cfg.set, function(value)
+        if type(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge then
+            return false, nil, "expected a finite number"
+        end
+        return true, clamp(value, cfg.min, cfg.max)
+    end, cfg.legacy_flags)
+    library:with_change_context("initialization", "initialize", cfg.set, cfg.default)
+    library:attach_control(cfg, items.root, self)
+    return setmetatable(cfg, library)
+end
+end
+
+    end,
     ["src/Kaeryn/Controls/Textbox.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local dim2 = __kaeryn.dim2
@@ -2887,6 +3311,10 @@ function library:textbox(options)
         default = options.default or "",
         flag = flag,
         callback = options.callback or function() end,
+        validator = options.validate,
+        required = options.required,
+        min_length = options.min_length,
+        max_length = options.max_length,
         visible = options.visible ~= false,
         items = {};
     }
@@ -2979,14 +3407,59 @@ function library:textbox(options)
             PaddingTop = dim(0, 4);
             PaddingRight = dim(0, 4)
         });
+
+        items["error"] = library:create("TextLabel", {
+            FontFace = fonts.small;
+            TextColor3 = rgb(255, 112, 112);
+            Text = "";
+            TextWrapped = true;
+            TextXAlignment = Enum.TextXAlignment.Left;
+            Visible = false;
+            Parent = items["textbox"];
+            Name = "ValidationMessage";
+            Position = dim2(0, 5, 0, 51);
+            Size = dim2(1, -10, 0, 0);
+            AutomaticSize = Enum.AutomaticSize.Y;
+            BackgroundTransparency = 1;
+            BorderSizePixel = 0;
+            TextSize = 12;
+        })
+    end
+
+    local function validate_text(text)
+        local length = utf8.len(text) or #text
+        if cfg.required and text == "" then return false, "This field is required" end
+        if cfg.min_length and length < cfg.min_length then return false, "Enter at least " .. tostring(cfg.min_length) .. " characters" end
+        if cfg.max_length and length > cfg.max_length then return false, "Use " .. tostring(cfg.max_length) .. " characters or fewer" end
+        if cfg.validator then
+            local ok, valid, message = pcall(cfg.validator, text)
+            if not ok then
+                warn("[Kaeryn] validator failed for textbox '" .. tostring(cfg.name) .. "': " .. tostring(valid))
+                return false, "This value could not be validated"
+            end
+            if valid ~= true then return false, type(message) == "string" and message or "Enter a valid value" end
+        end
+        return true
+    end
+
+    local function show_error(message)
+        items.error.Text = message or ""
+        items.error.Visible = message ~= nil and message ~= ""
     end
 
     function cfg.set(text, explicit_context)
         text = tostring(text or "")
+        local valid, reason = validate_text(text)
+        if not valid then
+            show_error(reason)
+            return false, reason
+        end
+        show_error(nil)
         if flags[cfg.flag] == text and items.input.Text == text then return end
         flags[cfg.flag] = text
         if items.input.Text ~= text then items.input.Text = text end
         library:dispatch_control_callback(cfg, cfg.callback, explicit_context, text)
+        return true
     end
 
     items[ "input" ]:GetPropertyChangedSignal("Text"):Connect(function()
@@ -2999,9 +3472,12 @@ function library:textbox(options)
 
     items[ "input" ].FocusLost:Connect(function()
         library:tween(items[ "input" ], {TextColor3 = rgb(72, 72, 72)})
-        library:commit_control(cfg, {source = "user"}, flags[cfg.flag])
+        local valid = validate_text(items.input.Text)
+        if valid then library:commit_control(cfg, {source = "user"}, flags[cfg.flag]) end
     end)
 
+    local default_valid, default_error = validate_text(cfg.default)
+    assert(default_valid, "Invalid textbox default: " .. tostring(default_error))
     if cfg.default then
         library:with_change_context("initialization", "initialize", cfg.set, cfg.default)
     end
@@ -3009,6 +3485,8 @@ function library:textbox(options)
     items.textbox.Visible = cfg.visible
     library:register_config_flag(cfg.flag, cfg.set, function(value)
         if type(value) ~= "string" then return false, nil, "expected a string" end
+        local valid, reason = validate_text(value)
+        if not valid then return false, nil, reason end
         return true, value
     end, cfg.legacy_flags)
 
@@ -3331,12 +3809,12 @@ return function(__kaeryn)
     local rgb = __kaeryn.rgb
     local camera = __kaeryn.camera
     local mouse = __kaeryn.mouse
-    local keys = __kaeryn.keys
     local max = __kaeryn.max
     local min = __kaeryn.min
     local clamp = __kaeryn.clamp
     local insert = __kaeryn.insert
     local fonts = __kaeryn.fonts
+    local themes = __kaeryn.themes
     local library = __kaeryn.library
     local flags = __kaeryn.flags
     local config_flags = __kaeryn.config_flags
@@ -3408,12 +3886,29 @@ library.option_schemas = {
     },
     textbox = {
         fields = fields({name = descriptor("string", "TextBox"), placeholder = descriptor("string", "type here..."), default = descriptor("string", ""),
-            callback = descriptor("function", function() end), visible = descriptor("boolean", true)}),
+            callback = descriptor("function", function() end), visible = descriptor("boolean", true), required = descriptor("boolean", false),
+            min_length = descriptor("number", nil, {min = 0}), max_length = descriptor("number", nil, {min = 0}), validate = descriptor("function")}),
         aliases = {Name = "name", placeholdertext = "placeholder", holder = "placeholder", holdertext = "placeholder"},
     },
     keybind = {
         fields = fields({name = descriptor("string"), key = descriptor({"string", "EnumItem"}), mode = descriptor("string", "Toggle", {values = {"Toggle", "Hold", "Always"}}),
-            default = descriptor("boolean", false), ignore = descriptor("boolean", false), callback = descriptor("function", function() end)}),
+            default = descriptor("boolean", false), ignore = descriptor("boolean", false), context = descriptor("string", "global"), callback = descriptor("function", function() end)}),
+        aliases = {Name = "name"},
+    },
+    segmented = {
+        fields = fields({name = descriptor("string", "Mode"), items = descriptor("table", {}), default = descriptor("string"),
+            callback = descriptor("function", function() end), separator = descriptor("boolean", false)}),
+        aliases = common_aliases,
+    },
+    stepper = {
+        fields = fields({name = descriptor("string", "Value"), default = descriptor("number", 0),
+            min = descriptor("number", 0), max = descriptor("number", 100), step = descriptor("number", 1, {min = 0}), suffix = descriptor("string", ""),
+            callback = descriptor("function", function() end), on_commit = descriptor("function"), separator = descriptor("boolean", true)}),
+        aliases = {Name = "name", Seperator = "separator", seperator = "separator"},
+    },
+    group = {
+        fields = fields({name = descriptor("string", "Items"), min_items = descriptor("number", 0, {min = 0}), max_items = descriptor("number", 25, {min = 1}),
+            callback = descriptor("function", function() end)}),
         aliases = {Name = "name"},
     },
     button = {
@@ -3510,6 +4005,40 @@ function library:normalize_options(control_type, options, schema)
         if normalized.max < normalized.min then error("Option 'max' for slider must be greater than or equal to 'min'", 2) end
         if normalized.interval <= 0 then error("Option 'interval' for slider must be greater than zero", 2) end
     end
+    if control_type == "stepper" then
+        if normalized.max < normalized.min then error("Option 'max' for stepper must be greater than or equal to 'min'", 2) end
+        if normalized.step <= 0 then error("Option 'step' for stepper must be greater than zero", 2) end
+        if normalized.default < normalized.min or normalized.default > normalized.max then error("Option 'default' for stepper must be inside its range", 2) end
+    elseif control_type == "textbox" then
+        if normalized.min_length and normalized.max_length and normalized.min_length > normalized.max_length then
+            error("Option 'min_length' for textbox must be less than or equal to 'max_length'", 2)
+        end
+        for _, key in ipairs({"min_length", "max_length"}) do
+            local value = normalized[key]
+            if value and value % 1 ~= 0 then error("Option '" .. key .. "' for textbox must be an integer", 2) end
+        end
+    elseif control_type == "group" and normalized.max_items < normalized.min_items then
+        error("Option 'max_items' for group must be greater than or equal to 'min_items'", 2)
+    elseif control_type == "segmented" then
+        local valid, reason = self:validate_option_list("dropdown", normalized.items)
+        if not valid then error("Option 'items' for segmented: " .. reason, 2) end
+        if #normalized.items < 2 or #normalized.items > 5 then error("Option 'items' for segmented must contain between 2 and 5 options", 2) end
+        local enabled = 0
+        for _, item in ipairs(normalized.items) do
+            if type(item) == "table" and item.group ~= nil then error("Segmented items cannot use groups", 2) end
+            if type(item) ~= "table" or not item.disabled then enabled += 1 end
+        end
+        if enabled < 2 or enabled > 5 then error("Option 'items' for segmented must have between 2 and 5 enabled options", 2) end
+        if normalized.default ~= nil then
+            local found = false
+            for _, item in ipairs(normalized.items) do
+                local value = type(item) == "table" and item.value or item
+                local disabled = type(item) == "table" and item.disabled
+                if value == normalized.default and not disabled then found = true; break end
+            end
+            if not found then error("Option 'default' for segmented must match an enabled option", 2) end
+        end
+    end
     if control_type == "dropdown" or control_type == "list" then
         local option_key = control_type == "dropdown" and "items" or "options"
         local valid, reason = self:validate_option_list(control_type, normalized[option_key])
@@ -3585,7 +4114,8 @@ function library:tween(obj, properties, easing_style, time)
             library:track_theme(obj, property, value)
         end
     end
-    local tween = tween_service:Create(obj, TweenInfo.new(time or 0.25, easing_style or Enum.EasingStyle.Quint, Enum.EasingDirection.InOut), properties)
+    local duration = (time or 0.25) * (themes.scale.motion_scale or 1)
+    local tween = tween_service:Create(obj, TweenInfo.new(duration, easing_style or Enum.EasingStyle.Quint, Enum.EasingDirection.InOut), properties)
     tween:Play()
     return tween
 end
@@ -3924,8 +4454,10 @@ function library:attach_control(control, root, section)
             if self.control_type == "keybind" and self.binding then
                 self.binding:Disconnect()
                 self.binding = nil
-                local key = self.key
-                self.items.key.Text = tostring(keys[key] or (typeof(key) == "EnumItem" and key.Name) or "NONE")
+                if self.refresh_key_label then self:refresh_key_label() end
+            end
+            if self.control_type == "keybind" and self.mode == "Hold" and self.active and self.set then
+                self.set(false, {source = "code", phase = "change"})
             end
         end
         local ok = pcall(function() self._ui_root.Interactable = self._enabled end)
@@ -3974,8 +4506,8 @@ function library:attach_control(control, root, section)
         if self._destroyed then return false, "This control has been destroyed" end
         if type(self.refresh_options) ~= "function" then return false, "This control does not support options" end
         if type(options) ~= "table" then return false, "Options must be a table" end
-        if self.control_type == "dropdown" or self.control_type == "list" then
-            local valid, reason = library:validate_option_list(self.control_type, options)
+        if self.control_type == "dropdown" or self.control_type == "list" or self.control_type == "segmented" then
+            local valid, reason = library:validate_option_list(self.control_type == "segmented" and "dropdown" or self.control_type, options)
             if not valid then return false, reason end
         end
         return library:with_change_context("code", "commit", function() return self.refresh_options(options) end)
@@ -4364,6 +4896,370 @@ return function(__kaeryn)
 end
 
     end,
+    ["src/Kaeryn/Groups.luau"] = function(__kaeryn_require)
+return function(__kaeryn)
+    local dim2 = __kaeryn.dim2
+    local dim = __kaeryn.dim
+    local rgb = __kaeryn.rgb
+    local insert = __kaeryn.insert
+    local remove = __kaeryn.remove
+    local library = __kaeryn.library
+    local themes = __kaeryn.themes
+    local flags = __kaeryn.flags
+    local config_flags = __kaeryn.config_flags
+    local fonts = __kaeryn.fonts
+
+local row_meta = {}
+
+local function prefix_options(row, options)
+    if type(options) ~= "table" then return options end
+    options = table.clone(options or {})
+    local prefix = row._namespace .. "."
+    if type(options.id) == "string" then options.id = prefix .. options.id end
+    if type(options.flag) == "string" then options.flag = prefix .. options.flag end
+    if type(options.legacy_flags) == "table" then
+        local old_flags = {}
+        for index, old_flag in ipairs(options.legacy_flags) do old_flags[index] = prefix .. old_flag end
+        options.legacy_flags = old_flags
+    end
+    return options
+end
+
+function row_meta.__index(row, key)
+    local method = library[key]
+    if type(method) == "function" and library.option_schemas[key] then
+        return function(_, options)
+            local control = method(row, prefix_options(row, options))
+            insert(row._controls, control)
+            return control
+        end
+    end
+    if key == "custom_control" then
+        return function(_, control_type, options)
+            local control = library.custom_control(row, control_type, prefix_options(row, options))
+            insert(row._controls, control)
+            return control
+        end
+    end
+    return method
+end
+
+function library:group(options)
+    options = library:normalize_options("group", options)
+    local persistent = options.id ~= nil or options.flag ~= nil or #options.legacy_flags > 0
+    local id, flag = library:resolve_identity(options, "group", self.name, persistent)
+    local cfg = {
+        id = id,
+        flag = flag,
+        control_type = "group",
+        name = options.name,
+        min_items = options.min_items,
+        max_items = options.max_items,
+        callback = options.callback,
+        legacy_flags = options.legacy_flags,
+        rows = {},
+        by_key = {},
+        next_key = 0,
+        _destroyed = false,
+        items = {},
+    }
+    setmetatable(cfg, library)
+    local items = cfg.items
+
+    items.root = library:create("Frame", {
+        Parent = self.items.elements;
+        Name = "RepeaterGroup";
+        Size = dim2(1, 0, 0, 0);
+        AutomaticSize = Enum.AutomaticSize.Y;
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+    })
+    items.heading = library:create("Frame", {
+        Parent = items.root;
+        Name = "GroupHeading";
+        Size = dim2(1, 0, 0, 24);
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+    })
+    items.title = library:create("TextLabel", {
+        Parent = items.heading;
+        Name = "Name";
+        Text = cfg.name;
+        FontFace = fonts.small;
+        TextSize = 14;
+        TextColor3 = themes.preset.text_soft;
+        TextXAlignment = Enum.TextXAlignment.Left;
+        Size = dim2(1, -40, 1, 0);
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+    })
+    items.add = library:create("TextButton", {
+        Parent = items.heading;
+        Name = "Add";
+        AnchorPoint = Vector2.new(1, 0);
+        Position = dim2(1, 0, 0, 0);
+        Size = dim2(0, 34, 1, 0);
+        Text = "+";
+        FontFace = fonts.font;
+        TextSize = 18;
+        TextColor3 = themes.preset.text_soft;
+        BackgroundColor3 = themes.preset.surface_alt;
+        BorderSizePixel = 0;
+        AutoButtonColor = false;
+    })
+    library:create("UICorner", {Parent = items.add; CornerRadius = dim(0, 4)})
+    items.rows = library:create("Frame", {
+        Parent = items.root;
+        Name = "Rows";
+        Position = dim2(0, 0, 0, 28);
+        Size = dim2(1, 0, 0, 0);
+        AutomaticSize = Enum.AutomaticSize.Y;
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+    })
+    library:create("UIListLayout", {Parent = items.rows; Padding = dim(0, 7); SortOrder = Enum.SortOrder.LayoutOrder})
+
+    local function row_keys()
+        local result = {}
+        for _, row in ipairs(cfg.rows) do insert(result, row.key) end
+        return result
+    end
+
+    local function changed(action, key, explicit_context)
+        if flag then flags[flag] = row_keys() end
+        if cfg._updating then return end
+        library:dispatch_control_callback(cfg, cfg.callback, explicit_context, action, key, row_keys())
+    end
+
+    local function update_controls()
+        items.add.Active = not cfg._destroyed and #cfg.rows < cfg.max_items
+        items.add.TextTransparency = items.add.Active and 0 or 0.55
+        for _, row in ipairs(cfg.rows) do
+            row.items.remove.Visible = #cfg.rows > cfg.min_items
+        end
+    end
+
+    local function make_row(key, title)
+        local row = {
+            key = key,
+            name = id .. "." .. key,
+            title = title or key,
+            _namespace = id .. "." .. key,
+            _controls = {},
+            _group = cfg,
+            items = {},
+        }
+        setmetatable(row, row_meta)
+        row.items.root = library:create("Frame", {
+            Parent = items.rows;
+            Name = "GroupRow";
+            LayoutOrder = #cfg.rows + 1;
+            Size = dim2(1, 0, 0, 0);
+            AutomaticSize = Enum.AutomaticSize.Y;
+            BackgroundColor3 = themes.preset.surface_alt;
+            BorderSizePixel = 0;
+        })
+        library:create("UICorner", {Parent = row.items.root; CornerRadius = dim(0, 5)})
+        row.items.header = library:create("Frame", {
+            Parent = row.items.root;
+            Name = "Header";
+            Size = dim2(1, 0, 0, 28);
+            BackgroundTransparency = 1;
+            BorderSizePixel = 0;
+        })
+        row.items.title = library:create("TextLabel", {
+            Parent = row.items.header;
+            Name = "Title";
+            Position = dim2(0, 8, 0, 0);
+            Size = dim2(1, -42, 1, 0);
+            Text = row.title;
+            FontFace = fonts.small;
+            TextSize = 13;
+            TextColor3 = themes.preset.text_soft;
+            TextXAlignment = Enum.TextXAlignment.Left;
+            BackgroundTransparency = 1;
+            BorderSizePixel = 0;
+        })
+        row.items.remove = library:create("TextButton", {
+            Parent = row.items.header;
+            Name = "Remove";
+            AnchorPoint = Vector2.new(1, 0);
+            Position = dim2(1, -5, 0, 3);
+            Size = dim2(0, 22, 0, 22);
+            Text = "×";
+            FontFace = fonts.small;
+            TextSize = 15;
+            TextColor3 = themes.preset.muted;
+            BackgroundTransparency = 1;
+            BorderSizePixel = 0;
+            AutoButtonColor = false;
+        })
+        row.items.elements = library:create("Frame", {
+            Parent = row.items.root;
+            Name = "Elements";
+            Position = dim2(0, 8, 0, 30);
+            Size = dim2(1, -16, 0, 0);
+            AutomaticSize = Enum.AutomaticSize.Y;
+            BackgroundTransparency = 1;
+            BorderSizePixel = 0;
+        })
+        library:create("UIListLayout", {Parent = row.items.elements; Padding = dim(0, 7); SortOrder = Enum.SortOrder.LayoutOrder})
+        row.items.remove.Activated:Connect(function()
+            if not cfg._destroyed then cfg:Remove(key, {source = "user", phase = "commit"}) end
+        end)
+        function row:SetTitle(value)
+            if type(value) ~= "string" or value == "" then return false, "row title must be a non-empty string" end
+            self.title = value
+            self.items.title.Text = value
+            return true
+        end
+        function row:Destroy()
+            return cfg:Remove(self.key)
+        end
+        cfg.by_key[key] = row
+        insert(cfg.rows, row)
+        return row
+    end
+
+    local function erase_row(row)
+        for index = #row._controls, 1, -1 do row._controls[index]:Destroy() end
+        cfg.by_key[row.key] = nil
+        for index, candidate in ipairs(cfg.rows) do
+            if candidate == row then remove(cfg.rows, index); break end
+        end
+        if row.items.root.Parent then row.items.root:Destroy() end
+    end
+
+    function cfg:Add(key, title, explicit_context)
+        if cfg._destroyed then return false, "group has been destroyed" end
+        if #cfg.rows >= cfg.max_items then return false, "group has reached max_items" end
+        if key == nil then
+            repeat cfg.next_key += 1; key = "item-" .. tostring(cfg.next_key) until not cfg.by_key[key]
+            title = title or ("Item " .. tostring(cfg.next_key))
+        end
+        if type(key) ~= "string" or key:gsub("%s", "") == "" then return false, "row key must be a non-empty string" end
+        if title ~= nil and type(title) ~= "string" then return false, "row title must be a string" end
+        if cfg.by_key[key] then return false, "row key already exists: " .. key end
+        local row = make_row(key, title)
+        update_controls()
+        changed("add", key, explicit_context or {source = "code", phase = "commit"})
+        return row
+    end
+
+    function cfg:Remove(key, explicit_context)
+        if cfg._destroyed then return false, "group has been destroyed" end
+        if #cfg.rows <= cfg.min_items then return false, "group cannot go below min_items" end
+        local row = type(key) == "table" and key or cfg.by_key[key]
+        if not row then return false, "unknown group row" end
+        erase_row(row)
+        for index, candidate in ipairs(cfg.rows) do candidate.items.root.LayoutOrder = index end
+        update_controls()
+        changed("remove", row.key, explicit_context or {source = "code", phase = "commit"})
+        return true
+    end
+
+    function cfg:Move(key, index)
+        if cfg._destroyed then return false, "group has been destroyed" end
+        local row = cfg.by_key[key]
+        if not row then return false, "unknown group row" end
+        if type(index) ~= "number" or index % 1 ~= 0 or index < 1 or index > #cfg.rows then return false, "row index is out of range" end
+        local current
+        for position, candidate in ipairs(cfg.rows) do if candidate == row then current = position; break end end
+        if current == index then return true end
+        remove(cfg.rows, current)
+        table.insert(cfg.rows, index, row)
+        for position, candidate in ipairs(cfg.rows) do candidate.items.root.LayoutOrder = position end
+        changed("move", key, {source = "code", phase = "commit"})
+        return true
+    end
+
+    function cfg:Get(key)
+        if key ~= nil then return cfg.by_key[key] end
+        return row_keys()
+    end
+
+    function cfg:Set(row_list, explicit_context)
+        if cfg._destroyed then return false, "group has been destroyed" end
+        if type(row_list) ~= "table" then return false, "group value must be an array of row keys" end
+        local count, highest_index, seen = 0, 0, {}
+        for index, key in pairs(row_list) do
+            if type(index) ~= "number" or index < 1 or index % 1 ~= 0 then return false, "group value must be a dense array" end
+            if type(key) ~= "string" or key == "" or seen[key] then return false, "group row keys must be unique non-empty strings" end
+            seen[key] = true
+            count += 1
+            highest_index = math.max(highest_index, index)
+        end
+        if count ~= highest_index or count < cfg.min_items or count > cfg.max_items then return false, "group row count is outside its limits" end
+        cfg._updating = true
+        for _, row in ipairs(table.clone(cfg.rows)) do if not seen[row.key] then erase_row(row) end end
+        for _, row_key in ipairs(row_list) do
+            if not cfg.by_key[row_key] then cfg:Add(row_key) end
+        end
+        local ordered = {}
+        for index, row_key in ipairs(row_list) do
+            ordered[index] = cfg.by_key[row_key]
+            ordered[index].items.root.LayoutOrder = index
+        end
+        cfg.rows = ordered
+        cfg._updating = false
+        update_controls()
+        changed("set", nil, explicit_context or {source = "code", phase = "commit"})
+        return true
+    end
+
+    function cfg:Destroy(from_root)
+        if cfg._destroyed then return end
+        cfg._destroyed = true
+        for _, row in ipairs(table.clone(cfg.rows)) do
+            for index = #row._controls, 1, -1 do row._controls[index]:Destroy() end
+        end
+        table.clear(cfg.rows)
+        table.clear(cfg.by_key)
+        if flag then
+            config_flags[flag] = nil
+            library.config_validators[flag] = nil
+            library.used_flags[flag] = nil
+            flags[flag] = nil
+            for old_flag, new_flag in pairs(library.flag_migrations) do if new_flag == flag then library.flag_migrations[old_flag] = nil end end
+        end
+        library.used_ids[id] = nil
+        if not from_root and items.root.Parent then items.root:Destroy() end
+    end
+
+    items.add.Activated:Connect(function()
+        if not cfg._destroyed and #cfg.rows < cfg.max_items then cfg:Add(nil, nil, {source = "user", phase = "commit"}) end
+    end)
+
+    while #cfg.rows < cfg.min_items do
+        cfg.next_key += 1
+        local key = "item-" .. tostring(cfg.next_key)
+        make_row(key, "Item " .. tostring(cfg.next_key))
+    end
+    if flag then flags[flag] = row_keys() end
+    if flag then
+        library:register_config_flag(flag, function(value) return cfg:Set(value, library.change_context) end, function(value)
+            if type(value) ~= "table" then return false, nil, "expected a list of row keys" end
+            local count, highest_index, seen = 0, 0, {}
+            for index, key in pairs(value) do
+                if type(index) ~= "number" or index < 1 or index % 1 ~= 0 then return false, nil, "row keys must be a dense array" end
+                if type(key) ~= "string" or key == "" or seen[key] then return false, nil, "row keys must be unique non-empty strings" end
+                seen[key] = true
+                count += 1
+                highest_index = math.max(highest_index, index)
+            end
+            if count ~= highest_index or count < cfg.min_items or count > cfg.max_items then return false, nil, "row count is outside group limits" end
+            return true, table.clone(value)
+        end, cfg.legacy_flags)
+    end
+    items.root.Destroying:Connect(function()
+        if not cfg._destroyed then cfg:Destroy(true) end
+    end)
+    update_controls()
+    return cfg
+end
+end
+
+    end,
     ["src/Kaeryn/Init.luau"] = function(__kaeryn_require)
 local context = __kaeryn_require("src/Kaeryn/Bootstrap.luau")
 
@@ -4373,7 +5269,9 @@ __kaeryn_require("src/Kaeryn/Config/ConfigManager.luau")(context)
 __kaeryn_require("src/Kaeryn/Themes.luau")(context)
 __kaeryn_require("src/Kaeryn/Lifecycle.luau")(context)
 __kaeryn_require("src/Kaeryn/InputManager.luau")(context)
+__kaeryn_require("src/Kaeryn/KeybindManager.luau")(context)
 __kaeryn_require("src/Kaeryn/Layout.luau")(context)
+__kaeryn_require("src/Kaeryn/Groups.luau")(context)
 __kaeryn_require("src/Kaeryn/Search.luau")(context)
 __kaeryn_require("src/Kaeryn/Dialogs.luau")(context)
 __kaeryn_require("src/Kaeryn/Window.luau")(context)
@@ -4383,6 +5281,8 @@ __kaeryn_require("src/Kaeryn/Controls/Slider.luau")(context)
 __kaeryn_require("src/Kaeryn/Controls/Dropdown.luau")(context)
 __kaeryn_require("src/Kaeryn/Controls/Label.luau")(context)
 __kaeryn_require("src/Kaeryn/Controls/Colorpicker.luau")(context)
+__kaeryn_require("src/Kaeryn/Controls/Segmented.luau")(context)
+__kaeryn_require("src/Kaeryn/Controls/Stepper.luau")(context)
 __kaeryn_require("src/Kaeryn/Controls/Textbox.luau")(context)
 __kaeryn_require("src/Kaeryn/Controls/Keybind.luau")(context)
 __kaeryn_require("src/Kaeryn/Controls/Button.luau")(context)
@@ -4476,6 +5376,173 @@ library:connection(uis.InputBegan, function(input)
 
     library:close_element()
 end)
+end
+
+    end,
+    ["src/Kaeryn/KeybindManager.luau"] = function(__kaeryn_require)
+return function(__kaeryn)
+    local uis = __kaeryn.uis
+    local library = __kaeryn.library
+    local keys = __kaeryn.keys
+
+local bindings = {}
+local manager = {active_context = "default", capturing = nil}
+library.keybind_manager = manager
+
+local function selected_key(input)
+    if input.UserInputType == Enum.UserInputType.Keyboard or string.find(input.UserInputType.Name, "Gamepad", 1, true) then
+        return input.KeyCode ~= Enum.KeyCode.Unknown and input.KeyCode or nil
+    end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2
+        or input.UserInputType == Enum.UserInputType.MouseButton3 then
+        return input.UserInputType
+    end
+    return nil
+end
+
+local function same_key(first, second)
+    return first ~= nil and first ~= "NONE" and first == second
+end
+
+local function scopes_overlap(first, second)
+    return first == "global" or second == "global" or first == second
+end
+
+local function can_run(control)
+    return not control._destroyed and control._enabled and control.key ~= "NONE"
+        and (control.context == "global" or control.context == manager.active_context)
+end
+
+local function refresh_conflicts()
+    for _, control in ipairs(bindings) do
+        local conflict = false
+        for _, other in ipairs(bindings) do
+            if other ~= control and not other._destroyed and same_key(control.key, other.key)
+                and scopes_overlap(control.context, other.context) then
+                conflict = true
+                break
+            end
+        end
+        if control.items.conflict then control.items.conflict.Visible = conflict end
+    end
+end
+
+function library:register_keybind(control)
+    table.insert(bindings, control)
+    refresh_conflicts()
+end
+
+function library:unregister_keybind(control)
+    for index = #bindings, 1, -1 do
+        if bindings[index] == control then table.remove(bindings, index) end
+    end
+    if manager.capturing == control then manager.capturing = nil end
+    refresh_conflicts()
+end
+
+function library:clear_keybinds()
+    self:cancel_keybind_capture()
+    table.clear(bindings)
+    manager.active_context = "default"
+end
+
+function library:get_keybind_conflicts(control)
+    local conflicts = {}
+    for _, other in ipairs(bindings) do
+        if other ~= control and not other._destroyed and same_key(control.key, other.key)
+            and scopes_overlap(control.context, other.context) then
+            table.insert(conflicts, other)
+        end
+    end
+    return conflicts
+end
+
+function library:set_keybind_context(context)
+    if context == nil then context = "default" end
+    assert(type(context) == "string" and context:gsub("%s", "") ~= "", "keybind context must be a non-empty string")
+    manager.active_context = context
+    for _, binding in ipairs(bindings) do
+        if binding.mode == "Hold" and binding.active and binding.context ~= "global" and binding.context ~= context then
+            library:with_change_context("user", "change", binding.set, false)
+        end
+    end
+    return true
+end
+
+function library:cancel_keybind_capture(control)
+    if control and manager.capturing ~= control then return false end
+    local previous = manager.capturing
+    if not previous then return false end
+    manager.capturing = nil
+    local token = previous.binding
+    previous.binding = nil
+    if token then token.Connected = false end
+    if previous.refresh_key_label then previous:refresh_key_label() end
+    return true
+end
+
+function library:begin_keybind_capture(control)
+    if control._destroyed or not control._enabled then return nil end
+    self:cancel_keybind_capture()
+    manager.capturing = control
+    local token = {Connected = true}
+    function token:Disconnect()
+        if not self.Connected then return end
+        self.Connected = false
+        library:cancel_keybind_capture(control)
+    end
+    control.binding = token
+    if control.refresh_key_label then control:refresh_key_label() end
+    return token
+end
+
+library:connection(uis.InputBegan, function(input, game_processed)
+    local control = manager.capturing
+    if control then
+        local key = selected_key(input)
+        if key then
+            library:with_change_context("user", "commit", control.set, key == Enum.KeyCode.Escape and "NONE" or key)
+            library:cancel_keybind_capture(control)
+        end
+        return
+    end
+    if game_processed or uis:GetFocusedTextBox() then return end
+
+    local key = selected_key(input)
+    local matches = {}
+    for _, binding in ipairs(bindings) do
+        if can_run(binding) and same_key(binding.key, key) then table.insert(matches, binding) end
+    end
+    if #matches ~= 1 then return end
+
+    local binding = matches[1]
+    if binding.mode == "Toggle" then
+        library:with_change_context("user", "change", binding.set, not binding.active)
+    elseif binding.mode == "Hold" then
+        library:with_change_context("user", "change", binding.set, true)
+    end
+end)
+
+library:connection(uis.InputEnded, function(input)
+    local key = selected_key(input)
+    for _, binding in ipairs(bindings) do
+        if not binding._destroyed and binding._enabled and binding.mode == "Hold" and same_key(binding.key, key) and binding.active then
+            library:with_change_context("user", "change", binding.set, false)
+        end
+    end
+end)
+
+library:connection(uis.WindowFocusReleased, function()
+    for _, binding in ipairs(bindings) do
+        if binding.mode == "Hold" and binding.active then library:with_change_context("user", "change", binding.set, false) end
+    end
+end)
+
+library.get_keybind_label = function(key)
+    return tostring(keys[key] or (typeof(key) == "EnumItem" and key.Name) or "NONE")
+end
+
+library.refresh_keybind_conflicts = refresh_conflicts
 end
 
     end,
@@ -4900,6 +5967,7 @@ end
 function library:unload_menu()
     if library.unloaded then return end
     if library.cancel_pointer_drag then library:cancel_pointer_drag() end
+    if library.clear_keybinds then library:clear_keybinds() end
     library.unloaded = true
     if library.search_locale_connection then
         library.search_locale_connection:Disconnect()
@@ -4922,9 +5990,11 @@ function library:unload_menu()
     table.clear(library.mobile_columns)
     table.clear(library.mobile_sections)
     table.clear(library.notifications.notifs)
+    table.clear(library.notifications.records)
     for _, group in pairs(themes.utility) do
         for _, objects in pairs(group) do table.clear(objects) end
     end
+    for _, objects in pairs(themes.scale_utility) do table.clear(objects) end
 end
 
 library.unload = library.unload_menu
@@ -4966,6 +6036,7 @@ function library:create(instance, options)
     for prop, value in options do
         ins[prop] = value
         if library.track_theme then library:track_theme(ins, prop, value) end
+        if library.track_theme_scale then library:track_theme_scale(ins, prop, value) end
         if (prop == "Text" or prop == "PlaceholderText") and library._track_localized_text then
             library:_track_localized_text(ins, prop, value)
         end
@@ -5873,12 +6944,17 @@ return function(__kaeryn)
     local rgb = __kaeryn.rgb
     local max = __kaeryn.max
     local insert = __kaeryn.insert
-    local find = __kaeryn.find
     local remove = __kaeryn.remove
     local library = __kaeryn.library
     local themes = __kaeryn.themes
     local notifications = __kaeryn.notifications
     local fonts = __kaeryn.fonts
+
+notifications.records = notifications.records or {}
+notifications.max_visible = notifications.max_visible or 4
+
+local type_tokens = {info = "info", success = "success", warning = "warning", error = "error"}
+local start_timer
 
 function notifications:refresh_notifs()
     local offset = 50
@@ -5894,144 +6970,257 @@ end
 function notifications:fade(path, is_fading)
     if library.unloaded or not path or not path.Parent then return end
     local opacity = is_fading and 1 or 0
-    library:tween(path, {BackgroundTransparency = opacity}, Enum.EasingStyle.Quad, 0.3)
+    library:tween(path, {BackgroundTransparency = opacity}, Enum.EasingStyle.Quad, 0.2)
     for _, instance in ipairs(path:GetDescendants()) do
         if instance:IsA("UIStroke") then
-            library:tween(instance, {Transparency = opacity}, Enum.EasingStyle.Quad, 0.3)
+            library:tween(instance, {Transparency = opacity}, Enum.EasingStyle.Quad, 0.2)
         elseif instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
-            library:tween(instance, {TextTransparency = opacity}, Enum.EasingStyle.Quad, 0.3)
-        elseif instance:IsA("Frame") and instance.Name ~= "notification" then
+            library:tween(instance, {TextTransparency = opacity}, Enum.EasingStyle.Quad, 0.2)
+        elseif instance:IsA("Frame") and instance.Name ~= "NotificationContent" then
             local desired = instance:GetAttribute("KaerynBaseTransparency")
             if desired == nil then
                 desired = instance.BackgroundTransparency
                 instance:SetAttribute("KaerynBaseTransparency", desired)
             end
-            library:tween(instance, {BackgroundTransparency = is_fading and 1 or desired}, Enum.EasingStyle.Quad, 0.3)
+            library:tween(instance, {BackgroundTransparency = is_fading and 1 or desired}, Enum.EasingStyle.Quad, 0.2)
         end
     end
 end
 
+local function update_content(record, options)
+    local cfg = record.handle
+    if options.name ~= nil then cfg.name = tostring(options.name) end
+    if options.info ~= nil then cfg.info = tostring(options.info) end
+    if options.type ~= nil then cfg.type = options.type end
+    if options._replace_action then cfg.action = options.action end
+    if options.dismissible ~= nil then cfg.dismissible = options.dismissible end
+    cfg.lifetime = options.lifetime == nil and cfg.lifetime or options.lifetime
+    record.remaining = cfg.lifetime
+    record.items.title.Text = cfg.name
+    record.items.info.Text = cfg.info
+    record.items.bar.BackgroundColor3 = themes.preset[type_tokens[cfg.type]]
+    library:track_theme(record.items.bar, "BackgroundColor3", record.items.bar.BackgroundColor3)
+    record.items.action.Visible = cfg.action ~= nil
+    if cfg.action then record.items.action.Text = cfg.action.label end
+    record.items.close.Visible = cfg.dismissible
+    record.items.bar.Visible = cfg.lifetime > 0
+    record.items.bar.Size = dim2(1, 0, 0, 3)
+    if start_timer then start_timer(record) end
+end
+
+local function remove_record(record, immediate)
+    if record.closed then return end
+    record.closed = true
+    local index = table.find(notifications.records, record)
+    if index then remove(notifications.records, index) end
+    index = table.find(notifications.notifs, record.items.notification)
+    if index then remove(notifications.notifs, index) end
+    notifications:refresh_notifs()
+    if immediate then
+        if record.items.notification.Parent then record.items.notification:Destroy() end
+        return
+    end
+    notifications:fade(record.items.notification, true)
+    library:tween(record.items.notification, {AnchorPoint = vec2(1, 0)}, Enum.EasingStyle.Quad, 0.2)
+    task.delay(0.25, function()
+        if record.items.notification.Parent then record.items.notification:Destroy() end
+    end)
+end
+
 function notifications:create_notification(options)
-    local cfg = {
-        name = options.name or "This is a title!";
-        info = options.info or "This is extra info!";
-        lifetime = options.lifetime or 3;
-        items = {};
-        outline;
-    }
+    assert(type(options) == "table", "notification options must be a table")
+    assert(not library.unloaded and library.items, "cannot create a notification before opening a window or after unloading Kaeryn")
+    local kind = options.type or "info"
+    assert(type_tokens[kind], "notification type must be info, success, warning, or error")
+    assert(options.dismissible == nil or type(options.dismissible) == "boolean", "dismissible must be a boolean")
+    if options.action ~= nil then
+        assert(type(options.action) == "table" and type(options.action.label) == "string" and options.action.label ~= "", "notification action needs a non-empty label")
+        assert(type(options.action.callback) == "function", "notification action needs a callback")
+    end
+    local lifetime = options.lifetime or 3
+    assert(type(lifetime) == "number" and lifetime == lifetime and lifetime >= 0 and lifetime < math.huge, "notification lifetime must be a finite non-negative number")
+    local dedupe_key = options.dedupe_key
+    if dedupe_key ~= nil then assert(type(dedupe_key) == "string" and dedupe_key ~= "", "dedupe_key must be a non-empty string") end
 
-    local items = cfg.items; do
-        items[ "notification" ] = library:create( "Frame" , {
-            Parent = library[ "items" ];
-            Size = dim2(0, 210, 0, 53);
-            Name = "\0";
-            BorderColor3 = rgb(0, 0, 0);
-            BorderSizePixel = 0;
-            BackgroundTransparency = 1;
-            AnchorPoint = vec2(1, 0);
-            AutomaticSize = Enum.AutomaticSize.Y;
-            BackgroundColor3 = rgb(14, 14, 16)
-        });
-
-        library:create( "UIStroke" , {
-            Color = rgb(23, 23, 29);
-            Parent = items[ "notification" ];
-            Transparency = 1;
-            ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        });
-
-        items[ "title" ] = library:create( "TextLabel" , {
-            FontFace = fonts.font;
-            TextColor3 = rgb(255, 255, 255);
-            BorderColor3 = rgb(0, 0, 0);
-            Text = cfg.name;
-            Parent = items[ "notification" ];
-            Name = "\0";
-            BackgroundTransparency = 1;
-            Position = dim2(0, 7, 0, 6);
-            BorderSizePixel = 0;
-            AutomaticSize = Enum.AutomaticSize.XY;
-            TextSize = 14;
-            BackgroundColor3 = rgb(255, 255, 255)
-        });
-
-        library:create( "UICorner" , {
-            Parent = items[ "notification" ];
-            CornerRadius = dim(0, 3)
-        });
-
-        items[ "info" ] = library:create( "TextLabel" , {
-            FontFace = fonts.font;
-            TextColor3 = rgb(145, 145, 145);
-            BorderColor3 = rgb(0, 0, 0);
-            Text = cfg.info;
-            Parent = items[ "notification" ];
-            Name = "\0";
-            Position = dim2(0, 9, 0, 22);
-            BorderSizePixel = 0;
-            BackgroundTransparency = 1;
-            TextXAlignment = Enum.TextXAlignment.Left;
-            TextWrapped = true;
-            AutomaticSize = Enum.AutomaticSize.XY;
-            TextSize = 14;
-            BackgroundColor3 = rgb(255, 255, 255)
-        });
-
-        library:create( "UIPadding" , {
-            PaddingBottom = dim(0, 17);
-            PaddingRight = dim(0, 8);
-            Parent = items[ "info" ]
-        });
-
-        items[ "bar" ] = library:create( "Frame" , {
-            AnchorPoint = vec2(0, 1);
-            Parent = items[ "notification" ];
-            Name = "\0";
-            Position = dim2(0, 8, 1, -6);
-            BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(0, 0, 0, 5);
-            BackgroundTransparency = 1;
-            BorderSizePixel = 0;
-            BackgroundColor3 = themes.preset.accent
-        });
-
-        library:create( "UICorner" , {
-            Parent = items[ "bar" ];
-            CornerRadius = dim(0, 999)
-        });
-
-        library:create( "UIPadding" , {
-            PaddingRight = dim(0, 8);
-            Parent = items[ "notification" ]
-        });
+    if dedupe_key then
+        for _, existing in ipairs(notifications.records) do
+            if not existing.closed and existing.handle.dedupe_key == dedupe_key then
+                existing.handle.type = kind
+                update_content(existing, {name = options.name, info = options.info, type = kind, action = options.action,
+                    _replace_action = true, lifetime = lifetime, dismissible = options.dismissible ~= false})
+                return existing.handle
+            end
+        end
     end
 
-    table.insert(notifications.notifs, items.notification)
+    local max_visible = tonumber(notifications.max_visible)
+    if not max_visible or max_visible ~= max_visible or max_visible == math.huge or max_visible == -math.huge then max_visible = 4 end
+    max_visible = max(1, math.floor(max_visible))
+    while #notifications.records >= max_visible do
+        remove_record(notifications.records[1], true)
+    end
 
-    notifications:fade(items[ "notification" ], false)
+    local cfg = {
+        control_type = "notification",
+        name = tostring(options.name or "Kaeryn"),
+        info = tostring(options.info or ""),
+        type = kind,
+        lifetime = lifetime,
+        action = options.action,
+        dedupe_key = dedupe_key,
+        dismissible = options.dismissible ~= false,
+    }
+    local items = {}
+    local record = {handle = cfg, items = items, remaining = lifetime, paused = false, closed = false}
+    cfg.Close = function() remove_record(record) end
 
-    local offset = notifications:refresh_notifs()
+    items.notification = library:create("Frame", {
+        Parent = library.items;
+        Size = dim2(0, 230, 0, 0);
+        Name = "Notification";
+        AutomaticSize = Enum.AutomaticSize.Y;
+        BorderSizePixel = 0;
+        BackgroundColor3 = themes.preset.background;
+        AnchorPoint = vec2(1, 0);
+        Position = dim_offset(20, notifications:refresh_notifs());
+    })
+    library:create("UICorner", {Parent = items.notification; CornerRadius = dim(0, 5)})
+    library:create("UIStroke", {Color = themes.preset.border; Parent = items.notification; ApplyStrokeMode = Enum.ApplyStrokeMode.Border})
+    items.content = library:create("Frame", {
+        Parent = items.notification;
+        Name = "NotificationContent";
+        Position = dim2(0, 9, 0, 7);
+        Size = dim2(1, -18, 0, 0);
+        AutomaticSize = Enum.AutomaticSize.Y;
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+    })
+    library:create("UIListLayout", {Parent = items.content; Padding = dim(0, 4); SortOrder = Enum.SortOrder.LayoutOrder})
+    items.header = library:create("Frame", {
+        Parent = items.content;
+        Name = "TitleRow";
+        LayoutOrder = 1;
+        Size = dim2(1, 0, 0, 20);
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+    })
+    items.title = library:create("TextLabel", {
+        Parent = items.header;
+        Name = "Title";
+        Size = dim2(1, -24, 1, 0);
+        Text = cfg.name;
+        FontFace = fonts.font;
+        TextSize = 14;
+        TextColor3 = themes.preset.text;
+        TextXAlignment = Enum.TextXAlignment.Left;
+        TextTruncate = Enum.TextTruncate.AtEnd;
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+    })
+    items.close = library:create("TextButton", {
+        Parent = items.header;
+        Name = "Close";
+        AnchorPoint = vec2(1, 0);
+        Position = dim2(1, 0, 0, 0);
+        Size = dim2(0, 20, 1, 0);
+        Text = "×";
+        FontFace = fonts.small;
+        TextSize = 16;
+        TextColor3 = themes.preset.muted;
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+        AutoButtonColor = false;
+        Visible = cfg.dismissible;
+    })
+    items.info = library:create("TextLabel", {
+        Parent = items.content;
+        Name = "Info";
+        LayoutOrder = 2;
+        Size = dim2(1, 0, 0, 0);
+        AutomaticSize = Enum.AutomaticSize.Y;
+        Text = cfg.info;
+        FontFace = fonts.small;
+        TextSize = 13;
+        TextColor3 = themes.preset.muted;
+        TextWrapped = true;
+        TextXAlignment = Enum.TextXAlignment.Left;
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+    })
+    items.action = library:create("TextButton", {
+        Parent = items.content;
+        Name = "Action";
+        LayoutOrder = 3;
+        Size = dim2(1, 0, 0, 24);
+        Text = cfg.action and cfg.action.label or "";
+        FontFace = fonts.small;
+        TextSize = 12;
+        TextColor3 = themes.preset.text_soft;
+        BackgroundColor3 = themes.preset.surface_alt;
+        BorderSizePixel = 0;
+        AutoButtonColor = false;
+        Visible = cfg.action ~= nil;
+    })
+    library:create("UICorner", {Parent = items.action; CornerRadius = dim(0, 4)})
+    items.bar = library:create("Frame", {
+        Parent = items.content;
+        Name = "Lifetime";
+        LayoutOrder = 4;
+        Size = dim2(1, 0, 0, 3);
+        BackgroundColor3 = themes.preset[type_tokens[kind]];
+        BorderSizePixel = 0;
+        Visible = lifetime > 0;
+    })
+    library:create("UICorner", {Parent = items.bar; CornerRadius = dim(0, 999)})
+    library:create("UIPadding", {
+        Parent = items.notification;
+        PaddingBottom = dim(0, 7);
+    })
 
-    items[ "notification" ].Position = dim_offset(20, offset)
+    insert(notifications.records, record)
+    insert(notifications.notifs, items.notification)
+    notifications:fade(items.notification, false)
+    library:tween(items.notification, {AnchorPoint = vec2(0, 0)}, Enum.EasingStyle.Quad, 0.2)
+    notifications:refresh_notifs()
 
-    library:tween(items[ "notification" ], {AnchorPoint = vec2(0, 0)}, Enum.EasingStyle.Quad, 1)
-    library:tween(items[ "bar" ], {Size = dim2(1, -8, 0, 5)}, Enum.EasingStyle.Quad, cfg.lifetime)
-
-    task.spawn(function()
-        task.wait(cfg.lifetime)
-
-        if library.unloaded or not items.notification.Parent then return end
-        local index = table.find(notifications.notifs, items.notification)
-        if index then table.remove(notifications.notifs, index) end
-        notifications:refresh_notifs()
-        notifications:fade(items[ "notification" ], true)
-
-        library:tween(items[ "notification" ], {AnchorPoint = vec2(1, 0)}, Enum.EasingStyle.Quad, 1)
-
-        task.wait(1)
-
-        if items.notification.Parent then items.notification:Destroy() end
+    local hovered, focused = false, false
+    local function update_pause() record.paused = hovered or focused end
+    items.notification.MouseEnter:Connect(function() hovered = true; update_pause() end)
+    items.notification.MouseLeave:Connect(function() hovered = false; update_pause() end)
+    for _, button in ipairs({items.action, items.close}) do
+        button.SelectionGained:Connect(function() focused = true; update_pause() end)
+        button.SelectionLost:Connect(function() focused = false; update_pause() end)
+    end
+    items.close.Activated:Connect(function() cfg:Close() end)
+    items.action.Activated:Connect(function()
+        if record.closed or not cfg.action then return end
+        library:dispatch_control_callback(cfg, cfg.action.callback, {source = "user", phase = "commit"})
+        if cfg.action.close ~= false then cfg:Close() end
     end)
+
+    start_timer = function(target)
+        target.timer_generation = (target.timer_generation or 0) + 1
+        local generation = target.timer_generation
+        if target.handle.lifetime <= 0 then return end
+        task.spawn(function()
+        local previous = os.clock()
+        while not target.closed and target.timer_generation == generation and target.items.notification.Parent do
+            task.wait(0.05)
+            local now = os.clock()
+            if not target.paused then target.remaining = max(0, target.remaining - (now - previous)) end
+            previous = now
+            target.items.bar.Size = dim2(target.remaining / target.handle.lifetime, 0, 0, 3)
+            if target.remaining <= 0 then break end
+        end
+        if not target.closed and target.timer_generation == generation and target.remaining <= 0 then target.handle:Close() end
+        end)
+    end
+    start_timer(record)
+    return cfg
+end
+
+function library:notify(options)
+    return notifications:create_notification(options)
 end
 end
 
@@ -6337,6 +7526,8 @@ end
     ["src/Kaeryn/Themes.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local insert = __kaeryn.insert
+    local remove = __kaeryn.remove
+    local dim = __kaeryn.dim
     local library = __kaeryn.library
     local themes = __kaeryn.themes
 
@@ -6344,15 +7535,32 @@ local function can_map(property, token)
     if property == "BackgroundColor3" then
         return token == "accent" or token == "background" or token == "surface"
             or token == "surface_alt" or token == "surface_hover" or token == "border"
+            or token == "success" or token == "warning" or token == "error" or token == "info"
     elseif property == "TextColor3" then
         return token == "accent" or token == "text" or token == "text_soft"
-            or token == "muted" or token == "text_muted"
+            or token == "muted" or token == "text_muted" or token == "success" or token == "warning" or token == "error" or token == "info"
     elseif property == "BorderColor3" then
         return token == "border"
     elseif property == "ImageColor3" or property == "ScrollBarImageColor3" or property == "Color" then
         return true
     end
     return false
+end
+
+local scale_for_property = {
+    TextSize = "text_scale",
+    CornerRadius = "radius_scale",
+    Padding = "density",
+    PaddingTop = "density",
+    PaddingBottom = "density",
+    PaddingLeft = "density",
+    PaddingRight = "density",
+}
+
+local function scaled_value(value, scale)
+    if type(value) == "number" then return value * scale end
+    if typeof(value) == "UDim" then return dim(value.Scale * scale, value.Offset * scale) end
+    return value
 end
 
 function library:track_theme(instance, property, value)
@@ -6383,6 +7591,15 @@ function library:apply_theme(instance, theme, property)
     insert(instances, instance)
 end
 
+function library:track_theme_scale(instance, property, value)
+    local token = scale_for_property[property]
+    if not token or (type(value) ~= "number" and typeof(value) ~= "UDim") then return end
+    local records = themes.scale_utility[token]
+    for _, record in ipairs(records) do if record.instance == instance and record.property == property then return end end
+    insert(records, {instance = instance, property = property, base = value})
+    pcall(function() instance[property] = scaled_value(value, themes.scale[token]) end)
+end
+
 function library:update_theme(theme, new_color)
     if typeof(new_color) ~= "Color3" or themes.preset[theme] == nil then return false end
     local previous = themes.preset[theme]
@@ -6403,14 +7620,48 @@ function library:update_theme(theme, new_color)
     return true
 end
 
+function library:update_theme_scale(token, scale)
+    if themes.scale[token] == nil or type(scale) ~= "number" or scale ~= scale or scale == math.huge or scale == -math.huge then
+        return false
+    end
+    local previous = themes.scale[token]
+    for index = #themes.scale_utility[token], 1, -1 do
+        local record = themes.scale_utility[token][index]
+        if not record.instance or not record.instance.Parent then
+            remove(themes.scale_utility[token], index)
+        else
+            pcall(function() record.instance[record.property] = scaled_value(record.base, scale) end)
+        end
+    end
+    themes.scale[token] = scale
+    return previous ~= scale
+end
+
 function library:set_theme(palette)
     if type(palette) ~= "table" then return false, "Theme must be a table" end
     for token, color_value in pairs(palette) do
-        if themes.preset[token] == nil then return false, "Unknown theme token: " .. tostring(token) end
-        if typeof(color_value) ~= "Color3" then return false, "Theme token '" .. tostring(token) .. "' must be a Color3" end
+        if themes.preset[token] ~= nil then
+            if typeof(color_value) ~= "Color3" then return false, "Theme token '" .. tostring(token) .. "' must be a Color3" end
+        elseif themes.scale[token] ~= nil then
+            if type(color_value) ~= "number" or color_value ~= color_value or color_value == math.huge or color_value == -math.huge then
+                return false, "Theme token '" .. tostring(token) .. "' must be a finite number"
+            end
+            local limits = {text_scale = {0.75, 1.5}, density = {0.65, 1.5}, radius_scale = {0, 2}, motion_scale = {0, 2}}
+            if color_value < limits[token][1] or color_value > limits[token][2] then
+                return false, "Theme token '" .. tostring(token) .. "' is outside its supported range"
+            end
+        else
+            return false, "Unknown theme token: " .. tostring(token)
+        end
     end
     for token, color_value in pairs(palette) do
-        library:update_theme(token, color_value)
+        if themes.preset[token] ~= nil then
+            library:update_theme(token, color_value)
+        elseif token == "motion_scale" then
+            themes.scale[token] = color_value
+        else
+            library:update_theme_scale(token, color_value)
+        end
     end
     return true
 end

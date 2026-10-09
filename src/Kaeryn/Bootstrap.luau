@@ -84,13 +84,19 @@ local themes = {
         text_soft = rgb(245, 245, 245),
         muted = rgb(130, 130, 130),
         text_muted = rgb(72, 72, 73),
+        success = rgb(91, 190, 129),
+        warning = rgb(232, 174, 78),
+        error = rgb(227, 91, 91),
+        info = rgb(113, 165, 235),
     },
 
     utility = {
         accent = {}, background = {}, surface = {}, surface_alt = {},
         surface_hover = {}, border = {}, text = {}, text_soft = {},
-        muted = {}, text_muted = {},
-    }
+        muted = {}, text_muted = {}, success = {}, warning = {}, error = {}, info = {},
+    },
+    scale = {text_scale = 1, density = 1, radius_scale = 1, motion_scale = 1},
+    scale_utility = {text_scale = {}, density = {}, radius_scale = {}, motion_scale = {}},
 }
 
 local keys = {

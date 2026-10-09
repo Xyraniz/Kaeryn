@@ -6,12 +6,12 @@ return function(__kaeryn)
     local rgb = __kaeryn.rgb
     local camera = __kaeryn.camera
     local mouse = __kaeryn.mouse
-    local keys = __kaeryn.keys
     local max = __kaeryn.max
     local min = __kaeryn.min
     local clamp = __kaeryn.clamp
     local insert = __kaeryn.insert
     local fonts = __kaeryn.fonts
+    local themes = __kaeryn.themes
     local library = __kaeryn.library
     local flags = __kaeryn.flags
     local config_flags = __kaeryn.config_flags
@@ -83,12 +83,29 @@ library.option_schemas = {
     },
     textbox = {
         fields = fields({name = descriptor("string", "TextBox"), placeholder = descriptor("string", "type here..."), default = descriptor("string", ""),
-            callback = descriptor("function", function() end), visible = descriptor("boolean", true)}),
+            callback = descriptor("function", function() end), visible = descriptor("boolean", true), required = descriptor("boolean", false),
+            min_length = descriptor("number", nil, {min = 0}), max_length = descriptor("number", nil, {min = 0}), validate = descriptor("function")}),
         aliases = {Name = "name", placeholdertext = "placeholder", holder = "placeholder", holdertext = "placeholder"},
     },
     keybind = {
         fields = fields({name = descriptor("string"), key = descriptor({"string", "EnumItem"}), mode = descriptor("string", "Toggle", {values = {"Toggle", "Hold", "Always"}}),
-            default = descriptor("boolean", false), ignore = descriptor("boolean", false), callback = descriptor("function", function() end)}),
+            default = descriptor("boolean", false), ignore = descriptor("boolean", false), context = descriptor("string", "global"), callback = descriptor("function", function() end)}),
+        aliases = {Name = "name"},
+    },
+    segmented = {
+        fields = fields({name = descriptor("string", "Mode"), items = descriptor("table", {}), default = descriptor("string"),
+            callback = descriptor("function", function() end), separator = descriptor("boolean", false)}),
+        aliases = common_aliases,
+    },
+    stepper = {
+        fields = fields({name = descriptor("string", "Value"), default = descriptor("number", 0),
+            min = descriptor("number", 0), max = descriptor("number", 100), step = descriptor("number", 1, {min = 0}), suffix = descriptor("string", ""),
+            callback = descriptor("function", function() end), on_commit = descriptor("function"), separator = descriptor("boolean", true)}),
+        aliases = {Name = "name", Seperator = "separator", seperator = "separator"},
+    },
+    group = {
+        fields = fields({name = descriptor("string", "Items"), min_items = descriptor("number", 0, {min = 0}), max_items = descriptor("number", 25, {min = 1}),
+            callback = descriptor("function", function() end)}),
         aliases = {Name = "name"},
     },
     button = {
@@ -185,6 +202,40 @@ function library:normalize_options(control_type, options, schema)
         if normalized.max < normalized.min then error("Option 'max' for slider must be greater than or equal to 'min'", 2) end
         if normalized.interval <= 0 then error("Option 'interval' for slider must be greater than zero", 2) end
     end
+    if control_type == "stepper" then
+        if normalized.max < normalized.min then error("Option 'max' for stepper must be greater than or equal to 'min'", 2) end
+        if normalized.step <= 0 then error("Option 'step' for stepper must be greater than zero", 2) end
+        if normalized.default < normalized.min or normalized.default > normalized.max then error("Option 'default' for stepper must be inside its range", 2) end
+    elseif control_type == "textbox" then
+        if normalized.min_length and normalized.max_length and normalized.min_length > normalized.max_length then
+            error("Option 'min_length' for textbox must be less than or equal to 'max_length'", 2)
+        end
+        for _, key in ipairs({"min_length", "max_length"}) do
+            local value = normalized[key]
+            if value and value % 1 ~= 0 then error("Option '" .. key .. "' for textbox must be an integer", 2) end
+        end
+    elseif control_type == "group" and normalized.max_items < normalized.min_items then
+        error("Option 'max_items' for group must be greater than or equal to 'min_items'", 2)
+    elseif control_type == "segmented" then
+        local valid, reason = self:validate_option_list("dropdown", normalized.items)
+        if not valid then error("Option 'items' for segmented: " .. reason, 2) end
+        if #normalized.items < 2 or #normalized.items > 5 then error("Option 'items' for segmented must contain between 2 and 5 options", 2) end
+        local enabled = 0
+        for _, item in ipairs(normalized.items) do
+            if type(item) == "table" and item.group ~= nil then error("Segmented items cannot use groups", 2) end
+            if type(item) ~= "table" or not item.disabled then enabled += 1 end
+        end
+        if enabled < 2 or enabled > 5 then error("Option 'items' for segmented must have between 2 and 5 enabled options", 2) end
+        if normalized.default ~= nil then
+            local found = false
+            for _, item in ipairs(normalized.items) do
+                local value = type(item) == "table" and item.value or item
+                local disabled = type(item) == "table" and item.disabled
+                if value == normalized.default and not disabled then found = true; break end
+            end
+            if not found then error("Option 'default' for segmented must match an enabled option", 2) end
+        end
+    end
     if control_type == "dropdown" or control_type == "list" then
         local option_key = control_type == "dropdown" and "items" or "options"
         local valid, reason = self:validate_option_list(control_type, normalized[option_key])
@@ -260,7 +311,8 @@ function library:tween(obj, properties, easing_style, time)
             library:track_theme(obj, property, value)
         end
     end
-    local tween = tween_service:Create(obj, TweenInfo.new(time or 0.25, easing_style or Enum.EasingStyle.Quint, Enum.EasingDirection.InOut), properties)
+    local duration = (time or 0.25) * (themes.scale.motion_scale or 1)
+    local tween = tween_service:Create(obj, TweenInfo.new(duration, easing_style or Enum.EasingStyle.Quint, Enum.EasingDirection.InOut), properties)
     tween:Play()
     return tween
 end
@@ -599,8 +651,10 @@ function library:attach_control(control, root, section)
             if self.control_type == "keybind" and self.binding then
                 self.binding:Disconnect()
                 self.binding = nil
-                local key = self.key
-                self.items.key.Text = tostring(keys[key] or (typeof(key) == "EnumItem" and key.Name) or "NONE")
+                if self.refresh_key_label then self:refresh_key_label() end
+            end
+            if self.control_type == "keybind" and self.mode == "Hold" and self.active and self.set then
+                self.set(false, {source = "code", phase = "change"})
             end
         end
         local ok = pcall(function() self._ui_root.Interactable = self._enabled end)
@@ -649,8 +703,8 @@ function library:attach_control(control, root, section)
         if self._destroyed then return false, "This control has been destroyed" end
         if type(self.refresh_options) ~= "function" then return false, "This control does not support options" end
         if type(options) ~= "table" then return false, "Options must be a table" end
-        if self.control_type == "dropdown" or self.control_type == "list" then
-            local valid, reason = library:validate_option_list(self.control_type, options)
+        if self.control_type == "dropdown" or self.control_type == "list" or self.control_type == "segmented" then
+            local valid, reason = library:validate_option_list(self.control_type == "segmented" and "dropdown" or self.control_type, options)
             if not valid then return false, reason end
         end
         return library:with_change_context("code", "commit", function() return self.refresh_options(options) end)

@@ -1,5 +1,4 @@
 return function(__kaeryn)
-    local uis = __kaeryn.uis
     local ws = __kaeryn.ws
     local vec2 = __kaeryn.vec2
     local dim2 = __kaeryn.dim2
@@ -10,9 +9,7 @@ return function(__kaeryn)
     local clamp = __kaeryn.clamp
     local library = __kaeryn.library
     local themes = __kaeryn.themes
-    local keys = __kaeryn.keys
     local flags = __kaeryn.flags
-    local config_flags = __kaeryn.config_flags
     local fonts = __kaeryn.fonts
 
 function library:keybind(options)
@@ -26,6 +23,10 @@ function library:keybind(options)
         callback = options.callback or function() end,
         name = options.name or nil,
         ignore_key = options.ignore or false,
+        context = options.context or "global",
+        default_key = options.key or "NONE",
+        default_mode = options.mode or "Toggle",
+        default_active = options.default == true,
 
         key = options.key or nil,
         mode = options.mode or "Toggle",
@@ -146,6 +147,18 @@ function library:keybind(options)
             PaddingLeft = dim(0, 5)
         });
 
+        items["conflict"] = library:create("TextLabel", {
+            FontFace = fonts.font;
+            TextColor3 = rgb(255, 100, 100);
+            Text = "!";
+            Visible = false;
+            Parent = items["right_components"];
+            Name = "KeybindConflict";
+            BackgroundTransparency = 1;
+            AutomaticSize = Enum.AutomaticSize.XY;
+            TextSize = 14;
+        })
+
         items[ "dropdown" ] = library:create( "Frame" , {
             BorderColor3 = rgb(0, 0, 0);
             Parent = library.items;
@@ -240,7 +253,7 @@ function library:keybind(options)
         cfg.set(cfg.active)
     end
 
-    function cfg.set(input)
+    function cfg.set(input, explicit_context)
         if type(input) == "boolean" then
             cfg.active = cfg.mode == "Always" or input
         elseif typeof(input) == "EnumItem" then
@@ -266,9 +279,36 @@ function library:keybind(options)
         end
         cfg.modify_mode_color(cfg.mode)
         flags[cfg.flag] = {mode = cfg.mode, key = cfg.key or "NONE", active = cfg.active}
-        local key_string = keys[cfg.key] or (typeof(cfg.key) == "EnumItem" and cfg.key.Name) or "NONE"
-        items.key.Text = tostring(key_string)
-        library:dispatch_control_callback(cfg, cfg.callback, nil, cfg.active)
+        cfg:refresh_key_label()
+        if library.refresh_keybind_conflicts then library:refresh_keybind_conflicts() end
+        library:dispatch_control_callback(cfg, cfg.callback, explicit_context, cfg.active)
+        return true
+    end
+
+    function cfg:refresh_key_label()
+        items.key.Text = self.binding and "..." or library.get_keybind_label(self.key)
+    end
+
+    function cfg:GetConflicts()
+        return library:get_keybind_conflicts(self)
+    end
+
+    function cfg:SetContext(context)
+        if type(context) ~= "string" or context:gsub("%s", "") == "" then
+            return false, "Keybind context must be a non-empty string"
+        end
+        self.context = context
+        library:refresh_keybind_conflicts()
+        return true
+    end
+
+    function cfg:Rebind()
+        if library.is_mobile then return false, "Key capture is unavailable on touch devices" end
+        return library:begin_keybind_capture(self) ~= nil
+    end
+
+    function cfg:Reset()
+        return self:Set({mode = self.default_mode, key = self.default_key, active = self.default_active})
     end
 
     function cfg.set_visible(bool)
@@ -299,15 +339,7 @@ function library:keybind(options)
             cfg.set_visible(cfg.open)
             return
         end
-        if cfg.binding then cfg.binding:Disconnect() end
-        items.key.Text = "..."
-        cfg.binding = library:connection(uis.InputBegan, function(keycode)
-            if cfg._destroyed or not cfg._enabled then return end
-            local next_key = keycode.KeyCode ~= Enum.KeyCode.Unknown and keycode.KeyCode or keycode.UserInputType
-            cfg.capture_ignored_input = keycode
-            if cfg.binding then cfg.binding:Disconnect(); cfg.binding = nil end
-            cfg.set(next_key)
-        end, cfg)
+        cfg:Rebind()
     end)
 
     items[ "keybind_holder" ].MouseButton2Down:Connect(function()
@@ -315,35 +347,6 @@ function library:keybind(options)
 
         cfg.set_visible(cfg.open)
     end)
-
-    library:connection(uis.InputBegan, function(input, game_event)
-        if not cfg._destroyed and cfg._enabled and not game_event and not cfg.binding and input ~= cfg.capture_ignored_input then
-            local selected_key = input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode or input.UserInputType
-
-            if selected_key == cfg.key then
-                if cfg.mode == "Toggle" then
-                    cfg.active = not cfg.active
-                    cfg.set(cfg.active)
-                elseif cfg.mode == "Hold" then
-                    cfg.set(true)
-                end
-            end
-        end
-    end, cfg)
-
-    library:connection(uis.InputEnded, function(input, game_event)
-        if cfg._destroyed or not cfg._enabled or game_event or cfg.binding then
-            return
-        end
-
-        local selected_key = input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode or input.UserInputType
-
-        if selected_key == cfg.key then
-            if cfg.mode == "Hold" then
-                cfg.set(false)
-            end
-        end
-    end, cfg)
 
     library:with_change_context("initialization", "initialize", cfg.set, {mode = cfg.mode, active = cfg.active, key = cfg.key})
     library:register_config_flag(cfg.flag, cfg.set, function(value)
@@ -362,6 +365,9 @@ function library:keybind(options)
 
     library:mobile_format_control(items, "keybind")
     library:attach_control(cfg, items.keybind_element, self)
+    library:register_keybind(cfg)
+    cfg:AddCleanup(function() library:unregister_keybind(cfg) end)
+    cfg:refresh_key_label()
     return setmetatable(cfg, library)
 end
 end

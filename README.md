@@ -23,7 +23,7 @@ Give controls explicit, stable IDs and flags for saved configs. If omitted, name
 section:toggle({name = "Enabled", flag = "aim.enabled"})
 ```
 
-Configs are validated before any setter runs. Use `library:set_theme({accent = Color3.fromRGB(120, 160, 255), surface = Color3.fromRGB(20, 24, 32)})` to update palette tokens.
+Configs are validated before any setter runs. `library:set_theme` updates color tokens and UI scale tokens such as text size, density, corner radius, and animation speed.
 
 ## Stable IDs and config migrations
 
@@ -127,6 +127,100 @@ print(region:Get()) -- "na"; the menu displays "North America"
 ```
 
 Dropdown configs save the stable `value`. During loading, old label-based values are still accepted and converted to their matching stable values.
+
+## Keybind contexts, segmented controls, and numeric steppers
+
+Keybinds are handled by one manager. Global bindings work in every context; scoped bindings run only while their exact context is active. Duplicate keys whose scopes overlap are reported by `GetConflicts()` and suppressed until resolved. `Rebind()` starts key capture on keyboard/mouse layouts, `Reset()` restores the configured key and mode, and `library:set_keybind_context()` switches the active scope.
+
+```lua
+local toggle_map = section:keybind({
+    id = "combat.map",
+    name = "Map",
+    key = Enum.KeyCode.M,
+    context = "combat",
+})
+
+library:set_keybind_context("combat")
+local conflicts = toggle_map:GetConflicts()
+toggle_map:Rebind()
+toggle_map:Reset()
+```
+
+Use `segmented` for a short, exclusive choice and `stepper` when people need exact numeric adjustments.
+
+```lua
+local mode = section:segmented({
+    id = "render.mode",
+    name = "Mode",
+    items = {{value = "fast", label = "Fast"}, {value = "quality", label = "Quality"}},
+    default = "quality",
+})
+
+local scale = section:stepper({id = "render.scale", name = "Scale", min = 50, max = 150, step = 5, default = 100, suffix = "%"})
+scale:SetRange(25, 200, 5)
+```
+
+Segmented controls accept two to five options and save each stable `value`; labels can change independently. Steppers clamp values to their range, snap them to `step`, and accept `on_commit` for work that should run after a user finishes editing.
+
+## Repeated control groups
+
+`section:group()` creates a list of rows that can be added, removed, and reordered. Give the group a stable `id` to save its row keys in configs; controls inside each row automatically receive IDs and flags scoped to that row.
+
+```lua
+local rules = section:group({id = "rules", name = "Rules", max_items = 8})
+local safety = rules:Add("safety", "Safety")
+safety:toggle({id = "enabled", name = "Enabled", default = true})
+rules:Add("economy", "Economy")
+rules:Move("economy", 1)
+rules:Remove("safety")
+```
+
+Rows use stable keys, not their displayed titles. `group:Get()` returns the current keys, `group:Get(key)` returns a row, and `group:Set(keys)` replaces the list. Set `min_items` or `max_items` to constrain the collection. A group callback receives the action, changed key, current key list, and the usual callback metadata.
+
+## Text validation and actionable notifications
+
+Textboxes can enforce required values, length limits, or a custom validator. A validator returns `true` when valid, or `false, message` to show an inline error. Invalid user text stays visible for correction but does not replace the saved flag value.
+
+```lua
+local username = section:textbox({
+    id = "profile.username",
+    name = "Username",
+    required = true,
+    min_length = 3,
+    max_length = 20,
+    validate = function(value)
+        local valid = value:match("^[%w_]+$") ~= nil
+        return valid, "Use letters, numbers, or underscores"
+    end,
+})
+```
+
+Call `library:notify()` for a typed toast. Notifications support `info`, `success`, `warning`, and `error`, an optional action button, dismissal, a dedupe key, and `lifetime = 0` for a toast that stays until dismissed. Hovering or focusing a toast pauses its timer; the returned handle also has `Close()`. The default visible limit is four and can be changed with `library.notifications.max_visible`.
+
+```lua
+library:notify({
+    type = "success",
+    name = "Saved",
+    info = "Profile updated",
+    dedupe_key = "profile-save",
+    action = {label = "Undo", callback = undo_save},
+})
+```
+
+## Theme scale tokens
+
+Color tokens still accept `Color3` values. `text_scale`, `density`, `radius_scale`, and `motion_scale` are numeric: density below `1` tightens padding, while motion scale `0` disables tween duration. Supported ranges are `0.75–1.5` for text, `0.65–1.5` for density, and `0–2` for radius and motion.
+
+```lua
+library:set_theme({
+    accent = Color3.fromRGB(120, 160, 255),
+    success = Color3.fromRGB(80, 190, 125),
+    text_scale = 1.1,
+    density = 0.9,
+    radius_scale = 1.2,
+    motion_scale = 0.6,
+})
+```
 
 ## Custom controls
 
