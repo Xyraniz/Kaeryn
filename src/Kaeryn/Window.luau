@@ -286,13 +286,8 @@ function library:window(properties)
                 ZIndex = 8,
             })
             library:create("UICorner", {Parent = cfg.sidebar_toggle, CornerRadius = dim(0, 6)})
-            library:connection(cfg.sidebar_toggle.MouseButton1Click, function()
-                local compact = library.mobile_sidebar_preference
-                if compact == nil then
-                    local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(450, 800)
-                    compact = false
-                end
-                library.mobile_sidebar_preference = not compact
+            library:connection(cfg.sidebar_toggle.Activated, function()
+                library.mobile_sidebar_preference = not library:get_mobile_sidebar_compact()
                 library:queue_mobile_layout()
             end)
             cfg.mobile_button = library:create("TextButton", {

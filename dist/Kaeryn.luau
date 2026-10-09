@@ -6499,6 +6499,12 @@ function library:get_breakpoint(viewport)
     return "desktop"
 end
 
+function library:get_mobile_sidebar_compact(viewport)
+    if library.mobile_sidebar_preference ~= nil then return library.mobile_sidebar_preference end
+    viewport = viewport or (ws.CurrentCamera and ws.CurrentCamera.ViewportSize) or vec2(450, 800)
+    return viewport.X > viewport.Y
+end
+
 function library:tab_content_geometry(main_width, side, header, bottom)
     local available = max(1, main_width - side)
     local center = floor(side + available / 2)
@@ -6740,8 +6746,7 @@ function library:refresh_mobile_layout()
     local available_height = max(1, viewport.Y - top - bottom)
     local height = landscape and floor(available_height * 0.96) or floor(available_height * 0.92)
     height = clamp(height, 1, available_height)
-    local compact = library.mobile_sidebar_preference
-    if compact == nil then compact = false end
+    local compact = library:get_mobile_sidebar_compact(viewport)
     local side = compact and 54 or min(216, max(156, floor(width * 0.28)))
     if landscape then
         width = side + floor(max(1, width - side) * content_width_ratio)
@@ -10946,13 +10951,8 @@ function library:window(properties)
                 ZIndex = 8,
             })
             library:create("UICorner", {Parent = cfg.sidebar_toggle, CornerRadius = dim(0, 6)})
-            library:connection(cfg.sidebar_toggle.MouseButton1Click, function()
-                local compact = library.mobile_sidebar_preference
-                if compact == nil then
-                    local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(450, 800)
-                    compact = false
-                end
-                library.mobile_sidebar_preference = not compact
+            library:connection(cfg.sidebar_toggle.Activated, function()
+                library.mobile_sidebar_preference = not library:get_mobile_sidebar_compact()
                 library:queue_mobile_layout()
             end)
             cfg.mobile_button = library:create("TextButton", {
