@@ -117,6 +117,19 @@ local saved_config
 local uptime_label
 local uptime_seconds = 0
 local monitor_scope
+local section_transparency_targets = {}
+local section_transparency_selection = {"all"}
+local section_transparency_value = 0.18
+local section_transparency_picker
+
+local function apply_section_transparency()
+	local apply_all = table.find(section_transparency_selection, "all") ~= nil
+	for id, section in pairs(section_transparency_targets) do
+		if apply_all or table.find(section_transparency_selection, id) then
+			section:SetBackgroundTransparency(section_transparency_value)
+		end
+	end
+end
 
 window:OnOpen(function()
 	print("[Kaeryn] Window opened")
@@ -172,6 +185,8 @@ local operation_overview, operation_controls, operation_inputs, operation_collec
 			lazy = function(page)
 				local column = page:column({})
 				local section = column:section({name = "On-demand loading", default = true, size = 1})
+				section_transparency_targets.resources = section
+				apply_section_transparency()
 				section:label({
 					id = "resources.lazy_note",
 					name = "This page is built when opened",
@@ -593,7 +608,7 @@ custom_section:label({id = "system.custom_help", name = "The custom status is in
 
 local records_left = records_nodes:column({})
 local records_right = records_nodes:column({})
-local table_section = records_left:section({name = "Nodes", default = true, size = 1, icon = "lucide:database"})
+local table_section = records_left:section({name = "Nodes", default = true, size = 1, icon = "lucide:database", background_transparency = 0.18})
 local initial_rows = {
 	{id = "node-west", zone = "West", status = "Operational", latency = 34},
 	{id = "node-east", zone = "East", status = "Operational", latency = 48},
@@ -620,7 +635,7 @@ local nodes = table_section:data_table({
 	end,
 })
 
-local record_actions = records_right:section({name = "Update records", default = true, size = 1, icon = "lucide:wrench"})
+local record_actions = records_right:section({name = "Update records", default = true, size = 1, icon = "lucide:wrench", background_transparency = 0.18})
 record_actions:label({id = "records.selected", name = "Select a row to see its callback."})
 record_actions:button({
 	id = "records.update",
@@ -659,20 +674,79 @@ record_actions:button({
 
 local system_left = system_utilities:column({})
 local system_right = system_utilities:column({})
-local appearance_section = system_left:section({name = "Appearance", default = true, size = 1, icon = "lucide:settings"})
+local actions_section = system_right:section({name = "Window and dialogs", default = true, size = 1, icon = "lucide:bell"})
+local appearance_section = system_left:section({name = "Appearance", default = true, size = 1, icon = "lucide:settings", background_transparency = 0.18})
+section_transparency_targets = {
+	session = session_section,
+	quick_access = overview_section,
+	ranges = range_section,
+	modes = modes_section,
+	selection = dropdown_section,
+	account = account_section,
+	input_actions = inputs_buttons,
+	rules = rule_section,
+	manage_rules = rule_actions,
+	custom_control = custom_section,
+	nodes = table_section,
+	update_records = record_actions,
+	appearance = appearance_section,
+	window_actions = actions_section,
+}
+section_transparency_picker = appearance_section:dropdown({
+	id = "appearance.section_transparency_targets",
+	name = "Sections to adjust",
+	info = "Choose All sections or select specific sections.",
+	multi = true,
+	items = {
+		{value = "all", label = "All sections"},
+		{value = "session", label = "Session"},
+		{value = "quick_access", label = "Quick access"},
+		{value = "ranges", label = "Ranges"},
+		{value = "modes", label = "Modes and color"},
+		{value = "selection", label = "Selection"},
+		{value = "account", label = "Account and shortcuts"},
+		{value = "input_actions", label = "Input actions"},
+		{value = "rules", label = "Rules"},
+		{value = "manage_rules", label = "Manage rules"},
+		{value = "custom_control", label = "Custom control"},
+		{value = "nodes", label = "Nodes"},
+		{value = "update_records", label = "Update records"},
+		{value = "appearance", label = "Appearance"},
+		{value = "window_actions", label = "Window and dialogs"},
+		{value = "resources", label = "On-demand loading"},
+	},
+	default = {"all"},
+	callback = function(value)
+		local all_selected = table.find(value, "all") ~= nil
+		local all_was_selected = table.find(section_transparency_selection, "all") ~= nil
+		if all_selected and #value > 1 then
+			local normalized = {}
+			if all_was_selected then
+				for _, id in ipairs(value) do
+					if id ~= "all" then table.insert(normalized, id) end
+				end
+			else
+				normalized = {"all"}
+			end
+			section_transparency_picker:Set(normalized)
+			return
+		end
+		section_transparency_selection = table.clone(value)
+		apply_section_transparency()
+	end,
+})
 appearance_section:slider({
 	id = "appearance.section_transparency",
 	name = "Section transparency",
-	info = "Adjust the Ranges and Modes cards.",
+	info = "Adjust the selected section cards.",
 	min = 0,
 	max = 100,
 	interval = 1,
 	default = 18,
 	suffix = "%",
 	callback = function(value)
-		local transparency = value / 100
-		range_section:SetBackgroundTransparency(transparency)
-		modes_section:SetBackgroundTransparency(transparency)
+		section_transparency_value = value / 100
+		apply_section_transparency()
 	end,
 })
 local background_amount = appearance_section:slider({
@@ -720,7 +794,6 @@ appearance_section:button({
 	end,
 })
 
-local actions_section = system_right:section({name = "Window and dialogs", default = true, size = 1, icon = "lucide:bell"})
 actions_section:button({
 	id = "system.confirm",
 	name = "Open confirmation",

@@ -9153,6 +9153,8 @@ function library:section(properties)
             local layer_transparency = math.sqrt(transparency)
             items.outline.BackgroundTransparency = layer_transparency
             items.inline.BackgroundTransparency = layer_transparency
+            items.button.BackgroundTransparency = layer_transparency
+            items.header_separator.BackgroundTransparency = layer_transparency
             return true
         end
 
@@ -9212,6 +9214,7 @@ function library:section(properties)
             Size = dim2(1, -2, 0, 35);
             BorderSizePixel = 0;
             TextSize = 16;
+            BackgroundTransparency = layer_transparency;
             BackgroundColor3 = rgb(19, 19, 21)
         });
 
@@ -9258,13 +9261,14 @@ function library:section(properties)
             BackgroundColor3 = rgb(255, 255, 255)
         });
 
-        library:create( "Frame" , {
+        items["header_separator"] = library:create( "Frame" , {
             AnchorPoint = vec2(0, 1);
             Parent = items[ "button" ];
             Position = dim2(0, 0, 1, 0);
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(1, 0, 0, 1);
             BorderSizePixel = 0;
+            BackgroundTransparency = layer_transparency;
             BackgroundColor3 = rgb(36, 36, 37)
         });
 
