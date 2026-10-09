@@ -11114,7 +11114,8 @@ function library:window(properties)
             return false, "sidebar transparency must be a number between 0 and 1"
         end
         self.sidebar_transparency = transparency
-        items.side_frame.BackgroundTransparency = transparency
+        local layer_transparency = math.sqrt(transparency)
+        items.side_frame.BackgroundTransparency = 1 - (1 - layer_transparency) ^ 2
         return true
     end
 
