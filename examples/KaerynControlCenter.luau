@@ -452,7 +452,7 @@ local modules = dropdown_section:dropdown({
 	end,
 })
 
-local account_section = inputs_right:section({name = "Account and shortcuts", default = true, size = 1, icon = "lucide:settings"})
+local account_section = inputs_right:section({name = "Account settings", default = true, size = 1, icon = "lucide:settings"})
 local operator_name = account_section:textbox({
 	id = "account.operator",
 	name = "Operator name",
@@ -471,17 +471,6 @@ local operator_name = account_section:textbox({
 })
 library:register_flag_migration("legacy.account.operator", "account.operator")
 
-local keybind = account_section:keybind({
-	id = "account.quick_action",
-	name = "Action hotkey",
-	key = Enum.KeyCode.F6,
-	mode = "Toggle",
-	context = "inputs",
-	callback = function(active, change)
-		print("[Kaeryn] Hotkey", active, change.source, change.phase)
-	end,
-})
-
 local category_list = account_section:list({
 	id = "account.category",
 	name = "Active category",
@@ -493,20 +482,27 @@ local category_list = account_section:list({
 })
 
 local inputs_buttons = inputs_right:section({name = "Input actions", default = true, size = 0.55, icon = "lucide:wrench"})
-inputs_buttons:button({
-	id = "account.rebind",
-	name = "Capture a new hotkey",
-	callback = function()
-		local ok, reason = keybind:Rebind()
-		if ok then announce("Hotkey", "Press a key to assign it.")
-		else announce("Hotkey", tostring(reason), "warning") end
-	end,
+local keybind_status = inputs_buttons:label({
+	id = "input.quick_action_status",
+	name = "Action status: Off",
+	info = "Desktop: click the key field and press a key; Escape clears it.",
 })
-inputs_buttons:button({
-	id = "account.reset_key",
-	name = "Reset hotkey",
-	callback = function()
-		keybind:Reset()
+local keybind = inputs_buttons:keybind({
+	id = "account.quick_action",
+	name = "Action hotkey",
+	key = "NONE",
+	mode = "Toggle",
+	context = "inputs",
+	callback = function(active, change)
+		keybind_status.set("Action status: " .. (active and "On" or "Off"))
+		if change and change.source == "user" then
+			if change.phase == "commit" then
+				announce("Hotkey assigned", "Press the new key to toggle the action.")
+			else
+				announce("Action hotkey", active and "Action enabled." or "Action disabled.")
+			end
+		end
+		report_change("Action hotkey", active and "On" or "Off", change)
 	end,
 })
 inputs_buttons:button({
@@ -709,7 +705,7 @@ section_transparency_picker = appearance_section:dropdown({
 		{value = "ranges", label = "Ranges"},
 		{value = "modes", label = "Modes and color"},
 		{value = "selection", label = "Selection"},
-		{value = "account", label = "Account and shortcuts"},
+		{value = "account", label = "Account settings"},
 		{value = "input_actions", label = "Input actions"},
 		{value = "rules", label = "Rules"},
 		{value = "manage_rules", label = "Manage rules"},
