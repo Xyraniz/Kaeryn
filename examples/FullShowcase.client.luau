@@ -1,6 +1,6 @@
 -- quick full demo so u can poke every control, tweak away o.o
 
-local source = game:HttpGet("https://raw.githubusercontent.com/Xyraniz/Kaeryn/main/dist/Kaeryn.luau")
+local source = game:HttpGet("https://raw.githubusercontent.com/Xyraniz/Kaeryn/main/dist/Kaeryn.luau?cb=" .. os.time())
 local library = loadstring(source)()
 
 local window = library:window({
