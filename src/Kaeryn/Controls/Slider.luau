@@ -304,7 +304,7 @@ function library:slider(options)
     end, cfg.legacy_flags)
 
     library:mobile_format_control(items, "slider")
-    library:attach_control(cfg, items.slider_object)
+    library:attach_control(cfg, items.slider_object, self)
     return setmetatable(cfg, library)
 end
 end

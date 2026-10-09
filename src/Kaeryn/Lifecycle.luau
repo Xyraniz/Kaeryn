@@ -32,6 +32,9 @@ function library:create(instance, options)
     for prop, value in options do
         ins[prop] = value
         if library.track_theme then library:track_theme(ins, prop, value) end
+        if (prop == "Text" or prop == "PlaceholderText") and library._track_localized_text then
+            library:_track_localized_text(ins, prop, value)
+        end
     end
 
     return ins

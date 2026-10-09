@@ -583,7 +583,7 @@ function library:colorpicker(options)
 
     cfg._description_label = label and label.items.info or nil
     if label then cfg._cleanup = {function() label:Destroy() end} end
-    library:attach_control(cfg, label and label.items.label or items.colorpicker)
+    library:attach_control(cfg, label and label.items.label or items.colorpicker, self)
     return setmetatable(cfg, library)
 end
 end

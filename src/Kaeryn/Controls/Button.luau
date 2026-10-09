@@ -74,7 +74,7 @@ function library:button(options)
         library:tween(items[ "name" ], {TextColor3 = rgb(245, 245, 245)})
     end)
 
-    library:attach_control(cfg, items.button_element)
+    library:attach_control(cfg, items.button_element, self)
     return setmetatable(cfg, library)
 end
 end

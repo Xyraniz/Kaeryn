@@ -145,7 +145,7 @@ function library:textbox(options)
     end, cfg.legacy_flags)
 
     library:mobile_format_control(items, "textbox")
-    library:attach_control(cfg, items.textbox)
+    library:attach_control(cfg, items.textbox, self)
     return setmetatable(cfg, library)
 end
 end

@@ -644,7 +644,7 @@ function library:button(options)
         library:tween(items[ "name" ], {TextColor3 = rgb(245, 245, 245)})
     end)
 
-    library:attach_control(cfg, items.button_element)
+    library:attach_control(cfg, items.button_element, self)
     return setmetatable(cfg, library)
 end
 end
@@ -1236,7 +1236,7 @@ function library:colorpicker(options)
 
     cfg._description_label = label and label.items.info or nil
     if label then cfg._cleanup = {function() label:Destroy() end} end
-    library:attach_control(cfg, label and label.items.label or items.colorpicker)
+    library:attach_control(cfg, label and label.items.label or items.colorpicker, self)
     return setmetatable(cfg, library)
 end
 end
@@ -1244,6 +1244,7 @@ end
     end,
     ["src/Kaeryn/Controls/Dropdown.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
+    local uis = __kaeryn.uis
     local ws = __kaeryn.ws
     local gui_service = __kaeryn.gui_service
     local vec2 = __kaeryn.vec2
@@ -1254,14 +1255,9 @@ return function(__kaeryn)
     local max = __kaeryn.max
     local min = __kaeryn.min
     local clamp = __kaeryn.clamp
-    local insert = __kaeryn.insert
-    local find = __kaeryn.find
-    local remove = __kaeryn.remove
-    local concat = __kaeryn.concat
     local library = __kaeryn.library
     local themes = __kaeryn.themes
     local flags = __kaeryn.flags
-    local config_flags = __kaeryn.config_flags
     local fonts = __kaeryn.fonts
 
 function library:dropdown(options)
@@ -1278,11 +1274,11 @@ function library:dropdown(options)
         callback = options.callback or function() end;
         multi = options.multi or false;
         scrolling = options.scrolling or false;
+        searchable = options.searchable == true or (options.searchable ~= false and #(options.items or {}) >= 8);
 
         width = options.width or 130;
 
         open = false;
-        option_instances = {};
         multi_items = {};
         ignore = options.ignore or false;
         items = {};
@@ -1291,6 +1287,11 @@ function library:dropdown(options)
     }
 
     cfg.default = options.default ~= nil and options.default or (cfg.multi and (cfg.options[1] and {cfg.options[1]} or {}) or cfg.options[1] or "None")
+    if options.default == nil then
+        local first = cfg.options[1]
+        if type(first) == "table" then first = first.value end
+        cfg.default = cfg.multi and (first and {first} or {}) or first or "None"
+    end
     flags[cfg.flag] = cfg.default
 
     local items = cfg.items; do
@@ -1434,7 +1435,7 @@ function library:dropdown(options)
             BorderColor3 = rgb(0, 0, 0);
             Parent = library[ "items" ];
             Name = "\0";
-            Visible = true;
+            Visible = false;
             BackgroundTransparency = 1;
             Size = dim2(0, 0, 0, 0);
             BorderSizePixel = 0;
@@ -1442,7 +1443,7 @@ function library:dropdown(options)
             ZIndex = 10;
         });
 
-        items[ "outline" ] = library:create( library.is_mobile and "ScrollingFrame" or "Frame" , {
+        items[ "outline" ] = library:create("Frame", {
             Parent = items[ "dropdown_holder" ];
             Size = dim2(1, 0, 1, 0);
             ClipsDescendants = true;
@@ -1451,78 +1452,192 @@ function library:dropdown(options)
             BackgroundColor3 = rgb(33, 33, 35);
             ZIndex = 10;
         });
-
-        if library.is_mobile then
-            items.outline.AutomaticCanvasSize = Enum.AutomaticSize.Y
-            items.outline.CanvasSize = dim_offset(0, 0)
-            items.outline.ScrollBarThickness = 3
-            items.outline.ScrollingDirection = Enum.ScrollingDirection.Y
-            items.outline.Active = true
+        library:create("UICorner", {Parent = items.outline, CornerRadius = dim(0, 4)})
+        if cfg.searchable then
+            items.search_input = library:create("TextBox", {
+                Parent = items.outline,
+                Position = dim2(0, 6, 0, 5),
+                Size = dim2(1, -12, 0, 28),
+                BackgroundColor3 = rgb(25, 25, 29),
+                BorderSizePixel = 0,
+                ClearTextOnFocus = false,
+                FontFace = fonts.small,
+                PlaceholderText = "Search options...",
+                Text = "",
+                TextColor3 = rgb(235, 235, 235),
+                PlaceholderColor3 = rgb(125, 125, 125),
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 12,
+            })
+            library:create("UICorner", {Parent = items.search_input, CornerRadius = dim(0, 4)})
+            library:create("UIPadding", {Parent = items.search_input, PaddingLeft = dim(0, 8), PaddingRight = dim(0, 8)})
+            library:apply_theme(items.search_input, "surface_alt", "BackgroundColor3")
+            library:apply_theme(items.search_input, "text", "TextColor3")
+            library:apply_theme(items.search_input, "muted", "PlaceholderColor3")
         end
-        library:create( "UIPadding" , {
-            PaddingBottom = dim(0, 6);
-            PaddingTop = dim(0, 3);
-            PaddingLeft = dim(0, 3);
-            Parent = items[ "outline" ]
-        });
-
-        library:create( "UIListLayout" , {
-            Parent = items[ "outline" ];
-            Padding = dim(0, 5);
-            SortOrder = Enum.SortOrder.LayoutOrder
-        });
-
-        library:create( "UICorner" , {
-            Parent = items[ "outline" ];
-            CornerRadius = dim(0, 4)
-        });
+        items.option_list = library:create("ScrollingFrame", {
+            Parent = items.outline,
+            Position = dim2(0, 0, 0, cfg.searchable and 38 or 0),
+            Size = dim2(1, 0, 1, cfg.searchable and -38 or 0),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Active = true,
+            CanvasSize = dim_offset(0, 0),
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = rgb(100, 100, 100),
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            ZIndex = 11,
+        })
+        items.empty = library:create("TextLabel", {
+            Parent = items.option_list,
+            Position = dim2(0, 7, 0, 6),
+            Size = dim2(1, -14, 0, 28),
+            BackgroundTransparency = 1,
+            FontFace = fonts.small,
+            Text = "No options found",
+            TextColor3 = rgb(145, 145, 145),
+            TextSize = 13,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Visible = false,
+            ZIndex = 12,
+        })
+        library:apply_theme(items.empty, "muted", "TextColor3")
     end
 
-    function cfg.render_option(text)
-        local button = library:create( "TextButton" , {
-            FontFace = fonts.small;
-            TextColor3 = rgb(72, 72, 73);
-            BorderColor3 = rgb(0, 0, 0);
-            Text = text;
-            Parent = items[ "outline" ];
-            Name = "\0";
-            Size = dim2(1, -12, 0, 0);
-            BackgroundTransparency = 1;
-            TextXAlignment = Enum.TextXAlignment.Left;
-            BorderSizePixel = 0;
-            AutomaticSize = Enum.AutomaticSize.Y;
-            TextSize = 14;
-            BackgroundColor3 = rgb(255, 255, 255);
-            ZIndex = 10;
-        }); library:apply_theme(button, "accent", "TextColor3");
+    local row_bindings = setmetatable({}, {__mode = "k"})
+    local option_rows = {}
+    local row_height = 30
+    local max_visible_rows = 12
+    local search_input = items.search_input
 
-        library:create( "UIPadding" , {
-            Parent = button;
-            PaddingTop = dim(0, 1);
-            PaddingRight = dim(0, 5);
-            PaddingLeft = dim(0, 5)
-        });
+    local function option_record(option)
+        if type(option) == "table" then
+            return {value = option.value, label = option.label or option.value, group = option.group, disabled = option.disabled == true}
+        end
+        local value = tostring(option)
+        return {value = value, label = value, group = nil, disabled = false}
+    end
 
-        return button
+    local function selection_values()
+        if cfg.multi then return table.clone(cfg.multi_items) end
+        local selected = flags[cfg.flag]
+        return selected ~= nil and {selected} or {}
+    end
+
+    local function is_selected(value)
+        for _, selected in ipairs(selection_values()) do
+            if selected == value then return true end
+        end
+        return false
+    end
+
+    local function build_entries()
+        local groups, group_order = {}, {}
+        local ungrouped = {}
+        for _, option in ipairs(cfg.option_data or {}) do
+            local key = option.group or ungrouped
+            if not groups[key] then
+                groups[key] = {}
+                table.insert(group_order, key)
+            end
+            table.insert(groups[key], option)
+        end
+        local query = string.lower(search_input and search_input.Text or "")
+        local entries = {}
+        for _, key in ipairs(group_order) do
+            local options = groups[key]
+            local matching = {}
+            for _, option in ipairs(options) do
+                local searchable = string.lower(library:translate(option.label) .. " " .. option.value .. " " .. library:translate(option.group or ""))
+                if query == "" or string.find(searchable, query, 1, true) then table.insert(matching, option) end
+            end
+            if #matching > 0 then
+                if key ~= ungrouped then table.insert(entries, {kind = "group", label = key}) end
+                for _, option in ipairs(matching) do table.insert(entries, {kind = "option", option = option}) end
+            end
+        end
+        cfg.visible_entries = entries
+        local popup_height = math.min(#entries, max_visible_rows) * row_height + 8
+        if cfg.searchable then popup_height += 38 end
+        cfg.y_size = math.max(cfg.searchable and 78 or row_height + 8, popup_height)
+        items.option_list.CanvasSize = dim_offset(0, #entries * row_height + 8)
+        items.empty.Visible = #entries == 0
+        items.option_list.CanvasPosition = vec2(0, math.min(items.option_list.CanvasPosition.Y, math.max(0, #entries * row_height - items.option_list.AbsoluteSize.Y)))
+    end
+
+    local function render_rows()
+        local entries = cfg.visible_entries or {}
+        local first = math.floor(items.option_list.CanvasPosition.Y / row_height) + 1
+        for index, row in ipairs(option_rows) do
+            local entry_index = first + index - 1
+            local entry = entries[entry_index]
+            row_bindings[row] = entry
+            row.Visible = entry ~= nil
+            if entry then
+                row.Position = dim2(0, 4, 0, (entry_index - 1) * row_height + 3)
+                if entry.kind == "group" then
+                    row.Text = library:translate(entry.label)
+                    row.TextColor3 = themes.preset.muted
+                    row.FontFace = fonts.font
+                    row.TextSize = 12
+                    row.BackgroundTransparency = 1
+                    pcall(function() row.Interactable = false end)
+                else
+                    local option = entry.option
+                    row.Text = library:translate(option.label)
+                    row.FontFace = fonts.small
+                    row.TextSize = 14
+                    row.BackgroundTransparency = option.disabled and 0.6 or 1
+                    pcall(function() row.Interactable = not option.disabled end)
+                    row.TextColor3 = option.disabled and themes.preset.muted or is_selected(option.value) and themes.preset.accent or themes.preset.text_soft
+                end
+            end
+        end
+    end
+
+    local function find_option(value)
+        if type(value) ~= "string" then return nil end
+        for _, option in ipairs(cfg.option_data or {}) do
+            if option.value == value then return option end
+        end
+        for _, option in ipairs(cfg.option_data or {}) do
+            if option.label == value or library:translate(option.label) == value then return option end
+        end
     end
 
     function cfg.set_visible(bool)
         cfg.open = bool == true
-        local a = bool and cfg.y_size or 0
-        if library.is_mobile then
-            a = min(a, max(68, (ws.CurrentCamera.ViewportSize.Y - gui_service:GetGuiInset().Y - 12) * 0.52))
-            local width = min(max(120, items.dropdown.AbsoluteSize.X), ws.CurrentCamera.ViewportSize.X - 12)
-            items.dropdown_holder.Size = dim_offset(width, a)
-            items.dropdown_holder.Position = library:mobile_popup_position(items.dropdown, width, a, 6)
-        else
-            library:tween(items[ "dropdown_holder" ], {Size = dim_offset(items[ "dropdown" ].AbsoluteSize.X, a)})
-            local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(800, 600)
-            local px = clamp(items.dropdown.AbsolutePosition.X, 6, max(6, viewport.X - items.dropdown.AbsoluteSize.X - 6))
-            local py = items.dropdown.AbsolutePosition.Y + 80
-            if py + a > viewport.Y - 8 then py = max(6, items.dropdown.AbsolutePosition.Y - a - 8) end
-            items.dropdown_holder.Position = dim_offset(px, py)
+        if cfg.open then
+            build_entries()
+            render_rows()
         end
-        if bool then
+        local width = math.max(120, items.dropdown.AbsoluteSize.X)
+        local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(800, 600)
+        width = min(width, max(1, viewport.X - 12))
+        local height_limit = min(290, max(1, viewport.Y - 20))
+        if library.is_mobile then
+            local inset = gui_service:GetGuiInset()
+            height_limit = min(height_limit, max(1, viewport.Y - inset.Y - 18))
+        end
+        local height = cfg.open and min(cfg.y_size or 0, height_limit) or 0
+        local search_height = cfg.searchable and math.min(38, height) or 0
+        items.outline.Size = dim2(1, 0, 1, 0)
+        if search_input then search_input.Visible = cfg.open end
+        if not cfg.open and search_input and uis:GetFocusedTextBox() == search_input then search_input:ReleaseFocus() end
+        items.option_list.Position = dim2(0, 0, 0, search_height)
+        items.option_list.Size = dim2(1, 0, 1, -search_height)
+        items.dropdown_holder.Size = dim_offset(width, height)
+        items.dropdown_holder.Visible = cfg.open
+        if cfg.open then
+            if library.is_mobile then
+                items.dropdown_holder.Position = library:mobile_popup_position(items.dropdown, width, height, 6)
+            else
+                local px = clamp(items.dropdown.AbsolutePosition.X, 6, max(6, viewport.X - width - 6))
+                local py = items.dropdown.AbsolutePosition.Y + items.dropdown.AbsoluteSize.Y + 6
+                if py + height > viewport.Y - 8 then py = max(6, items.dropdown.AbsolutePosition.Y - height - 6) end
+                items.dropdown_holder.Position = dim_offset(px, py)
+            end
             library:close_element(cfg)
         elseif library.current_open == cfg then
             library.current_open = nil
@@ -1530,78 +1645,120 @@ function library:dropdown(options)
     end
 
     function cfg.set(value)
-        local selected = {}
-        local isTable = type(value) == "table"
-
-        for _, option in cfg.option_instances do
-            if option.Text == value or (isTable and find(value, option.Text)) then
-                insert(selected, option.Text)
-                cfg.multi_items = selected
-                option.TextColor3 = themes.preset.accent
-            else
-                option.TextColor3 = rgb(72, 72, 73)
+        local requested = cfg.multi and (type(value) == "table" and value or {}) or (value ~= nil and {value} or {})
+        if cfg.multi and type(value) ~= "table" and value ~= nil then return false, "Multi dropdown values must be a list" end
+        if cfg.multi and type(value) == "table" then
+            local count, highest = 0, 0
+            for index in pairs(value) do
+                if type(index) ~= "number" or index < 1 or index % 1 ~= 0 then return false, "Multi dropdown values must be a dense list" end
+                count += 1
+                highest = math.max(highest, index)
+            end
+            if count ~= highest then return false, "Multi dropdown values must be a dense list" end
+        end
+        local selected, selected_labels, seen = {}, {}, {}
+        for index, raw in ipairs(requested) do
+            local option = find_option(raw)
+            if not option then return false, "Unknown dropdown option at index " .. tostring(index) end
+            if option.disabled then return false, "Dropdown option '" .. option.value .. "' is disabled" end
+            if not seen[option.value] then
+                seen[option.value] = true
+                table.insert(selected, option.value)
+                table.insert(selected_labels, library:translate(option.label))
             end
         end
-
-        items[ "sub_text" ].Text = isTable and concat(selected, ", ") or selected[1] or ""
-        cfg.multi_items = isTable and selected or {}
+        if not cfg.multi and #selected > 1 then return false, "Single dropdowns accept one value" end
+        cfg.multi_items = cfg.multi and selected or {}
         flags[cfg.flag] = cfg.multi and selected or selected[1]
-
+        items.sub_text.Text = table.concat(selected_labels, ", ")
+        render_rows()
         library:dispatch_control_callback(cfg, cfg.callback, nil, flags[cfg.flag])
+        return true
     end
 
     function cfg.refresh_options(list)
         local valid, reason = library:validate_option_list("dropdown", list)
         if not valid then return false, reason end
-        cfg.options = list
         local previous = flags[cfg.flag]
-        cfg.y_size = 0
+        cfg.options = table.clone(list)
+        cfg.option_data = {}
+        for _, option in ipairs(cfg.options) do table.insert(cfg.option_data, option_record(option)) end
+        if search_input then search_input.Text = "" end
+        build_entries()
 
-        for _, option in cfg.option_instances do
-            option:Destroy()
-        end
-
-        cfg.option_instances = {}
-
-        for _, option in list do
-            local button = cfg.render_option(option)
-            if library.is_mobile then
-                button.AutomaticSize = Enum.AutomaticSize.None
-                button.Size = dim2(1, -12, 0, 29)
-                cfg.y_size += 34
-            else
-                cfg.y_size += 29 + 6
+        local maximum_entries, seen_groups = #cfg.option_data, {}
+        for _, option in ipairs(cfg.option_data) do
+            if option.group and not seen_groups[option.group] then
+                seen_groups[option.group] = true
+                maximum_entries += 1
             end
-            insert(cfg.option_instances, button)
-
-            button.Activated:Connect(function()
+        end
+        local needed_rows = math.min(max_visible_rows, math.max(1, maximum_entries))
+        while #option_rows < needed_rows do
+            local row = library:create("TextButton", {
+                Parent = items.option_list,
+                Size = dim2(1, -8, 0, row_height),
+                BackgroundColor3 = themes.preset.surface_alt,
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                AutoButtonColor = false,
+                FontFace = fonts.small,
+                Text = "",
+                TextColor3 = themes.preset.text_soft,
+                TextSize = 14,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Visible = false,
+                ZIndex = 12,
+            })
+            library:create("UICorner", {Parent = row, CornerRadius = dim(0, 3)})
+            library:create("UIPadding", {Parent = row, PaddingLeft = dim(0, 7), PaddingRight = dim(0, 6)})
+            library:apply_theme(row, "surface_alt", "BackgroundColor3")
+            library:connection(row.Activated, function()
+                local entry = row_bindings[row]
+                if not entry or entry.kind ~= "option" or entry.option.disabled then return end
+                local option = entry.option
                 if cfg.multi then
-                    local selected_index = find(cfg.multi_items, button.Text)
-
-                    if selected_index then
-                        remove(cfg.multi_items, selected_index)
-                    else
-                        insert(cfg.multi_items, button.Text)
-                    end
-
-                    cfg.set(cfg.multi_items)
+                    local selected = table.clone(cfg.multi_items)
+                    local selected_index = table.find(selected, option.value)
+                    if selected_index then table.remove(selected, selected_index) else table.insert(selected, option.value) end
+                    cfg.set(selected)
                 else
                     cfg.set_visible(false)
-                    cfg.open = false
-
-                    cfg.set(button.Text)
+                    cfg.set(option.value)
                 end
-            end)
+            end, cfg)
+            table.insert(option_rows, row)
         end
-        if previous ~= nil then cfg.set(previous) end
+        render_rows()
+        if previous ~= nil then
+            local preserved = {}
+            if cfg.multi and type(previous) == "table" then
+                for _, value in ipairs(previous) do
+                    local option = find_option(value)
+                    if option and not option.disabled then table.insert(preserved, value) end
+                end
+                cfg.set(preserved)
+            elseif find_option(previous) and not find_option(previous).disabled then
+                cfg.set(previous)
+            else
+                cfg.set(nil)
+            end
+        end
         return true
     end
 
-    items[ "dropdown" ].Activated:Connect(function()
+    library:connection(items.option_list:GetPropertyChangedSignal("CanvasPosition"), render_rows, cfg)
+    if search_input then library:connection(search_input:GetPropertyChangedSignal("Text"), function()
+        build_entries()
+        render_rows()
+    end, cfg) end
+
+    library:connection(items[ "dropdown" ].Activated, function()
         cfg.open = not cfg.open
 
         cfg.set_visible(cfg.open)
-    end)
+    end, cfg)
 
     if cfg.separator then
         library:create( "Frame" , {
@@ -1617,41 +1774,54 @@ function library:dropdown(options)
 
     flags[cfg.flag] = nil
     library:register_config_flag(cfg.flag, cfg.set, function(value)
-        local function allowed(item)
-            if type(item) ~= "string" then return false end
-            for _, option in ipairs(cfg.options) do
-                if tostring(option) == item then return true end
-            end
-            return false
+        local function normalize(item)
+            local option = find_option(item)
+            if option and not option.disabled then return option.value end
+            return nil
         end
         if cfg.multi then
-            if type(value) ~= "table" then return false, nil, "expected a list of option names" end
+            if type(value) ~= "table" then return false, nil, "expected a list of option values" end
             local count = 0
             for index in pairs(value) do
                 if type(index) ~= "number" or index < 1 or index % 1 ~= 0 then
-                    return false, nil, "expected a dense list of option names"
+                    return false, nil, "expected a dense list of option values"
                 end
                 count += 1
             end
-            if #value ~= count then return false, nil, "expected a dense list of option names" end
+            if #value ~= count then return false, nil, "expected a dense list of option values" end
             local normalized, seen = {}, {}
             for index, item in ipairs(value) do
-                if not allowed(item) then return false, nil, "unknown dropdown option at index " .. tostring(index) end
-                if seen[item] then return false, nil, "duplicate dropdown option '" .. item .. "'" end
-                seen[item] = true
-                table.insert(normalized, item)
+                local stable_value = normalize(item)
+                if not stable_value then return false, nil, "unknown dropdown option at index " .. tostring(index) end
+                if seen[stable_value] then return false, nil, "duplicate dropdown option '" .. stable_value .. "'" end
+                seen[stable_value] = true
+                table.insert(normalized, stable_value)
             end
             return true, normalized
         end
-        if not allowed(value) then return false, nil, "expected one of the dropdown options" end
-        return true, value
+        local stable_value = normalize(value)
+        if not stable_value then return false, nil, "expected one of the dropdown values" end
+        return true, stable_value
     end, cfg.legacy_flags)
 
     library:with_change_context("initialization", "initialize", cfg.refresh_options, cfg.options)
     library:with_change_context("initialization", "initialize", cfg.set, cfg.default)
 
     library:mobile_format_control(items, "dropdown")
-    library:attach_control(cfg, items.dropdown_object)
+    library:attach_control(cfg, items.dropdown_object, self)
+    cfg:AddCleanup(function()
+        if items.dropdown_holder.Parent then items.dropdown_holder:Destroy() end
+    end)
+    cfg._locale_connection = library:register_locale_callback(function()
+        local labels = {}
+        for _, value in ipairs(selection_values()) do
+            local option = find_option(value)
+            if option then table.insert(labels, library:translate(option.label)) end
+        end
+        items.sub_text.Text = table.concat(labels, ", ")
+        if cfg.open then build_entries(); render_rows() end
+    end)
+    cfg:AddCleanup(function() cfg._locale_connection:Disconnect() end)
     return setmetatable(cfg, library)
 end
 end
@@ -2021,7 +2191,7 @@ function library:keybind(options)
     end, cfg.legacy_flags)
 
     library:mobile_format_control(items, "keybind")
-    library:attach_control(cfg, items.keybind_element)
+    library:attach_control(cfg, items.keybind_element, self)
     return setmetatable(cfg, library)
 end
 end
@@ -2149,7 +2319,7 @@ function library:label(options)
         items.name.Text = cfg.value
         library:dispatch_control_callback(cfg, nil, nil, cfg.value)
     end
-    library:attach_control(cfg, items.label)
+    library:attach_control(cfg, items.label, self)
     return setmetatable(cfg, library)
 end
 end
@@ -2267,7 +2437,7 @@ function library:list(properties)
         end
         return false, nil, "value is not one of the list options"
     end, cfg.legacy_flags)
-    library:attach_control(cfg, items.list)
+    library:attach_control(cfg, items.list, self)
     return setmetatable(cfg, library)
 end
 end
@@ -2689,7 +2859,7 @@ function library:slider(options)
     end, cfg.legacy_flags)
 
     library:mobile_format_control(items, "slider")
-    library:attach_control(cfg, items.slider_object)
+    library:attach_control(cfg, items.slider_object, self)
     return setmetatable(cfg, library)
 end
 end
@@ -2843,7 +3013,7 @@ function library:textbox(options)
     end, cfg.legacy_flags)
 
     library:mobile_format_control(items, "textbox")
-    library:attach_control(cfg, items.textbox)
+    library:attach_control(cfg, items.textbox, self)
     return setmetatable(cfg, library)
 end
 end
@@ -3146,7 +3316,7 @@ function library:toggle(options)
     end, cfg.legacy_flags)
 
     library:mobile_format_control(items, "toggle")
-    library:attach_control(cfg, items.toggle)
+    library:attach_control(cfg, items.toggle, self)
     return setmetatable(cfg, library)
 end
 end
@@ -3222,7 +3392,7 @@ library.option_schemas = {
     dropdown = {
         fields = fields({name = descriptor("string"), info = descriptor("string"), items = descriptor("table", {""}),
             default = descriptor({"string", "table"}), callback = descriptor("function", function() end), multi = descriptor("boolean", false),
-            scrolling = descriptor("boolean", false), width = descriptor("number", 130, {min = 1}), ignore = descriptor("boolean", false),
+            scrolling = descriptor("boolean", false), searchable = descriptor("boolean"), width = descriptor("number", 130, {min = 1}), ignore = descriptor("boolean", false),
             separator = descriptor("boolean", true)}),
         aliases = common_aliases,
     },
@@ -3357,7 +3527,16 @@ function library:normalize_options(control_type, options, schema)
             if not defaults_valid then error("Option 'default' for dropdown: " .. defaults_reason, 2) end
             for _, selected in ipairs(defaults) do
                 if type(selected) ~= "string" then error("Option 'default' for dropdown must contain strings", 2) end
-                if #normalized.items > 0 and not table.find(normalized.items, selected) then
+                local found = #normalized.items == 0
+                for _, option in ipairs(normalized.items) do
+                    if type(option) == "string" then
+                        found = option == selected
+                    elseif type(option) == "table" then
+                        found = not option.disabled and (option.value == selected or option.label == selected or self:translate(option.label) == selected)
+                    end
+                    if found then break end
+                end
+                if not found then
                     error("Option 'default' for dropdown contains unknown option '" .. selected .. "'", 2)
                 end
             end
@@ -3371,11 +3550,25 @@ function library:validate_option_list(control_type, options)
     local count, highest_index, seen = 0, 0, {}
     for index, option in pairs(options) do
         if type(index) ~= "number" or index < 1 or index % 1 ~= 0 then return false, "must be a dense array" end
-        if control_type == "dropdown" and type(option) ~= "string" then return false, "items must be strings" end
+        if control_type == "dropdown" then
+            if type(option) == "table" then
+                for key in pairs(option) do
+                    if key ~= "value" and key ~= "label" and key ~= "group" and key ~= "disabled" then
+                        return false, "dropdown item has unknown field '" .. tostring(key) .. "'"
+                    end
+                end
+                if type(option.value) ~= "string" then return false, "dropdown item value must be a string" end
+                if option.label ~= nil and type(option.label) ~= "string" then return false, "dropdown item label must be a string" end
+                if option.group ~= nil and type(option.group) ~= "string" then return false, "dropdown item group must be a string" end
+                if option.disabled ~= nil and type(option.disabled) ~= "boolean" then return false, "dropdown item disabled must be a boolean" end
+            elseif type(option) ~= "string" then
+                return false, "items must contain strings or option tables"
+            end
+        end
         if control_type == "list" and type(option) ~= "string" and type(option) ~= "number" and type(option) ~= "boolean" then
             return false, "options must contain strings, numbers, or booleans"
         end
-        local key = tostring(option)
+        local key = type(option) == "table" and option.value or tostring(option)
         if seen[key] then return false, "contains duplicate option '" .. key .. "'" end
         seen[key] = true
         count += 1
@@ -3671,10 +3864,11 @@ local function connect_listener(control, list_name, callback)
     return connection
 end
 
-function library:attach_control(control, root)
+function library:attach_control(control, root, section)
     assert(type(control) == "table", "control handle must be a table")
     assert(type(control.id) == "string" and self.used_ids[control.id], "control handle needs a reserved id")
     control._ui_root = root
+    control._section = section
     control._changed_listeners = control._changed_listeners or {}
     control._committed_listeners = control._committed_listeners or {}
     control._cleanup = control._cleanup or {}
@@ -3833,6 +4027,7 @@ function library:register_control(control_type, factory, schema)
 end
 
 function library:custom_control(control_type, options)
+    local section = self
     local key = string.lower(tostring(control_type or ""))
     local definition = self.custom_control_types[key]
     if not definition then error("Unknown custom control type '" .. key .. "'", 2) end
@@ -3841,7 +4036,7 @@ function library:custom_control(control_type, options)
     local id, flag = self:resolve_identity(normalized, key, self.name, normalized.flag ~= nil)
     normalized.id, normalized.flag = id, flag
     local ok, control = pcall(function()
-        local result = definition.factory(self, normalized, library)
+        local result = definition.factory(section, normalized, library)
         assert(type(result) == "table", "custom control factory must return a control handle")
         assert(not result.id or result.id == id, "Custom control factories cannot replace their registered id")
         assert(not result.flag or result.flag == flag, "Custom control flags must be declared in options")
@@ -3851,7 +4046,7 @@ function library:custom_control(control_type, options)
         result.control_type = key
         result.legacy_flags = result.legacy_flags or normalized.legacy_flags
         if not result._ui_root then result._ui_root = result.items and result.items.root end
-        if not result._attached then self:attach_control(result, result._ui_root) end
+        if not result._attached then library:attach_control(result, result._ui_root, section) end
         return result
     end)
     if not ok then
@@ -3951,15 +4146,236 @@ end
 end
 
     end,
+    ["src/Kaeryn/Dialogs.luau"] = function(__kaeryn_require)
+return function(__kaeryn)
+    local uis = __kaeryn.uis
+    local dim2 = __kaeryn.dim2
+    local dim = __kaeryn.dim
+    local vec2 = __kaeryn.vec2
+    local rgb = __kaeryn.rgb
+    local ws = __kaeryn.ws
+    local library = __kaeryn.library
+    local themes = __kaeryn.themes
+    local fonts = __kaeryn.fonts
+
+    local function invoke(callback, ...)
+        if type(callback) ~= "function" then return end
+        local ok, err = pcall(callback, ...)
+        if not ok then warn("[Kaeryn] dialog callback error: " .. tostring(err)) end
+    end
+
+    local function open_dialog(kind, options)
+        assert(type(options) == "table", "dialog options must be a table")
+        assert(library.items and not library.unloaded, "Create a Kaeryn window before opening a dialog")
+        if library.active_dialog then library.active_dialog:close(false) end
+
+        local handle = {closed = false, _connections = {}}
+        local overlay = library:create("Frame", {
+            Parent = library.items,
+            Size = dim2(1, 0, 1, 0),
+            BackgroundColor3 = rgb(0, 0, 0),
+            BackgroundTransparency = 0.38,
+            BorderSizePixel = 0,
+            ZIndex = 100,
+        })
+        local card = library:create("Frame", {
+            Parent = overlay,
+            AnchorPoint = vec2(0.5, 0.5),
+            Position = dim2(0.5, 0, 0.5, 0),
+            Size = dim2(0, 420, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundColor3 = themes.preset.surface,
+            BorderSizePixel = 0,
+            ZIndex = 101,
+        })
+        local function resize_card()
+            local viewport = (ws.CurrentCamera and ws.CurrentCamera.ViewportSize) or vec2(800, 600)
+            card.Size = dim2(0, math.min(420, math.max(180, viewport.X - 24)), 0, 0)
+        end
+        resize_card()
+        do
+            library:connection(ws:GetPropertyChangedSignal("CurrentCamera"), function()
+                if ws.CurrentCamera then
+                    library:connection(ws.CurrentCamera:GetPropertyChangedSignal("ViewportSize"), resize_card, handle)
+                    resize_card()
+                end
+            end, handle)
+            if ws.CurrentCamera then
+                library:connection(ws.CurrentCamera:GetPropertyChangedSignal("ViewportSize"), resize_card, handle)
+            end
+        end
+        library:create("UICorner", {Parent = card, CornerRadius = dim(0, 8)})
+        library:create("UIStroke", {Parent = card, Color = themes.preset.border, Thickness = 1})
+        library:create("UIPadding", {Parent = card, PaddingTop = dim(0, 17), PaddingBottom = dim(0, 14), PaddingLeft = dim(0, 17), PaddingRight = dim(0, 17)})
+        library:create("UIListLayout", {Parent = card, Padding = dim(0, 9), SortOrder = Enum.SortOrder.LayoutOrder})
+        library:apply_theme(card, "surface", "BackgroundColor3")
+        library:apply_theme(card:FindFirstChildOfClass("UIStroke"), "border", "Color")
+
+        local title = library:create("TextLabel", {
+            Parent = card,
+            Size = dim2(1, 0, 0, 23),
+            BackgroundTransparency = 1,
+            FontFace = fonts.font,
+            Text = options.title or (kind == "confirm" and "Confirm" or kind == "prompt" and "Enter a value..." or "Notice"),
+            TextColor3 = themes.preset.text,
+            TextSize = 17,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            LayoutOrder = 1,
+            ZIndex = 102,
+        })
+        library:apply_theme(title, "text", "TextColor3")
+        local message = library:create("TextLabel", {
+            Parent = card,
+            Size = dim2(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1,
+            FontFace = fonts.small,
+            Text = options.message or options.description or "",
+            TextColor3 = themes.preset.text_soft,
+            TextSize = 14,
+            TextWrapped = true,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            LayoutOrder = 2,
+            ZIndex = 102,
+        })
+        library:apply_theme(message, "text_soft", "TextColor3")
+
+        local input
+        if kind == "prompt" then
+            input = library:create("TextBox", {
+                Parent = card,
+                Size = dim2(1, 0, 0, 36),
+                BackgroundColor3 = themes.preset.surface_alt,
+                BorderSizePixel = 0,
+                ClearTextOnFocus = false,
+                FontFace = fonts.small,
+                PlaceholderText = options.placeholder or "Enter a value...",
+                Text = options.default or "",
+                TextColor3 = themes.preset.text,
+                PlaceholderColor3 = themes.preset.muted,
+                TextSize = 14,
+                LayoutOrder = 3,
+                ZIndex = 102,
+            })
+            library:create("UICorner", {Parent = input, CornerRadius = dim(0, 5)})
+            library:create("UIPadding", {Parent = input, PaddingLeft = dim(0, 9), PaddingRight = dim(0, 9)})
+            library:apply_theme(input, "surface_alt", "BackgroundColor3")
+            library:apply_theme(input, "text", "TextColor3")
+            library:apply_theme(input, "muted", "PlaceholderColor3")
+        end
+
+        local actions = library:create("Frame", {
+            Parent = card,
+            Size = dim2(1, 0, 0, 34),
+            BackgroundTransparency = 1,
+            LayoutOrder = 4,
+            ZIndex = 102,
+        })
+        local action_layout = library:create("UIListLayout", {
+            Parent = actions,
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalAlignment = Enum.HorizontalAlignment.Right,
+            Padding = dim(0, 8),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+        })
+        local function resize_actions()
+            local narrow = card.AbsoluteSize.X < 340
+            actions.Size = dim2(1, 0, 0, narrow and 70 or 34)
+            action_layout.FillDirection = narrow and Enum.FillDirection.Vertical or Enum.FillDirection.Horizontal
+            action_layout.Padding = dim(0, narrow and 4 or 8)
+            for _, child in ipairs(actions:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child.Size = narrow and dim2(1, 0, 0, 32) or dim2(0, 92, 0, 32)
+                end
+            end
+        end
+        library:connection(card:GetPropertyChangedSignal("AbsoluteSize"), resize_actions, handle)
+
+        local function finish(confirmed)
+            if handle.closed then return false end
+            handle.closed = true
+            if library.active_dialog == handle then library.active_dialog = nil end
+            for _, connection in ipairs(handle._connections) do connection:Disconnect() end
+            overlay:Destroy()
+            local value = kind == "prompt" and (confirmed and input.Text or nil) or (kind == "alert" and true or confirmed)
+            if confirmed then
+                invoke(options.on_confirm or options.callback, value)
+            elseif kind ~= "alert" then
+                invoke(options.on_cancel, value)
+            end
+            return true
+        end
+        handle.close = finish
+        local function connect(signal, callback)
+            library:connection(signal, callback, handle)
+        end
+        local function make_button(text, primary, callback)
+            local button = library:create("TextButton", {
+                Parent = actions,
+                Size = dim2(0, 92, 0, 32),
+                BackgroundColor3 = primary and themes.preset.accent or themes.preset.surface_hover,
+                BorderSizePixel = 0,
+                AutoButtonColor = false,
+                FontFace = fonts.small,
+                Text = text,
+                TextColor3 = themes.preset.text,
+                TextSize = 13,
+                ZIndex = 103,
+            })
+            library:create("UICorner", {Parent = button, CornerRadius = dim(0, 5)})
+            if primary then library:apply_theme(button, "accent", "BackgroundColor3") else library:apply_theme(button, "surface_hover", "BackgroundColor3") end
+            library:apply_theme(button, "text", "TextColor3")
+            connect(button.Activated, callback)
+            return button
+        end
+
+        if kind ~= "alert" then make_button(options.cancel_text or "Cancel", false, function() finish(false) end) end
+        make_button(options.confirm_text or (kind == "alert" and "OK" or "Confirm"), true, function() finish(true) end)
+        resize_actions()
+        connect(uis.InputBegan, function(input_event, processed)
+            if processed or handle.closed then return end
+            if input_event.KeyCode == Enum.KeyCode.Escape then
+                finish(false)
+            elseif input_event.KeyCode == Enum.KeyCode.Return and input then
+                finish(true)
+            end
+        end)
+        if input then connect(input.FocusLost, function(enter_pressed) if enter_pressed then finish(true) end end) end
+
+        library:close_element()
+        library.active_dialog = handle
+        handle.overlay = overlay
+        if input then input:CaptureFocus() end
+        return handle
+    end
+
+    function library:alert(options)
+        return open_dialog("alert", options)
+    end
+
+    function library:confirm(options)
+        return open_dialog("confirm", options)
+    end
+
+    function library:prompt(options)
+        return open_dialog("prompt", options)
+    end
+end
+
+    end,
     ["src/Kaeryn/Init.luau"] = function(__kaeryn_require)
 local context = __kaeryn_require("src/Kaeryn/Bootstrap.luau")
 
 __kaeryn_require("src/Kaeryn/Core.luau")(context)
+__kaeryn_require("src/Kaeryn/Localization.luau")(context)
 __kaeryn_require("src/Kaeryn/Config/ConfigManager.luau")(context)
 __kaeryn_require("src/Kaeryn/Themes.luau")(context)
 __kaeryn_require("src/Kaeryn/Lifecycle.luau")(context)
 __kaeryn_require("src/Kaeryn/InputManager.luau")(context)
 __kaeryn_require("src/Kaeryn/Layout.luau")(context)
+__kaeryn_require("src/Kaeryn/Search.luau")(context)
+__kaeryn_require("src/Kaeryn/Dialogs.luau")(context)
 __kaeryn_require("src/Kaeryn/Window.luau")(context)
 __kaeryn_require("src/Kaeryn/Navigation.luau")(context)
 __kaeryn_require("src/Kaeryn/Controls/Toggle.luau")(context)
@@ -4080,6 +4496,99 @@ return function(__kaeryn)
     local library = __kaeryn.library
     local themes = __kaeryn.themes
     local notifications = __kaeryn.notifications
+
+function library:get_breakpoint(viewport)
+    viewport = viewport or (ws.CurrentCamera and ws.CurrentCamera.ViewportSize) or vec2(1280, 800)
+    if min(viewport.X, viewport.Y) < 620 then return "phone" end
+    if viewport.X < 1024 or viewport.Y < 680 then return "tablet" end
+    return "desktop"
+end
+
+function library:refresh_responsive_layout(window)
+    if library.unloaded or not window or library.is_mobile then return end
+    local camera = ws.CurrentCamera
+    if not camera then return end
+    local viewport = camera.ViewportSize
+    local breakpoint = library:get_breakpoint(viewport)
+    library.breakpoint = breakpoint
+
+    local items = window.items
+    local main = items.main
+    if not main or not main.Parent then return end
+    local current = main.AbsoluteSize
+    if window._responsive_applied_size and main.Size ~= window._responsive_applied_size then
+        window._responsive_preferred_size = current
+    elseif not window._responsive_preferred_size then
+        window._responsive_preferred_size = current
+    end
+    local preferred = window._responsive_preferred_size
+    local max_width = max(1, viewport.X - 16)
+    local max_height = max(1, viewport.Y - 16)
+    local width = math.min(preferred.X, max_width)
+    local height = math.min(preferred.Y, max_height)
+    if breakpoint == "phone" then
+        width = max_width
+        height = max_height
+    end
+    main.Size = dim_offset(width, height)
+    window._responsive_applied_size = main.Size
+
+    local left = clamp(main.Position.X.Offset, 0, max(0, viewport.X - width))
+    local top = clamp(main.Position.Y.Offset, 0, max(0, viewport.Y - height))
+    main.Position = dim_offset(left, top)
+
+    local side = breakpoint == "phone" and 54 or breakpoint == "tablet" and 164 or 196
+    local header = breakpoint == "phone" and 48 or 56
+    local footer = 25
+    library.responsive_sidebar_width = side
+    library.responsive_header_height = header
+    items.side_frame.Size = dim2(0, side, 1, -footer)
+    items.multi_holder.Position = dim_offset(side, 0)
+    items.multi_holder.Size = dim2(1, -side, 0, header)
+    items.global_fade.Position = dim_offset(side, header)
+    items.global_fade.Size = dim2(1, -side, 1, -(header + footer))
+    items.title.Position = dim_offset(breakpoint == "phone" and 0 or 11, 0)
+    items.title.Size = dim_offset(breakpoint == "phone" and side or side - 22, 48)
+    items.title.TextSize = breakpoint == "phone" and 18 or breakpoint == "tablet" and 19 or 28
+    items.title.TextXAlignment = breakpoint == "phone" and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
+    items.title.TextWrapped = false
+    items.title.TextTruncate = Enum.TextTruncate.AtEnd
+    items.title.Text = breakpoint == "phone" and string.upper(window.name:match("[%w]") or "?")
+        or string.format('<u>%s</u><font color = "rgb(255, 255, 255)">%s</font>', window.name, window.suffix)
+    items.button_holder.Position = dim_offset(0, header)
+    items.button_holder.Size = dim2(1, 0, 1, -(header + 4))
+    for _, child in ipairs(items.button_holder:GetChildren()) do
+        if child:IsA("TextLabel") then
+            child.Visible = breakpoint ~= "phone"
+            child.TextSize = breakpoint == "tablet" and 13 or 16
+        end
+    end
+
+    for _, tab in ipairs(window.tabs or {}) do
+        local tab_items = tab.items
+        if tab_items and tab_items.tab_holder then
+            tab_items.tab_holder.Position = dim_offset(side, header)
+            tab_items.tab_holder.Size = dim2(1, -side, 1, -(header + footer))
+            tab_items.multi_section_button_holder.Size = dim2(1, -82, 1, 0)
+            tab_items.name.Visible = breakpoint ~= "phone"
+            tab_items.name.AutomaticSize = Enum.AutomaticSize.None
+            tab_items.name.Position = dim_offset(40, 0)
+            tab_items.name.Size = dim2(1, -48, 1, 0)
+            tab_items.name.TextWrapped = false
+            tab_items.name.TextTruncate = Enum.TextTruncate.AtEnd
+            tab_items.icon.Position = dim2(0, breakpoint == "phone" and 15 or 11, 0.5, 0)
+            tab_items.icon.Size = dim_offset(breakpoint == "phone" and 24 or 22, breakpoint == "phone" and 24 or 22)
+            if tab_items.compact_mark then
+                tab_items.icon.Visible = breakpoint ~= "phone"
+                tab_items.compact_mark.Visible = breakpoint == "phone"
+            else
+                tab_items.icon.Visible = true
+            end
+            tab_items.name.TextSize = breakpoint == "tablet" and 14 or 16
+            tab_items.name.TextTruncate = breakpoint == "phone" and Enum.TextTruncate.AtEnd or Enum.TextTruncate.None
+        end
+    end
+end
 
 function library:mobile_popup_position(anchor, width, height, gap)
     local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(800, 600)
@@ -4214,6 +4723,7 @@ function library:refresh_mobile_layout()
     local it = win.items
     if not it.main or not it.main.Parent then return end
     local viewport = camera.ViewportSize
+    library.breakpoint = library:get_breakpoint(viewport)
     local landscape = viewport.X > viewport.Y
     local inset = gui_service:GetGuiInset()
     local top = max(inset.Y + 9, min(60, floor(viewport.Y * 0.13)))
@@ -4298,7 +4808,7 @@ function library:refresh_mobile_layout()
             t.button.Size = dim2(1, 0, 0, 39)
             t.tab_holder.Position = dim_offset(side, header)
             t.tab_holder.Size = dim2(1, -side - 6, 1, -(header + footer + 6))
-            t.multi_section_button_holder.Size = dim2(1, 0, 1, 0)
+            t.multi_section_button_holder.Size = dim2(1, -82, 1, 0)
         end
     end
     for _, page in library.mobile_pages do
@@ -4391,6 +4901,13 @@ function library:unload_menu()
     if library.unloaded then return end
     if library.cancel_pointer_drag then library:cancel_pointer_drag() end
     library.unloaded = true
+    if library.search_locale_connection then
+        library.search_locale_connection:Disconnect()
+        library.search_locale_connection = nil
+    end
+    for index = #library.locale_callbacks, 1, -1 do
+        library.locale_callbacks[index]:Disconnect()
+    end
     library.current_open = nil
     for index = #library.connections, 1, -1 do
         local connection = library.connections[index]
@@ -4449,10 +4966,130 @@ function library:create(instance, options)
     for prop, value in options do
         ins[prop] = value
         if library.track_theme then library:track_theme(ins, prop, value) end
+        if (prop == "Text" or prop == "PlaceholderText") and library._track_localized_text then
+            library:_track_localized_text(ins, prop, value)
+        end
     end
 
     return ins
 end
+end
+
+    end,
+    ["src/Kaeryn/Localization.luau"] = function(__kaeryn_require)
+return function(__kaeryn)
+    local library = __kaeryn.library
+    local entries = setmetatable({}, {__mode = "k"})
+    local listeners = {}
+    library.locale_callbacks = listeners
+
+    library.language = "en"
+    library.locales = {
+        en = {},
+        es = {
+            ["Search"] = "Buscar",
+            ["Find"] = "Buscar",
+            ["Search controls..."] = "Buscar controles...",
+            ["Type to search controls"] = "Escribe para buscar controles",
+            ["No controls found"] = "No se encontraron controles",
+            ["Search options..."] = "Buscar opciones...",
+            ["No options found"] = "No hay opciones",
+            ["Notice"] = "Aviso",
+            ["Confirm"] = "Confirmar",
+            ["Cancel"] = "Cancelar",
+            ["OK"] = "Aceptar",
+            ["Enter a value..."] = "Escribe un valor...",
+            ["Save"] = "Guardar",
+            ["Load"] = "Cargar",
+            ["Delete"] = "Eliminar",
+            ["Configs"] = "Configuraciones",
+            ["Settings"] = "Ajustes",
+        },
+    }
+
+    function library:translate(text)
+        if type(text) ~= "string" then return text end
+        local translations = self.locales[self.language]
+        return translations and translations[text] or text
+    end
+
+    function library:_track_localized_text(instance, property, text)
+        if type(text) ~= "string" or text == "" then return end
+        local instance_entries = entries[instance]
+        if not instance_entries then
+            instance_entries = {}
+            entries[instance] = instance_entries
+        end
+        local translated = self:translate(text)
+        instance_entries[property] = {key = text, current = translated}
+        if translated ~= text then instance[property] = translated end
+    end
+
+    function library:localize(instance, key, property)
+        property = property or "Text"
+        assert(instance and type(key) == "string", "localize expects an instance and a string key")
+        self:_track_localized_text(instance, property, key)
+        return instance[property]
+    end
+
+    function library:set_language(language)
+        assert(type(language) == "string" and language:match("^[%a][%w_-]*$"), "language must be a locale code")
+        language = string.lower(language)
+        if not self.locales[language] then return false, "Locale '" .. language .. "' is not registered" end
+        self.language = language
+
+        for instance, properties in pairs(entries) do
+            local exists = pcall(function() return instance.Parent end)
+            if not exists then
+                entries[instance] = nil
+            else
+                for property, entry in pairs(properties) do
+                    local ok, current = pcall(function() return instance[property] end)
+                    if ok then
+                        if current ~= entry.current then entry.key = current end
+                        local translated = self:translate(entry.key)
+                        pcall(function() instance[property] = translated end)
+                        entry.current = translated
+                    end
+                end
+            end
+        end
+        for _, listener in ipairs(listeners) do
+            if listener.connected then
+                local ok, err = pcall(listener.callback, language)
+                if not ok then warn("[Kaeryn] language listener error: " .. tostring(err)) end
+            end
+        end
+        return true
+    end
+
+    function library:register_locale(language, translations)
+        assert(type(language) == "string" and language:match("^[%a][%w_-]*$"), "language must be a locale code")
+        assert(type(translations) == "table", "translations must be a table")
+        language = string.lower(language)
+        local locale = self.locales[language] or {}
+        for key, value in pairs(translations) do
+            assert(type(key) == "string" and type(value) == "string", "translation keys and values must be strings")
+            locale[key] = value
+        end
+        self.locales[language] = locale
+        if self.language == language then return self:set_language(language) end
+        return true
+    end
+
+    function library:register_locale_callback(callback)
+        assert(type(callback) == "function", "locale callback must be a function")
+        local listener = {callback = callback, connected = true}
+        table.insert(listeners, listener)
+        function listener:Disconnect()
+            if not self.connected then return end
+            self.connected = false
+            for index = #listeners, 1, -1 do
+                if listeners[index] == self then table.remove(listeners, index) end
+            end
+        end
+        return listener
+    end
 end
 
     end,
@@ -4471,6 +5108,7 @@ return function(__kaeryn)
     local fonts = __kaeryn.fonts
 
 function library:tab(properties)
+    properties = properties or {}
     local cfg = {
         name = properties.name or properties.Name or "visuals";
         icon = properties.icon or properties.Icon or "http://www.roblox.com/asset/?id=6034767608";
@@ -4482,6 +5120,8 @@ function library:tab(properties)
 
         items = {};
     }
+    self.tabs = self.tabs or {}
+    insert(self.tabs, cfg)
 
     local items = cfg.items; do
         items[ "tab_holder" ] = library:create( "Frame" , {
@@ -4525,7 +5165,7 @@ function library:tab(properties)
             BackgroundColor3 = rgb(255, 255, 255)
         }); library:apply_theme(items[ "icon" ], "accent", "ImageColor3");
 
-        if library.is_mobile and not cfg.custom_icon then
+        if not cfg.custom_icon then
             items["compact_mark"] = library:create("TextLabel", {
                 Parent = items["button"],
                 Name = "CompactMark",
@@ -4584,7 +5224,7 @@ function library:tab(properties)
             Name = "\0";
             Visible = false;
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(1, 0, 1, 0);
+            Size = dim2(1, -82, 1, 0);
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 255, 255)
         });
@@ -4614,7 +5254,7 @@ function library:tab(properties)
         });
 
         for _, section in cfg.tabs do
-            local data = {items = {}}
+            local data = {items = {}, _tab = cfg}
 
             local multi_items = data.items; do
                 multi_items[ "button" ] = library:create( "TextButton" , {
@@ -4770,7 +5410,9 @@ function library:tab(properties)
                 self.items[ "global_fade" ].BackgroundTransparency = 0
 
                 library:tween(self.items[ "global_fade" ], {BackgroundTransparency = 1}, Enum.EasingStyle.Quad, 0.4)
-                selected_tab[ 4 ].Size = library.is_mobile and selected_tab[ 4 ].Size or dim2(1, -216, 1, -101)
+                local side = library.responsive_sidebar_width or 196
+                local header = library.responsive_header_height or 56
+                selected_tab[ 4 ].Size = library.is_mobile and selected_tab[ 4 ].Size or dim2(1, -side - 20, 1, -(header + 25 + 20))
             end
 
             library:tween(selected_tab[ 1 ], {BackgroundTransparency = 1})
@@ -4793,7 +5435,9 @@ function library:tab(properties)
             library:tween(items["compact_mark"], {TextColor3 = themes.preset.accent})
         end
         if not library.is_mobile then
-            library:tween(items[ "tab_holder" ], {Size = dim2(1, -196, 1, -81)}, Enum.EasingStyle.Quad, 0.4)
+            local side = library.responsive_sidebar_width or 196
+            local header = library.responsive_header_height or 56
+            library:tween(items[ "tab_holder" ], {Size = dim2(1, -side, 1, -(header + 25))}, Enum.EasingStyle.Quad, 0.4)
         end
 
         items[ "tab_holder" ].Visible = true
@@ -4825,6 +5469,8 @@ function library:tab(properties)
     if library.is_mobile then
         insert(library.mobile_tabs, cfg)
         library:queue_mobile_layout()
+    else
+        library:refresh_responsive_layout(self)
     end
     return unpack(cfg.pages)
 end
@@ -4882,6 +5528,7 @@ end
 
 function library:column(properties)
     local cfg = {items = {}, size = properties.size or 1}
+    cfg._page = self
 
     local items = cfg.items; do
         items[ "column" ] = library:create( "Frame" , {
@@ -4953,6 +5600,7 @@ function library:sub_tab(properties)
 end
 
 function library:section(properties)
+    properties = properties or {}
     local cfg = {
         name = properties.name or properties.Name or "section";
         side = properties.side or properties.Side or "left";
@@ -4962,6 +5610,7 @@ function library:section(properties)
         fading_toggle = properties.fading or properties.Fading or false;
         items = {};
     };
+    cfg._column = self
 
     local elements_layout
     local items = cfg.items; do
@@ -5387,6 +6036,304 @@ end
 end
 
     end,
+    ["src/Kaeryn/Search.luau"] = function(__kaeryn_require)
+return function(__kaeryn)
+    local uis = __kaeryn.uis
+    local ws = __kaeryn.ws
+    local dim2 = __kaeryn.dim2
+    local dim = __kaeryn.dim
+    local vec2 = __kaeryn.vec2
+    local rgb = __kaeryn.rgb
+    local library = __kaeryn.library
+    local themes = __kaeryn.themes
+    local fonts = __kaeryn.fonts
+
+    local function lower(text)
+        return string.lower(tostring(text or ""))
+    end
+
+    function library:search_controls(query)
+        query = lower(query):match("^%s*(.-)%s*$")
+        if query == "" then return {} end
+
+        local results = {}
+        for _, control in pairs(self.controls_by_id) do
+            local root = control._ui_root
+            if not control._destroyed and control._visible ~= false and control._enabled ~= false and root and root.Parent then
+                local section = control._section
+                local column = section and section._column
+                local page = column and column._page
+                local tab = page and page._tab
+                local path = table.concat({
+                    tab and tab.name or "",
+                    page and page.text and page.text.Text or "",
+                    section and section.name or "",
+                }, " ")
+                local haystack = lower(table.concat({control.name or "", control.info or "", control.id or "", control.flag or "", control.control_type or "", path}, " "))
+                if string.find(haystack, query, 1, true) then
+                    table.insert(results, {control = control, path = path})
+                end
+            end
+        end
+        table.sort(results, function(first, second)
+            local a = lower(first.control.name or first.control.id)
+            local b = lower(second.control.name or second.control.id)
+            return a == b and first.control.id < second.control.id or a < b
+        end)
+        return results
+    end
+
+    function library:focus_control(control)
+        if type(control) ~= "table" or control._destroyed or not control._ui_root or not control._ui_root.Parent then
+            return false, "Control is unavailable"
+        end
+        local section = control._section
+        local column = section and section._column
+        local page = column and column._page
+        local tab = page and page._tab
+        if tab and type(tab.open_tab) == "function" then tab.open_tab() end
+        if page and type(page.open_page) == "function" then page.open_page() end
+
+        task.defer(function()
+            if library.unloaded or control._destroyed then return end
+            local root = control._ui_root
+            if not root or not root.Parent then return end
+            local scrolling = section and section.items and section.items.scrolling
+            if scrolling and scrolling:IsA("ScrollingFrame") then
+                local offset = root.AbsolutePosition.Y - scrolling.AbsolutePosition.Y + scrolling.CanvasPosition.Y
+                scrolling.CanvasPosition = vec2(0, math.max(0, offset - 18))
+            end
+            local stroke = library:create("UIStroke", {
+                Parent = root,
+                Color = themes.preset.accent,
+                Thickness = 2,
+                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            })
+            task.delay(0.9, function()
+                if stroke.Parent then stroke:Destroy() end
+            end)
+        end)
+        return true
+    end
+
+    function library:init_search(window)
+        local items = window.items
+        local button = library:create("TextButton", {
+            Parent = items.multi_holder,
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = dim2(1, -9, 0.5, -2),
+            Size = dim2(0, 66, 0, 30),
+            BackgroundColor3 = themes.preset.surface_hover,
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+            FontFace = fonts.small,
+            Text = "Find",
+            TextColor3 = themes.preset.text,
+            TextSize = 13,
+            ZIndex = 5,
+        })
+        library:create("UICorner", {Parent = button, CornerRadius = dim(0, 5)})
+        library:apply_theme(button, "surface_hover", "BackgroundColor3")
+        library:apply_theme(button, "text", "TextColor3")
+        window.search_button = button
+
+        local overlay = library:create("Frame", {
+            Parent = library.items,
+            Size = dim2(1, 0, 1, 0),
+            BackgroundColor3 = rgb(0, 0, 0),
+            BackgroundTransparency = 0.45,
+            BorderSizePixel = 0,
+            Visible = false,
+            ZIndex = 80,
+        })
+        local panel = library:create("Frame", {
+            Parent = overlay,
+            AnchorPoint = vec2(0.5, 0.5),
+            Position = dim2(0.5, 0, 0.5, 0),
+            Size = dim2(0, 500, 0, 410),
+            BackgroundColor3 = themes.preset.surface,
+            BorderSizePixel = 0,
+            ZIndex = 81,
+        })
+        library:create("UICorner", {Parent = panel, CornerRadius = dim(0, 8)})
+        library:create("UIStroke", {Parent = panel, Color = themes.preset.border, Thickness = 1})
+        library:apply_theme(panel, "surface", "BackgroundColor3")
+        library:apply_theme(panel:FindFirstChildOfClass("UIStroke"), "border", "Color")
+
+        local title = library:create("TextLabel", {
+            Parent = panel,
+            Position = dim2(0, 16, 0, 13),
+            Size = dim2(1, -72, 0, 24),
+            BackgroundTransparency = 1,
+            FontFace = fonts.font,
+            Text = "Search",
+            TextColor3 = themes.preset.text,
+            TextSize = 17,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 82,
+        })
+        library:apply_theme(title, "text", "TextColor3")
+        local close_button = library:create("TextButton", {
+            Parent = panel,
+            AnchorPoint = vec2(1, 0),
+            Position = dim2(1, -12, 0, 11),
+            Size = dim2(0, 28, 0, 28),
+            BackgroundColor3 = themes.preset.surface_hover,
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+            FontFace = fonts.small,
+            Text = "×",
+            TextColor3 = themes.preset.text,
+            TextSize = 18,
+            ZIndex = 82,
+        })
+        library:create("UICorner", {Parent = close_button, CornerRadius = dim(0, 5)})
+        library:apply_theme(close_button, "surface_hover", "BackgroundColor3")
+        library:apply_theme(close_button, "text", "TextColor3")
+
+        local query = library:create("TextBox", {
+            Parent = panel,
+            Position = dim2(0, 14, 0, 48),
+            Size = dim2(1, -28, 0, 36),
+            BackgroundColor3 = themes.preset.surface_alt,
+            BorderSizePixel = 0,
+            ClearTextOnFocus = false,
+            FontFace = fonts.small,
+            PlaceholderText = "Search controls...",
+            Text = "",
+            TextColor3 = themes.preset.text,
+            PlaceholderColor3 = themes.preset.muted,
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 82,
+        })
+        library:create("UICorner", {Parent = query, CornerRadius = dim(0, 5)})
+        library:create("UIPadding", {Parent = query, PaddingLeft = dim(0, 10), PaddingRight = dim(0, 10)})
+        library:apply_theme(query, "surface_alt", "BackgroundColor3")
+        library:apply_theme(query, "text", "TextColor3")
+        library:apply_theme(query, "muted", "PlaceholderColor3")
+
+        local list = library:create("ScrollingFrame", {
+            Parent = panel,
+            Position = dim2(0, 14, 0, 94),
+            Size = dim2(1, -28, 1, -106),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Active = true,
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            CanvasSize = dim2(0, 0, 0, 0),
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = themes.preset.muted,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            ZIndex = 82,
+        })
+        library:create("UIListLayout", {Parent = list, Padding = dim(0, 5), SortOrder = Enum.SortOrder.LayoutOrder})
+        local empty = library:create("TextLabel", {
+            Parent = list,
+            Size = dim2(1, 0, 0, 36),
+            BackgroundTransparency = 1,
+            FontFace = fonts.small,
+            Text = "Type to search controls",
+            TextColor3 = themes.preset.muted,
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 82,
+        })
+        library:apply_theme(empty, "muted", "TextColor3")
+
+        local result_buttons = {}
+        local function clear_results()
+            for _, child in ipairs(result_buttons) do child:Destroy() end
+            table.clear(result_buttons)
+        end
+        local function render_results()
+            clear_results()
+            local text = query.Text
+            if text:match("^%s*$") then
+                empty.Visible = true
+                library:localize(empty, "Type to search controls")
+                return
+            end
+            local results = library:search_controls(text)
+            empty.Visible = #results == 0
+            if #results == 0 then library:localize(empty, "No controls found") else empty.Text = "" end
+            for index = 1, math.min(#results, 40) do
+                local result = results[index]
+                local control = result.control
+                local name = control.name or control.id
+                local path = result.path:gsub("%s+", " "):match("^%s*(.-)%s*$")
+                local button_row = library:create("TextButton", {
+                    Parent = list,
+                    Size = dim2(1, 0, 0, 46),
+                    BackgroundColor3 = themes.preset.surface_alt,
+                    BorderSizePixel = 0,
+                    AutoButtonColor = false,
+                    FontFace = fonts.small,
+                    Text = name .. "   ·   " .. path,
+                    TextColor3 = themes.preset.text_soft,
+                    TextSize = 13,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    LayoutOrder = index,
+                    ZIndex = 83,
+                })
+                library:create("UICorner", {Parent = button_row, CornerRadius = dim(0, 5)})
+                library:create("UIPadding", {Parent = button_row, PaddingLeft = dim(0, 10), PaddingRight = dim(0, 10)})
+                library:apply_theme(button_row, "surface_alt", "BackgroundColor3")
+                library:apply_theme(button_row, "text_soft", "TextColor3")
+                button_row.Activated:Connect(function()
+                    if library:focus_control(control) then
+                        overlay.Visible = false
+                        query:ReleaseFocus()
+                    end
+                end)
+                table.insert(result_buttons, button_row)
+            end
+        end
+
+        local function close_search()
+            overlay.Visible = false
+            if uis:GetFocusedTextBox() == query then query:ReleaseFocus() end
+        end
+        local function open()
+            if library.unloaded then return end
+            if library.active_dialog and library.active_dialog.close then library.active_dialog:close(false) end
+            library:close_element()
+            overlay.Visible = true
+            render_results()
+            query:CaptureFocus()
+        end
+        library:connection(button.Activated, open)
+        library:connection(close_button.Activated, close_search)
+        library:connection(query:GetPropertyChangedSignal("Text"), render_results)
+        library:connection(uis.InputBegan, function(input, processed)
+            if input.KeyCode == Enum.KeyCode.Escape and overlay.Visible then
+                close_search()
+            elseif not processed and input.KeyCode == Enum.KeyCode.K and (uis:IsKeyDown(Enum.KeyCode.LeftControl) or uis:IsKeyDown(Enum.KeyCode.RightControl)) then
+                if overlay.Visible then close_search() else open() end
+            end
+        end)
+        local function resize_panel()
+            local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(800, 600)
+            panel.Size = dim2(0, math.min(500, math.max(180, viewport.X - 24)), 0, math.min(410, math.max(180, viewport.Y - 24)))
+        end
+        library:connection(ws:GetPropertyChangedSignal("CurrentCamera"), function()
+            if ws.CurrentCamera then
+                library:connection(ws.CurrentCamera:GetPropertyChangedSignal("ViewportSize"), resize_panel)
+                resize_panel()
+            end
+        end)
+        if ws.CurrentCamera then library:connection(ws.CurrentCamera:GetPropertyChangedSignal("ViewportSize"), resize_panel) end
+        resize_panel()
+        library.search_locale_connection = library:register_locale_callback(function()
+            if overlay.Visible then render_results() end
+        end)
+        window.search = {open = open, close = close_search, overlay = overlay}
+        library.search_overlay = overlay
+    end
+end
+
+    end,
     ["src/Kaeryn/Themes.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local insert = __kaeryn.insert
@@ -5793,6 +6740,18 @@ function library:window(properties)
         else
             library:draggify(items[ "main" ])
             library:resizify(items[ "main" ])
+            local viewport_connection
+            local function track_viewport()
+                if viewport_connection then viewport_connection:Disconnect() end
+                if ws.CurrentCamera then
+                    viewport_connection = library:connection(ws.CurrentCamera:GetPropertyChangedSignal("ViewportSize"), function()
+                        library:refresh_responsive_layout(cfg)
+                    end)
+                    library:refresh_responsive_layout(cfg)
+                end
+            end
+            library:connection(ws:GetPropertyChangedSignal("CurrentCamera"), track_viewport)
+            track_viewport()
         end
     end
 
@@ -5804,6 +6763,9 @@ function library:window(properties)
             library[ "items" ].Enabled = bool
         end
     end
+
+    library:init_search(cfg)
+    if library.is_mobile then library:queue_mobile_layout() end
 
     return setmetatable(cfg, library)
 end

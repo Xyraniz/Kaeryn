@@ -294,7 +294,7 @@ function library:toggle(options)
     end, cfg.legacy_flags)
 
     library:mobile_format_control(items, "toggle")
-    library:attach_control(cfg, items.toggle)
+    library:attach_control(cfg, items.toggle, self)
     return setmetatable(cfg, library)
 end
 end

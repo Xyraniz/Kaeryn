@@ -12,6 +12,7 @@ return function(__kaeryn)
     local fonts = __kaeryn.fonts
 
 function library:tab(properties)
+    properties = properties or {}
     local cfg = {
         name = properties.name or properties.Name or "visuals";
         icon = properties.icon or properties.Icon or "http://www.roblox.com/asset/?id=6034767608";
@@ -23,6 +24,8 @@ function library:tab(properties)
 
         items = {};
     }
+    self.tabs = self.tabs or {}
+    insert(self.tabs, cfg)
 
     local items = cfg.items; do
         items[ "tab_holder" ] = library:create( "Frame" , {
@@ -66,7 +69,7 @@ function library:tab(properties)
             BackgroundColor3 = rgb(255, 255, 255)
         }); library:apply_theme(items[ "icon" ], "accent", "ImageColor3");
 
-        if library.is_mobile and not cfg.custom_icon then
+        if not cfg.custom_icon then
             items["compact_mark"] = library:create("TextLabel", {
                 Parent = items["button"],
                 Name = "CompactMark",
@@ -125,7 +128,7 @@ function library:tab(properties)
             Name = "\0";
             Visible = false;
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(1, 0, 1, 0);
+            Size = dim2(1, -82, 1, 0);
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 255, 255)
         });
@@ -155,7 +158,7 @@ function library:tab(properties)
         });
 
         for _, section in cfg.tabs do
-            local data = {items = {}}
+            local data = {items = {}, _tab = cfg}
 
             local multi_items = data.items; do
                 multi_items[ "button" ] = library:create( "TextButton" , {
@@ -311,7 +314,9 @@ function library:tab(properties)
                 self.items[ "global_fade" ].BackgroundTransparency = 0
 
                 library:tween(self.items[ "global_fade" ], {BackgroundTransparency = 1}, Enum.EasingStyle.Quad, 0.4)
-                selected_tab[ 4 ].Size = library.is_mobile and selected_tab[ 4 ].Size or dim2(1, -216, 1, -101)
+                local side = library.responsive_sidebar_width or 196
+                local header = library.responsive_header_height or 56
+                selected_tab[ 4 ].Size = library.is_mobile and selected_tab[ 4 ].Size or dim2(1, -side - 20, 1, -(header + 25 + 20))
             end
 
             library:tween(selected_tab[ 1 ], {BackgroundTransparency = 1})
@@ -334,7 +339,9 @@ function library:tab(properties)
             library:tween(items["compact_mark"], {TextColor3 = themes.preset.accent})
         end
         if not library.is_mobile then
-            library:tween(items[ "tab_holder" ], {Size = dim2(1, -196, 1, -81)}, Enum.EasingStyle.Quad, 0.4)
+            local side = library.responsive_sidebar_width or 196
+            local header = library.responsive_header_height or 56
+            library:tween(items[ "tab_holder" ], {Size = dim2(1, -side, 1, -(header + 25))}, Enum.EasingStyle.Quad, 0.4)
         end
 
         items[ "tab_holder" ].Visible = true
@@ -366,6 +373,8 @@ function library:tab(properties)
     if library.is_mobile then
         insert(library.mobile_tabs, cfg)
         library:queue_mobile_layout()
+    else
+        library:refresh_responsive_layout(self)
     end
     return unpack(cfg.pages)
 end
@@ -423,6 +432,7 @@ end
 
 function library:column(properties)
     local cfg = {items = {}, size = properties.size or 1}
+    cfg._page = self
 
     local items = cfg.items; do
         items[ "column" ] = library:create( "Frame" , {
@@ -494,6 +504,7 @@ function library:sub_tab(properties)
 end
 
 function library:section(properties)
+    properties = properties or {}
     local cfg = {
         name = properties.name or properties.Name or "section";
         side = properties.side or properties.Side or "left";
@@ -503,6 +514,7 @@ function library:section(properties)
         fading_toggle = properties.fading or properties.Fading or false;
         items = {};
     };
+    cfg._column = self
 
     local elements_layout
     local items = cfg.items; do

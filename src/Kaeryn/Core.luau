@@ -67,7 +67,7 @@ library.option_schemas = {
     dropdown = {
         fields = fields({name = descriptor("string"), info = descriptor("string"), items = descriptor("table", {""}),
             default = descriptor({"string", "table"}), callback = descriptor("function", function() end), multi = descriptor("boolean", false),
-            scrolling = descriptor("boolean", false), width = descriptor("number", 130, {min = 1}), ignore = descriptor("boolean", false),
+            scrolling = descriptor("boolean", false), searchable = descriptor("boolean"), width = descriptor("number", 130, {min = 1}), ignore = descriptor("boolean", false),
             separator = descriptor("boolean", true)}),
         aliases = common_aliases,
     },
@@ -202,7 +202,16 @@ function library:normalize_options(control_type, options, schema)
             if not defaults_valid then error("Option 'default' for dropdown: " .. defaults_reason, 2) end
             for _, selected in ipairs(defaults) do
                 if type(selected) ~= "string" then error("Option 'default' for dropdown must contain strings", 2) end
-                if #normalized.items > 0 and not table.find(normalized.items, selected) then
+                local found = #normalized.items == 0
+                for _, option in ipairs(normalized.items) do
+                    if type(option) == "string" then
+                        found = option == selected
+                    elseif type(option) == "table" then
+                        found = not option.disabled and (option.value == selected or option.label == selected or self:translate(option.label) == selected)
+                    end
+                    if found then break end
+                end
+                if not found then
                     error("Option 'default' for dropdown contains unknown option '" .. selected .. "'", 2)
                 end
             end
@@ -216,11 +225,25 @@ function library:validate_option_list(control_type, options)
     local count, highest_index, seen = 0, 0, {}
     for index, option in pairs(options) do
         if type(index) ~= "number" or index < 1 or index % 1 ~= 0 then return false, "must be a dense array" end
-        if control_type == "dropdown" and type(option) ~= "string" then return false, "items must be strings" end
+        if control_type == "dropdown" then
+            if type(option) == "table" then
+                for key in pairs(option) do
+                    if key ~= "value" and key ~= "label" and key ~= "group" and key ~= "disabled" then
+                        return false, "dropdown item has unknown field '" .. tostring(key) .. "'"
+                    end
+                end
+                if type(option.value) ~= "string" then return false, "dropdown item value must be a string" end
+                if option.label ~= nil and type(option.label) ~= "string" then return false, "dropdown item label must be a string" end
+                if option.group ~= nil and type(option.group) ~= "string" then return false, "dropdown item group must be a string" end
+                if option.disabled ~= nil and type(option.disabled) ~= "boolean" then return false, "dropdown item disabled must be a boolean" end
+            elseif type(option) ~= "string" then
+                return false, "items must contain strings or option tables"
+            end
+        end
         if control_type == "list" and type(option) ~= "string" and type(option) ~= "number" and type(option) ~= "boolean" then
             return false, "options must contain strings, numbers, or booleans"
         end
-        local key = tostring(option)
+        local key = type(option) == "table" and option.value or tostring(option)
         if seen[key] then return false, "contains duplicate option '" .. key .. "'" end
         seen[key] = true
         count += 1
@@ -516,10 +539,11 @@ local function connect_listener(control, list_name, callback)
     return connection
 end
 
-function library:attach_control(control, root)
+function library:attach_control(control, root, section)
     assert(type(control) == "table", "control handle must be a table")
     assert(type(control.id) == "string" and self.used_ids[control.id], "control handle needs a reserved id")
     control._ui_root = root
+    control._section = section
     control._changed_listeners = control._changed_listeners or {}
     control._committed_listeners = control._committed_listeners or {}
     control._cleanup = control._cleanup or {}
@@ -678,6 +702,7 @@ function library:register_control(control_type, factory, schema)
 end
 
 function library:custom_control(control_type, options)
+    local section = self
     local key = string.lower(tostring(control_type or ""))
     local definition = self.custom_control_types[key]
     if not definition then error("Unknown custom control type '" .. key .. "'", 2) end
@@ -686,7 +711,7 @@ function library:custom_control(control_type, options)
     local id, flag = self:resolve_identity(normalized, key, self.name, normalized.flag ~= nil)
     normalized.id, normalized.flag = id, flag
     local ok, control = pcall(function()
-        local result = definition.factory(self, normalized, library)
+        local result = definition.factory(section, normalized, library)
         assert(type(result) == "table", "custom control factory must return a control handle")
         assert(not result.id or result.id == id, "Custom control factories cannot replace their registered id")
         assert(not result.flag or result.flag == flag, "Custom control flags must be declared in options")
@@ -696,7 +721,7 @@ function library:custom_control(control_type, options)
         result.control_type = key
         result.legacy_flags = result.legacy_flags or normalized.legacy_flags
         if not result._ui_root then result._ui_root = result.items and result.items.root end
-        if not result._attached then self:attach_control(result, result._ui_root) end
+        if not result._attached then library:attach_control(result, result._ui_root, section) end
         return result
     end)
     if not ok then

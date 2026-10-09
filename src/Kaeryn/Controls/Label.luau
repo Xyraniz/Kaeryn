@@ -119,7 +119,7 @@ function library:label(options)
         items.name.Text = cfg.value
         library:dispatch_control_callback(cfg, nil, nil, cfg.value)
     end
-    library:attach_control(cfg, items.label)
+    library:attach_control(cfg, items.label, self)
     return setmetatable(cfg, library)
 end
 end

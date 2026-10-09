@@ -15,6 +15,99 @@ return function(__kaeryn)
     local themes = __kaeryn.themes
     local notifications = __kaeryn.notifications
 
+function library:get_breakpoint(viewport)
+    viewport = viewport or (ws.CurrentCamera and ws.CurrentCamera.ViewportSize) or vec2(1280, 800)
+    if min(viewport.X, viewport.Y) < 620 then return "phone" end
+    if viewport.X < 1024 or viewport.Y < 680 then return "tablet" end
+    return "desktop"
+end
+
+function library:refresh_responsive_layout(window)
+    if library.unloaded or not window or library.is_mobile then return end
+    local camera = ws.CurrentCamera
+    if not camera then return end
+    local viewport = camera.ViewportSize
+    local breakpoint = library:get_breakpoint(viewport)
+    library.breakpoint = breakpoint
+
+    local items = window.items
+    local main = items.main
+    if not main or not main.Parent then return end
+    local current = main.AbsoluteSize
+    if window._responsive_applied_size and main.Size ~= window._responsive_applied_size then
+        window._responsive_preferred_size = current
+    elseif not window._responsive_preferred_size then
+        window._responsive_preferred_size = current
+    end
+    local preferred = window._responsive_preferred_size
+    local max_width = max(1, viewport.X - 16)
+    local max_height = max(1, viewport.Y - 16)
+    local width = math.min(preferred.X, max_width)
+    local height = math.min(preferred.Y, max_height)
+    if breakpoint == "phone" then
+        width = max_width
+        height = max_height
+    end
+    main.Size = dim_offset(width, height)
+    window._responsive_applied_size = main.Size
+
+    local left = clamp(main.Position.X.Offset, 0, max(0, viewport.X - width))
+    local top = clamp(main.Position.Y.Offset, 0, max(0, viewport.Y - height))
+    main.Position = dim_offset(left, top)
+
+    local side = breakpoint == "phone" and 54 or breakpoint == "tablet" and 164 or 196
+    local header = breakpoint == "phone" and 48 or 56
+    local footer = 25
+    library.responsive_sidebar_width = side
+    library.responsive_header_height = header
+    items.side_frame.Size = dim2(0, side, 1, -footer)
+    items.multi_holder.Position = dim_offset(side, 0)
+    items.multi_holder.Size = dim2(1, -side, 0, header)
+    items.global_fade.Position = dim_offset(side, header)
+    items.global_fade.Size = dim2(1, -side, 1, -(header + footer))
+    items.title.Position = dim_offset(breakpoint == "phone" and 0 or 11, 0)
+    items.title.Size = dim_offset(breakpoint == "phone" and side or side - 22, 48)
+    items.title.TextSize = breakpoint == "phone" and 18 or breakpoint == "tablet" and 19 or 28
+    items.title.TextXAlignment = breakpoint == "phone" and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
+    items.title.TextWrapped = false
+    items.title.TextTruncate = Enum.TextTruncate.AtEnd
+    items.title.Text = breakpoint == "phone" and string.upper(window.name:match("[%w]") or "?")
+        or string.format('<u>%s</u><font color = "rgb(255, 255, 255)">%s</font>', window.name, window.suffix)
+    items.button_holder.Position = dim_offset(0, header)
+    items.button_holder.Size = dim2(1, 0, 1, -(header + 4))
+    for _, child in ipairs(items.button_holder:GetChildren()) do
+        if child:IsA("TextLabel") then
+            child.Visible = breakpoint ~= "phone"
+            child.TextSize = breakpoint == "tablet" and 13 or 16
+        end
+    end
+
+    for _, tab in ipairs(window.tabs or {}) do
+        local tab_items = tab.items
+        if tab_items and tab_items.tab_holder then
+            tab_items.tab_holder.Position = dim_offset(side, header)
+            tab_items.tab_holder.Size = dim2(1, -side, 1, -(header + footer))
+            tab_items.multi_section_button_holder.Size = dim2(1, -82, 1, 0)
+            tab_items.name.Visible = breakpoint ~= "phone"
+            tab_items.name.AutomaticSize = Enum.AutomaticSize.None
+            tab_items.name.Position = dim_offset(40, 0)
+            tab_items.name.Size = dim2(1, -48, 1, 0)
+            tab_items.name.TextWrapped = false
+            tab_items.name.TextTruncate = Enum.TextTruncate.AtEnd
+            tab_items.icon.Position = dim2(0, breakpoint == "phone" and 15 or 11, 0.5, 0)
+            tab_items.icon.Size = dim_offset(breakpoint == "phone" and 24 or 22, breakpoint == "phone" and 24 or 22)
+            if tab_items.compact_mark then
+                tab_items.icon.Visible = breakpoint ~= "phone"
+                tab_items.compact_mark.Visible = breakpoint == "phone"
+            else
+                tab_items.icon.Visible = true
+            end
+            tab_items.name.TextSize = breakpoint == "tablet" and 14 or 16
+            tab_items.name.TextTruncate = breakpoint == "phone" and Enum.TextTruncate.AtEnd or Enum.TextTruncate.None
+        end
+    end
+end
+
 function library:mobile_popup_position(anchor, width, height, gap)
     local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(800, 600)
     local inset = gui_service:GetGuiInset()
@@ -148,6 +241,7 @@ function library:refresh_mobile_layout()
     local it = win.items
     if not it.main or not it.main.Parent then return end
     local viewport = camera.ViewportSize
+    library.breakpoint = library:get_breakpoint(viewport)
     local landscape = viewport.X > viewport.Y
     local inset = gui_service:GetGuiInset()
     local top = max(inset.Y + 9, min(60, floor(viewport.Y * 0.13)))
@@ -232,7 +326,7 @@ function library:refresh_mobile_layout()
             t.button.Size = dim2(1, 0, 0, 39)
             t.tab_holder.Position = dim_offset(side, header)
             t.tab_holder.Size = dim2(1, -side - 6, 1, -(header + footer + 6))
-            t.multi_section_button_holder.Size = dim2(1, 0, 1, 0)
+            t.multi_section_button_holder.Size = dim2(1, -82, 1, 0)
         end
     end
     for _, page in library.mobile_pages do
@@ -325,6 +419,13 @@ function library:unload_menu()
     if library.unloaded then return end
     if library.cancel_pointer_drag then library:cancel_pointer_drag() end
     library.unloaded = true
+    if library.search_locale_connection then
+        library.search_locale_connection:Disconnect()
+        library.search_locale_connection = nil
+    end
+    for index = #library.locale_callbacks, 1, -1 do
+        library.locale_callbacks[index]:Disconnect()
+    end
     library.current_open = nil
     for index = #library.connections, 1, -1 do
         local connection = library.connections[index]

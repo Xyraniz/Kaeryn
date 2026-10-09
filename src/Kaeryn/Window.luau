@@ -320,6 +320,18 @@ function library:window(properties)
         else
             library:draggify(items[ "main" ])
             library:resizify(items[ "main" ])
+            local viewport_connection
+            local function track_viewport()
+                if viewport_connection then viewport_connection:Disconnect() end
+                if ws.CurrentCamera then
+                    viewport_connection = library:connection(ws.CurrentCamera:GetPropertyChangedSignal("ViewportSize"), function()
+                        library:refresh_responsive_layout(cfg)
+                    end)
+                    library:refresh_responsive_layout(cfg)
+                end
+            end
+            library:connection(ws:GetPropertyChangedSignal("CurrentCamera"), track_viewport)
+            track_viewport()
         end
     end
 
@@ -331,6 +343,9 @@ function library:window(properties)
             library[ "items" ].Enabled = bool
         end
     end
+
+    library:init_search(cfg)
+    if library.is_mobile then library:queue_mobile_layout() end
 
     return setmetatable(cfg, library)
 end

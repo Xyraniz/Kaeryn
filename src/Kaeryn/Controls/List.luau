@@ -109,7 +109,7 @@ function library:list(properties)
         end
         return false, nil, "value is not one of the list options"
     end, cfg.legacy_flags)
-    library:attach_control(cfg, items.list)
+    library:attach_control(cfg, items.list, self)
     return setmetatable(cfg, library)
 end
 end

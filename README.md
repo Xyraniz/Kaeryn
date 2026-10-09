@@ -86,6 +86,48 @@ end)
 
 Metadata includes `source` (`user`, `config`, `code`, or `initialization`), `phase` (`change`, `commit`, `initialize`, or `rollback`), and the control's `id`, `flag`, `name`, and `type`. Callback failures are caught and reported with the action and control identity; the latest error is also available as `library.last_callback_error`.
 
+## Search, language, dialogs, and responsive layouts
+
+Every window includes a control search button; `Ctrl+K` opens it on desktop. Search checks control names, IDs, flags, descriptions, and their tab/section path. Selecting a result opens the right tab and scrolls to the control. You can also use the search API directly:
+
+```lua
+window.search.open()
+local matches = library:search_controls("strength")
+```
+
+Kaeryn ships English and Spanish UI text. Switch the built-in UI to Spanish with `library:set_language("es")`. Add another language or translate your own visible strings with `register_locale` and `localize`:
+
+```lua
+library:register_locale("fr", {Find = "Rechercher", Confirm = "Confirmer"})
+library:set_language("fr")
+```
+
+Use `library:alert`, `library:confirm`, and `library:prompt` for shared modal dialogs. Each accepts `title`, `message`, and the matching action labels; `on_confirm` receives `true` for alerts, a boolean for confirmations, or the entered string for prompts. Confirmations and prompts can also set `on_cancel`.
+
+Window layout adapts to phone, tablet, and desktop viewports. The current breakpoint is available as `library.breakpoint` (`phone`, `tablet`, or `desktop`) and can be queried with `library:get_breakpoint(viewport_size)`.
+
+## Dropdown values, labels, and large option lists
+
+Dropdowns keep config values stable while showing a separate label. Existing string options still work. Add `group` and `disabled` where needed; lists with eight or more items get search by default, and `searchable = false` or `true` can override that choice. The popup virtualizes its visible rows for long lists.
+
+```lua
+local region = section:dropdown({
+    id = "account.region",
+    name = "Region",
+    searchable = true,
+    items = {
+        {value = "na", label = "North America", group = "Americas"},
+        {value = "sa", label = "South America", group = "Americas"},
+        {value = "eu", label = "Europe", group = "EMEA"},
+    },
+    default = "na",
+})
+
+print(region:Get()) -- "na"; the menu displays "North America"
+```
+
+Dropdown configs save the stable `value`. During loading, old label-based values are still accepted and converted to their matching stable values.
+
 ## Custom controls
 
 Register a control factory once, then create it from a section without adding a module to Kaeryn's source tree. The factory receives the section, normalized options, and library. Return a table with `items.root` and, for value controls, a `set` function. Call `dispatch_control_callback` from the setter to provide the same metadata and events as built-in controls. A custom value control can register its config setter through `register_config_flag`.

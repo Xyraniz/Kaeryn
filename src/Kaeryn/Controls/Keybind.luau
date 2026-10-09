@@ -361,7 +361,7 @@ function library:keybind(options)
     end, cfg.legacy_flags)
 
     library:mobile_format_control(items, "keybind")
-    library:attach_control(cfg, items.keybind_element)
+    library:attach_control(cfg, items.keybind_element, self)
     return setmetatable(cfg, library)
 end
 end
