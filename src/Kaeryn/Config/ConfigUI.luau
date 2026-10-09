@@ -12,7 +12,7 @@ return function(__kaeryn)
     local notifications = __kaeryn.notifications
 
 function library:init_config(window)
-    window:seperator({name = "Settings"})
+    window:separator({name = "Settings"})
     local main = window:tab({name = "Configs", tabs = {"Main"}})
     local left = main:column({})
     local list_section = left:section({name = "Configs", size = 1, default = true, icon = "rbxassetid://139628202576511"})

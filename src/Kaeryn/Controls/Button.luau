@@ -5,11 +5,14 @@ return function(__kaeryn)
     local rgb = __kaeryn.rgb
     local library = __kaeryn.library
     local themes = __kaeryn.themes
-    local safe_callback = __kaeryn.safe_callback
     local fonts = __kaeryn.fonts
 
 function library:button(options)
+    options = library:normalize_options("button", options)
+    local id = library:resolve_identity(options, "button", self.name, false)
     local cfg = {
+        id = id,
+        control_type = "button",
         name = options.name or "TextBox",
         callback = options.callback or function() end,
         items = {};
@@ -65,12 +68,13 @@ function library:button(options)
     end
 
     items[ "button" ].MouseButton1Click:Connect(function()
-        safe_callback(cfg.callback)
+        library:dispatch_control_callback(cfg, cfg.callback, nil)
 
         items[ "name" ].TextColor3 = themes.preset.accent
         library:tween(items[ "name" ], {TextColor3 = rgb(245, 245, 245)})
     end)
 
+    library:attach_control(cfg, items.button_element)
     return setmetatable(cfg, library)
 end
 end

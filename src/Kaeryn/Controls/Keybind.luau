@@ -11,14 +11,18 @@ return function(__kaeryn)
     local library = __kaeryn.library
     local themes = __kaeryn.themes
     local keys = __kaeryn.keys
-    local safe_callback = __kaeryn.safe_callback
     local flags = __kaeryn.flags
     local config_flags = __kaeryn.config_flags
     local fonts = __kaeryn.fonts
 
 function library:keybind(options)
+    options = library:normalize_options("keybind", options)
+    local id, flag = library:resolve_identity(options, "keybind", self.name, true)
     local cfg = {
-        flag = library:resolve_flag(options.flag, options.name, "keybind", self.name),
+        id = id,
+        control_type = "keybind",
+        flag = flag,
+        legacy_flags = options.legacy_flags,
         callback = options.callback or function() end,
         name = options.name or nil,
         ignore_key = options.ignore or false,
@@ -264,7 +268,7 @@ function library:keybind(options)
         flags[cfg.flag] = {mode = cfg.mode, key = cfg.key or "NONE", active = cfg.active}
         local key_string = keys[cfg.key] or (typeof(cfg.key) == "EnumItem" and cfg.key.Name) or "NONE"
         items.key.Text = tostring(key_string)
-        safe_callback(cfg.callback, cfg.active)
+        library:dispatch_control_callback(cfg, cfg.callback, nil, cfg.active)
     end
 
     function cfg.set_visible(bool)
@@ -298,11 +302,12 @@ function library:keybind(options)
         if cfg.binding then cfg.binding:Disconnect() end
         items.key.Text = "..."
         cfg.binding = library:connection(uis.InputBegan, function(keycode)
+            if cfg._destroyed or not cfg._enabled then return end
             local next_key = keycode.KeyCode ~= Enum.KeyCode.Unknown and keycode.KeyCode or keycode.UserInputType
             cfg.capture_ignored_input = keycode
             if cfg.binding then cfg.binding:Disconnect(); cfg.binding = nil end
             cfg.set(next_key)
-        end)
+        end, cfg)
     end)
 
     items[ "keybind_holder" ].MouseButton2Down:Connect(function()
@@ -312,7 +317,7 @@ function library:keybind(options)
     end)
 
     library:connection(uis.InputBegan, function(input, game_event)
-        if not game_event and not cfg.binding and input ~= cfg.capture_ignored_input then
+        if not cfg._destroyed and cfg._enabled and not game_event and not cfg.binding and input ~= cfg.capture_ignored_input then
             local selected_key = input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode or input.UserInputType
 
             if selected_key == cfg.key then
@@ -324,10 +329,10 @@ function library:keybind(options)
                 end
             end
         end
-    end)
+    end, cfg)
 
     library:connection(uis.InputEnded, function(input, game_event)
-        if game_event or cfg.binding then
+        if cfg._destroyed or not cfg._enabled or game_event or cfg.binding then
             return
         end
 
@@ -338,9 +343,9 @@ function library:keybind(options)
                 cfg.set(false)
             end
         end
-    end)
+    end, cfg)
 
-    cfg.set({mode = cfg.mode, active = cfg.active, key = cfg.key})
+    library:with_change_context("initialization", "initialize", cfg.set, {mode = cfg.mode, active = cfg.active, key = cfg.key})
     library:register_config_flag(cfg.flag, cfg.set, function(value)
         if type(value) ~= "table" then return false, nil, "expected a keybind object" end
         if value.mode ~= "Toggle" and value.mode ~= "Hold" and value.mode ~= "Always" then
@@ -353,9 +358,10 @@ function library:keybind(options)
             return false, nil, "active must be a boolean"
         end
         return true, {mode = value.mode, key = key, active = value.active == true}
-    end)
+    end, cfg.legacy_flags)
 
     library:mobile_format_control(items, "keybind")
+    library:attach_control(cfg, items.keybind_element)
     return setmetatable(cfg, library)
 end
 end

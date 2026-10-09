@@ -4,16 +4,21 @@ return function(__kaeryn)
     local rgb = __kaeryn.rgb
     local insert = __kaeryn.insert
     local library = __kaeryn.library
-    local safe_callback = __kaeryn.safe_callback
     local flags = __kaeryn.flags
     local config_flags = __kaeryn.config_flags
     local fonts = __kaeryn.fonts
 
 function library:list(properties)
+    properties = library:normalize_options("list", properties)
+    local id, flag = library:resolve_identity(properties, "list", self.name, true)
     local cfg = {
+        id = id,
+        control_type = "list",
+        name = properties.name,
+        legacy_flags = properties.legacy_flags,
         items = {};
         options = properties.options or {"1", "2", "3"};
-        flag = library:resolve_flag(properties.flag, properties.name, "list", self.name);
+        flag = flag;
         callback = properties.callback or function() end;
         data_store = {};
         current_element;
@@ -56,10 +61,12 @@ function library:list(properties)
         end
         if not found then cfg.current_element = nil end
         flags[cfg.flag] = found and value or nil
-        if found then safe_callback(cfg.callback, value) end
+        if found then library:dispatch_control_callback(cfg, cfg.callback, nil, value) end
     end
 
     function cfg.refresh_options(options_to_refresh)
+        local valid, reason = library:validate_option_list("list", options_to_refresh)
+        if not valid then return false, reason end
         local previous = flags[cfg.flag]
         for _, button in ipairs(cfg.data_store) do button:Destroy() end
         table.clear(cfg.data_store)
@@ -87,16 +94,22 @@ function library:list(properties)
             end)
         end
         if previous then cfg.set(previous) end
+        return true
     end
 
     cfg.refresh_options(cfg.options)
+    if properties.default ~= nil then
+        library:with_change_context("initialization", "initialize", cfg.set, properties.default)
+        assert(flags[cfg.flag] ~= nil, "list default must match one of its options")
+    end
     library:register_config_flag(cfg.flag, cfg.set, function(value)
         if type(value) ~= "string" then return false, nil, "expected a string" end
         for _, option in ipairs(cfg.options) do
             if tostring(option) == value then return true, value end
         end
         return false, nil, "value is not one of the list options"
-    end)
+    end, cfg.legacy_flags)
+    library:attach_control(cfg, items.list)
     return setmetatable(cfg, library)
 end
 end

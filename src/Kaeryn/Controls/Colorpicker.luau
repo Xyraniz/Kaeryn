@@ -13,24 +13,30 @@ return function(__kaeryn)
     local numkey = __kaeryn.numkey
     local clamp = __kaeryn.clamp
     local library = __kaeryn.library
-    local safe_callback = __kaeryn.safe_callback
     local flags = __kaeryn.flags
     local config_flags = __kaeryn.config_flags
     local fonts = __kaeryn.fonts
 
 function library:colorpicker(options)
+    options = library:normalize_options("colorpicker", options)
+    local id, flag = library:resolve_identity(options, "colorpicker", self.name, true)
     local cfg = {
+        id = id,
+        control_type = "colorpicker",
         name = options.name or "Color",
-        flag = library:resolve_flag(options.flag, options.name or "Color", "colorpicker", self.name),
+        flag = flag,
+        legacy_flags = options.legacy_flags,
 
         color = options.color or color(1, 1, 1),
         alpha = options.alpha and 1 - options.alpha or 0,
 
         open = false,
         callback = options.callback or function() end,
+        on_commit = options.on_commit,
+        info = options.info,
         items = {};
 
-        seperator = options.seperator or options.Seperator or false;
+        separator = options.separator;
     }
 
     local dragging_sat = false
@@ -44,7 +50,7 @@ function library:colorpicker(options)
 
     local label;
     if not self.items.right_components then
-        label = self:label({name = cfg.name, seperator = cfg.seperator})
+        label = self:label({name = cfg.name, info = cfg.info, separator = cfg.separator})
     end
 
     local items = cfg.items; do
@@ -429,7 +435,7 @@ function library:colorpicker(options)
         end
     end
 
-    function cfg.set(color, alpha)
+    function cfg.set(color, alpha, explicit_context)
         if type(color) == "boolean" then
             return
         end
@@ -466,10 +472,10 @@ function library:colorpicker(options)
         items[ "input" ].Text = string.format("%s, %s, %s, ", library:round(color.R * 255), library:round(color.G * 255), library:round(color.B * 255))
         items[ "input" ].Text ..= library:round(1 - a, 0.01)
 
-        safe_callback(cfg.callback, Color, a)
+        library:dispatch_control_callback(cfg, cfg.callback, explicit_context, Color, a)
     end
 
-    function cfg.update_color(input_position)
+    function cfg.update_color(input_position, explicit_context)
         local cursor = input_position or uis:GetMouseLocation()
 
         if dragging_sat then
@@ -490,7 +496,7 @@ function library:colorpicker(options)
             a = 1 - clamp((cursor.X - area.AbsolutePosition.X) / width, 0, 1)
         end
 
-        cfg.set()
+        cfg.set(nil, nil, explicit_context)
     end
 
     items[ "colorpicker" ].Activated:Connect(function()
@@ -506,13 +512,16 @@ function library:colorpicker(options)
             dragging_alpha = is_dragging and channel == "alpha"
         end
         local started = library:begin_pointer_drag(input, function(position)
-            cfg.update_color(position)
+            cfg.update_color(position, {source = "user", phase = "change"})
         end, function()
+            if cfg._destroyed then return end
             set_channel(false)
-        end)
+            local value = flags[cfg.flag]
+            library:commit_control(cfg, {source = "user"}, value.Color, value.Transparency)
+        end, cfg)
         if not started then return end
         set_channel(true)
-        cfg.update_color(input and input.Position or nil)
+        cfg.update_color(input and input.Position or nil, {source = "user", phase = "change"})
     end
 
     if library.is_mobile then
@@ -542,7 +551,7 @@ function library:colorpicker(options)
         local r, g, b, a = library:convert(text)
 
         if r and g and b and a then
-            cfg.set(rgb(clamp(r, 0, 255), clamp(g, 0, 255), clamp(b, 0, 255)), 1 - clamp(a, 0, 1))
+            cfg.set(rgb(clamp(r, 0, 255), clamp(g, 0, 255), clamp(b, 0, 255)), 1 - clamp(a, 0, 1), {source = "user", phase = "commit"})
         end
     end)
 
@@ -554,7 +563,7 @@ function library:colorpicker(options)
         library:tween(items[ "input" ], {TextColor3 = rgb(72, 72, 72)})
     end)
 
-    cfg.set(cfg.color, cfg.alpha)
+    library:with_change_context("initialization", "initialize", cfg.set, cfg.color, cfg.alpha)
     library:register_config_flag(cfg.flag, cfg.set, function(value)
         if type(value) ~= "table" or type(value.Color) ~= "string" then
             return false, nil, "expected a color object with a hex Color"
@@ -570,8 +579,11 @@ function library:colorpicker(options)
         local ok, parsed = pcall(__kaeryn.hex, value.Color)
         if not ok or typeof(parsed) ~= "Color3" then return false, nil, "Color is not valid hex" end
         return true, {Color = value.Color, Transparency = transparency}
-    end)
+    end, cfg.legacy_flags)
 
+    cfg._description_label = label and label.items.info or nil
+    if label then cfg._cleanup = {function() label:Destroy() end} end
+    library:attach_control(cfg, label and label.items.label or items.colorpicker)
     return setmetatable(cfg, library)
 end
 end

@@ -2,10 +2,14 @@ return function(__kaeryn)
     local insert = __kaeryn.insert
     local library = __kaeryn.library
 
-function library:connection(signal, callback)
+function library:connection(signal, callback, owner)
     local connection = signal:Connect(callback)
 
     insert(library.connections, connection)
+    if owner then
+        owner._connections = owner._connections or {}
+        insert(owner._connections, connection)
+    end
 
     return connection
 end

@@ -370,8 +370,20 @@ function library:tab(properties)
     return unpack(cfg.pages)
 end
 
-function library:seperator(properties)
-    local cfg = {items = {}, name = properties.Name or properties.name or "General"}
+function library:separator(properties)
+    properties = properties or {}
+    assert(type(properties) == "table", "separator options must be a table")
+    if properties.Name ~= nil then
+        if not library.deprecated_option_warnings["separator_method:Name"] then
+            library.deprecated_option_warnings["separator_method:Name"] = true
+            warn("[Kaeryn] option 'Name' for separator is deprecated; use 'name'")
+        end
+        if properties.name ~= nil then error("Conflicting options 'Name' and 'name' for separator", 2) end
+    end
+    for key in pairs(properties) do
+        if key ~= "name" and key ~= "Name" then error("Unknown option '" .. tostring(key) .. "' for separator", 2) end
+    end
+    local cfg = {items = {}, name = properties.name or properties.Name or "General"}
 
     local items = cfg.items do
         items[ "name" ] = library:create( "TextLabel" , {
@@ -399,6 +411,14 @@ function library:seperator(properties)
     end;
 
     return setmetatable(cfg, library)
+end
+
+function library:seperator(properties)
+    if not library.deprecated_option_warnings["method:seperator"] then
+        library.deprecated_option_warnings["method:seperator"] = true
+        warn("[Kaeryn] method 'seperator' is deprecated; use 'separator'")
+    end
+    return self:separator(properties)
 end
 
 function library:column(properties)

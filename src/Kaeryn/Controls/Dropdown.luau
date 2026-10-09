@@ -15,17 +15,20 @@ return function(__kaeryn)
     local concat = __kaeryn.concat
     local library = __kaeryn.library
     local themes = __kaeryn.themes
-    local safe_callback = __kaeryn.safe_callback
-    local separator_option = __kaeryn.separator_option
     local flags = __kaeryn.flags
     local config_flags = __kaeryn.config_flags
     local fonts = __kaeryn.fonts
 
 function library:dropdown(options)
+    options = library:normalize_options("dropdown", options)
+    local id, flag = library:resolve_identity(options, "dropdown", self.name, true)
     local cfg = {
+        id = id,
+        control_type = "dropdown",
         name = options.name or nil;
         info = options.info or nil;
-        flag = library:resolve_flag(options.flag, options.name, "dropdown", self.name);
+        flag = flag;
+        legacy_flags = options.legacy_flags;
         options = options.items or {""};
         callback = options.callback or function() end;
         multi = options.multi or false;
@@ -39,7 +42,7 @@ function library:dropdown(options)
         ignore = options.ignore or false;
         items = {};
         y_size;
-        seperator = separator_option(options, true);
+        separator = options.separator;
     }
 
     cfg.default = options.default ~= nil and options.default or (cfg.multi and (cfg.options[1] and {cfg.options[1]} or {}) or cfg.options[1] or "None")
@@ -77,13 +80,14 @@ function library:dropdown(options)
             BackgroundColor3 = rgb(255, 255, 255)
         });
 
-        if cfg.info then
+        do
             items[ "info" ] = library:create( "TextLabel" , {
                 FontFace = fonts.small;
                 TextColor3 = rgb(130, 130, 130);
                 BorderColor3 = rgb(0, 0, 0);
                 TextWrapped = true;
-                Text = cfg.info;
+                Text = cfg.info or "";
+                Visible = cfg.info ~= nil and cfg.info ~= "";
                 Parent = items[ "dropdown_object" ];
                 Name = "\0";
                 Position = dim2(0, 5, 0, 17);
@@ -298,11 +302,12 @@ function library:dropdown(options)
         cfg.multi_items = isTable and selected or {}
         flags[cfg.flag] = cfg.multi and selected or selected[1]
 
-        safe_callback(cfg.callback, flags[cfg.flag])
+        library:dispatch_control_callback(cfg, cfg.callback, nil, flags[cfg.flag])
     end
 
     function cfg.refresh_options(list)
-        list = type(list) == "table" and list or {}
+        local valid, reason = library:validate_option_list("dropdown", list)
+        if not valid then return false, reason end
         cfg.options = list
         local previous = flags[cfg.flag]
         cfg.y_size = 0
@@ -344,6 +349,7 @@ function library:dropdown(options)
             end)
         end
         if previous ~= nil then cfg.set(previous) end
+        return true
     end
 
     items[ "dropdown" ].Activated:Connect(function()
@@ -352,7 +358,7 @@ function library:dropdown(options)
         cfg.set_visible(cfg.open)
     end)
 
-    if cfg.seperator then
+    if cfg.separator then
         library:create( "Frame" , {
             AnchorPoint = vec2(0, 1);
             Parent = self.items[ "elements" ];
@@ -394,12 +400,13 @@ function library:dropdown(options)
         end
         if not allowed(value) then return false, nil, "expected one of the dropdown options" end
         return true, value
-    end)
+    end, cfg.legacy_flags)
 
-    cfg.refresh_options(cfg.options)
-    cfg.set(cfg.default)
+    library:with_change_context("initialization", "initialize", cfg.refresh_options, cfg.options)
+    library:with_change_context("initialization", "initialize", cfg.set, cfg.default)
 
     library:mobile_format_control(items, "dropdown")
+    library:attach_control(cfg, items.dropdown_object)
     return setmetatable(cfg, library)
 end
 end

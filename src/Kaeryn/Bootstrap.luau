@@ -215,6 +215,7 @@ local function config_name(value)
 end
 
 local function separator_option(options, default)
+    if options.separator ~= nil then return options.separator end
     if options.seperator ~= nil then return options.seperator end
     if options.Seperator ~= nil then return options.Seperator end
     return default

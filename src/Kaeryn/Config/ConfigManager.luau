@@ -63,8 +63,35 @@ function library:load_config(config_json)
     end
     table.sort(keys)
 
+    local migrated, migration_sources, applied_keys = {}, {}, {}
+    for _, source_key in ipairs(keys) do
+        local target_key = source_key
+        local visited = {}
+        while self.flag_migrations[target_key] do
+            if visited[target_key] then
+                table.insert(errors, source_key .. ": cyclic flag migration")
+                break
+            end
+            visited[target_key] = true
+            target_key = self.flag_migrations[target_key]
+        end
+        if migration_sources[target_key] then
+            table.insert(errors, "both '" .. migration_sources[target_key] .. "' and '" .. source_key .. "' resolve to '" .. target_key .. "'")
+        else
+            migration_sources[target_key] = source_key
+            migrated[target_key] = data[source_key]
+            if source_key ~= target_key then table.insert(applied_keys, {from = source_key, to = target_key}) end
+        end
+    end
+    if #errors > 0 then return false, table.concat(errors, "; ") end
+    data = migrated
+    table.sort(applied_keys, function(first, second) return first.from < second.from end)
+
+    local validation_keys = {}
+    for key in pairs(data) do table.insert(validation_keys, key) end
+    table.sort(validation_keys)
     local staged = {}
-    for _, key in ipairs(keys) do
+    for _, key in ipairs(validation_keys) do
         local setter = config_flags[key]
         if not setter then
             table.insert(errors, key .. ": unknown config flag")
@@ -92,17 +119,21 @@ function library:load_config(config_json)
         local snapshot = copy_value(flags[key])
         table.insert(applied, {key = key, value = snapshot})
         local succeeded, err = pcall(function()
-            if type(value) == "table" and type(value.Color) == "string" then
-                config_flags[key](hex(value.Color), value.Transparency)
-            else
-                config_flags[key](value)
-            end
+            library:with_change_context("config", "commit", function()
+                if type(value) == "table" and type(value.Color) == "string" then
+                    config_flags[key](hex(value.Color), value.Transparency)
+                else
+                    config_flags[key](value)
+                end
+            end)
         end)
         if not succeeded then
             local rollback_errors = {}
             for index = #applied, 1, -1 do
                 local prior = applied[index]
-                local restored, restore_err = pcall(config_flags[prior.key], prior.value)
+                local restored, restore_err = pcall(function()
+                    library:with_change_context("config", "rollback", config_flags[prior.key], prior.value)
+                end)
                 if not restored then table.insert(rollback_errors, prior.key .. ": " .. tostring(restore_err)) end
             end
             local message = key .. ": setter failed: " .. tostring(err)
@@ -112,6 +143,6 @@ function library:load_config(config_json)
             return false, message
         end
     end
-    return true
+    return true, applied_keys
 end
 end

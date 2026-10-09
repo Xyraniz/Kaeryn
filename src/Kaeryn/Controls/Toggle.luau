@@ -7,17 +7,21 @@ return function(__kaeryn)
     local rgbkey = __kaeryn.rgbkey
     local library = __kaeryn.library
     local themes = __kaeryn.themes
-    local safe_callback = __kaeryn.safe_callback
     local flags = __kaeryn.flags
     local config_flags = __kaeryn.config_flags
     local fonts = __kaeryn.fonts
 
 function library:toggle(options)
+    options = library:normalize_options("toggle", options)
+    local id, flag = library:resolve_identity(options, "toggle", self.name, true)
     local cfg = {
+        id = id,
+        control_type = "toggle",
         enabled = options.default == true,
         name = options.name or "Toggle",
         info = options.info or nil,
-        flag = library:resolve_flag(options.flag, options.name or "Toggle", "toggle", self.name),
+        flag = flag,
+        legacy_flags = options.legacy_flags,
 
         type = options.type and string.lower(options.type) or "toggle";
 
@@ -26,7 +30,7 @@ function library:toggle(options)
         callback = options.callback or function() end,
 
         items = {};
-        seperator = options.seperator or options.Seperator or false;
+        separator = options.separator;
     }
 
     flags[cfg.flag] = cfg.default
@@ -69,13 +73,14 @@ function library:toggle(options)
             BackgroundColor3 = rgb(255, 255, 255)
         });
 
-        if cfg.info then
+        do
             items[ "info" ] = library:create( "TextLabel" , {
                 FontFace = fonts.small;
                 TextColor3 = rgb(130, 130, 130);
                 BorderColor3 = rgb(0, 0, 0);
                 TextWrapped = true;
-                Text = cfg.info;
+                Text = cfg.info or "";
+                Visible = cfg.info ~= nil and cfg.info ~= "";
                 Parent = items[ "toggle" ];
                 Name = "\0";
                 Position = dim2(0, 5, 0, 17);
@@ -243,13 +248,12 @@ function library:toggle(options)
             }, Enum.EasingStyle.Quad)
         end
 
-        safe_callback(cfg.callback, bool)
-
         if cfg.folding and cfg.items.elements then
-            cfg.items.elements.Visible = bool
+            cfg.items.elements.Visible = bool and cfg._enabled ~= false and cfg._visible ~= false
         end
 
         flags[cfg.flag] = bool
+        library:dispatch_control_callback(cfg, cfg.callback, nil, bool)
     end
 
     if cfg.folding then
@@ -270,7 +274,7 @@ function library:toggle(options)
         cfg.set(not cfg.enabled)
     end)
 
-    if cfg.seperator then
+    if cfg.separator then
         library:create( "Frame" , {
             AnchorPoint = vec2(0, 1);
             Parent = self.items[ "elements" ];
@@ -282,14 +286,15 @@ function library:toggle(options)
         });
     end
 
-    cfg.set(cfg.default)
+    library:with_change_context("initialization", "initialize", cfg.set, cfg.default)
 
     library:register_config_flag(cfg.flag, cfg.set, function(value)
         if type(value) ~= "boolean" then return false, nil, "expected a boolean" end
         return true, value
-    end)
+    end, cfg.legacy_flags)
 
     library:mobile_format_control(items, "toggle")
+    library:attach_control(cfg, items.toggle)
     return setmetatable(cfg, library)
 end
 end

@@ -10,7 +10,7 @@ local window = library:window({
     size = UDim2.fromOffset(760, 560),
 })
 
-window:seperator({name = "Showcase"})
+window:separator({name = "Showcase"})
 
 local controlsPage, choicesPage, toolsPage = window:tab({
     name = "Library demo",

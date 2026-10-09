@@ -3,17 +3,21 @@ return function(__kaeryn)
     local dim = __kaeryn.dim
     local rgb = __kaeryn.rgb
     local library = __kaeryn.library
-    local safe_callback = __kaeryn.safe_callback
     local flags = __kaeryn.flags
     local config_flags = __kaeryn.config_flags
     local fonts = __kaeryn.fonts
 
 function library:textbox(options)
+    options = library:normalize_options("textbox", options)
+    local id, flag = library:resolve_identity(options, "textbox", self.name, true)
     local cfg = {
+        id = id,
+        control_type = "textbox",
         name = options.name or "TextBox",
-        placeholder = options.placeholder or options.placeholdertext or options.holder or options.holdertext or "type here...",
+        legacy_flags = options.legacy_flags,
+        placeholder = options.placeholder,
         default = options.default or "",
-        flag = library:resolve_flag(options.flag, options.name or "TextBox", "textbox", self.name),
+        flag = flag,
         callback = options.callback or function() end,
         visible = options.visible ~= false,
         items = {};
@@ -109,16 +113,16 @@ function library:textbox(options)
         });
     end
 
-    function cfg.set(text)
+    function cfg.set(text, explicit_context)
         text = tostring(text or "")
         if flags[cfg.flag] == text and items.input.Text == text then return end
         flags[cfg.flag] = text
         if items.input.Text ~= text then items.input.Text = text end
-        safe_callback(cfg.callback, text)
+        library:dispatch_control_callback(cfg, cfg.callback, explicit_context, text)
     end
 
     items[ "input" ]:GetPropertyChangedSignal("Text"):Connect(function()
-        cfg.set(items[ "input" ].Text)
+        cfg.set(items[ "input" ].Text, {source = "user", phase = "change"})
     end)
 
     items[ "input" ].Focused:Connect(function()
@@ -127,19 +131,21 @@ function library:textbox(options)
 
     items[ "input" ].FocusLost:Connect(function()
         library:tween(items[ "input" ], {TextColor3 = rgb(72, 72, 72)})
+        library:commit_control(cfg, {source = "user"}, flags[cfg.flag])
     end)
 
     if cfg.default then
-        cfg.set(cfg.default)
+        library:with_change_context("initialization", "initialize", cfg.set, cfg.default)
     end
 
     items.textbox.Visible = cfg.visible
     library:register_config_flag(cfg.flag, cfg.set, function(value)
         if type(value) ~= "string" then return false, nil, "expected a string" end
         return true, value
-    end)
+    end, cfg.legacy_flags)
 
     library:mobile_format_control(items, "textbox")
+    library:attach_control(cfg, items.textbox)
     return setmetatable(cfg, library)
 end
 end

@@ -7,10 +7,15 @@ return function(__kaeryn)
     local fonts = __kaeryn.fonts
 
 function library:label(options)
+    options = library:normalize_options("label", options)
+    local id = library:resolve_identity(options, "label", self.name, false)
     local cfg = {
+        id = id,
+        control_type = "label",
+        value = options.name or "Toggle",
         enabled = options.enabled or nil,
         name = options.name or "Toggle",
-        seperator = options.seperator or options.Seperator or false;
+        separator = options.separator;
         info = options.info or nil;
 
         items = {};
@@ -48,13 +53,14 @@ function library:label(options)
             BackgroundColor3 = rgb(255, 255, 255)
         });
 
-        if cfg.info then
+        do
             items[ "info" ] = library:create( "TextLabel" , {
                 FontFace = fonts.small;
                 TextColor3 = rgb(130, 130, 130);
                 BorderColor3 = rgb(0, 0, 0);
                 TextWrapped = true;
-                Text = cfg.info;
+                Text = cfg.info or "";
+                Visible = cfg.info ~= nil and cfg.info ~= "";
                 Parent = items[ "label" ];
                 Name = "\0";
                 Position = dim2(0, 5, 0, 17);
@@ -94,7 +100,7 @@ function library:label(options)
         });
     end
 
-    if cfg.seperator then
+    if cfg.separator then
         library:create( "Frame" , {
             AnchorPoint = vec2(0, 1);
             Parent = self.items[ "elements" ];
@@ -107,6 +113,13 @@ function library:label(options)
     end
 
     library:mobile_format_control(items, "label")
+    function cfg.set(text)
+        cfg.value = tostring(text or "")
+        cfg.name = cfg.value
+        items.name.Text = cfg.value
+        library:dispatch_control_callback(cfg, nil, nil, cfg.value)
+    end
+    library:attach_control(cfg, items.label)
     return setmetatable(cfg, library)
 end
 end
