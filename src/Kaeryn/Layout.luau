@@ -26,7 +26,7 @@ function library:tab_content_geometry(main_width, side, header, bottom)
     local available = max(1, main_width - side)
     local center = floor(side + available / 2)
     local width = max(1, floor(available * library.tab_content_width))
-    return dim_offset(center, header), dim2(0, width, 1, -(header + (bottom or 0)))
+    return dim_offset(center, header), dim2(0, width, 1, -(header + (bottom or 0))), center, width
 end
 
 function library:refresh_responsive_layout(window)
@@ -66,12 +66,17 @@ function library:refresh_responsive_layout(window)
     local header = breakpoint == "phone" and 48 or 56
     library.responsive_sidebar_width = side
     library.responsive_header_height = header
-    local content_position, content_size = library:tab_content_geometry(width, side, header)
+    local content_position, content_size, content_center, content_width = library:tab_content_geometry(width, side, header)
     items.side_frame.Size = dim2(0, side, 1, 0)
-    items.multi_holder.Position = dim_offset(side, 0)
-    items.multi_holder.Size = dim2(1, -side, 0, header)
-    items.global_fade.Position = dim_offset(side, header)
-    items.global_fade.Size = dim2(1, -side, 1, -header)
+    items.background_image.AnchorPoint = vec2(0.5, 0)
+    items.background_image.Position = dim_offset(content_center, 0)
+    items.background_image.Size = dim2(0, content_width, 1, 0)
+    items.multi_holder.AnchorPoint = vec2(0.5, 0)
+    items.multi_holder.Position = dim_offset(content_center, 0)
+    items.multi_holder.Size = dim2(0, content_width, 0, header)
+    items.global_fade.AnchorPoint = vec2(0.5, 0)
+    items.global_fade.Position = dim_offset(content_center, header)
+    items.global_fade.Size = dim2(0, content_width, 1, -header)
     items.title.Position = dim_offset(breakpoint == "phone" and 0 or 11, 0)
     items.title.Size = dim_offset(breakpoint == "phone" and side or side - 22, 48)
     items.title.TextSize = breakpoint == "phone" and 18 or breakpoint == "tablet" and 19 or 28
@@ -264,7 +269,7 @@ function library:refresh_mobile_layout()
     if compact == nil then compact = false end
     local side = compact and 54 or min(216, max(156, floor(width * 0.28)))
     local header = 42
-    local content_position, content_size = library:tab_content_geometry(width, side, header, 6)
+    local content_position, content_size, content_center, content_width = library:tab_content_geometry(width, side, header, 6)
     local previous_viewport = library.mobile_viewport
     local changed = previous_viewport ~= viewport
     local old_position = it.main.Position
@@ -300,10 +305,15 @@ function library:refresh_mobile_layout()
         win.sidebar_toggle.Position = dim2(1, -29, 0, 9)
         win.sidebar_toggle.Text = compact and "+" or "−"
     end
-    it.multi_holder.Position = dim_offset(side, 0)
-    it.multi_holder.Size = dim2(1, -side, 0, header)
-    it.global_fade.Position = dim_offset(side, header)
-    it.global_fade.Size = dim2(1, -side, 1, -header)
+    it.background_image.AnchorPoint = vec2(0.5, 0)
+    it.background_image.Position = dim_offset(content_center, 0)
+    it.background_image.Size = dim2(0, content_width, 1, 0)
+    it.multi_holder.AnchorPoint = vec2(0.5, 0)
+    it.multi_holder.Position = dim_offset(content_center, 0)
+    it.multi_holder.Size = dim2(0, content_width, 0, header)
+    it.global_fade.AnchorPoint = vec2(0.5, 0)
+    it.global_fade.Position = dim_offset(content_center, header)
+    it.global_fade.Size = dim2(0, content_width, 1, -header)
     for _, child in it.button_holder:GetChildren() do
         if child:IsA("TextLabel") then
             child.Visible = not compact
