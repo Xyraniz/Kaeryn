@@ -134,6 +134,22 @@ local layout = window:SaveLayout()
 window:LoadLayout(layout)
 ```
 
+## Window background images
+
+Set an optional Roblox image asset or HTTP(S) image URL with `background`. Use `background_transparency` from `0` (opaque) to `1` (invisible), either in the window options or later with `SetBackgroundImageTransparency()`. `SetBackgroundImage()` changes or clears the image.
+
+```lua
+local window = library:window({
+    name = "Kaeryn",
+    background = "rbxassetid://1234567890",
+    background_transparency = 0.45,
+})
+
+window:SetBackgroundImage("rbxassetid://9876543210")
+window:SetBackgroundImageTransparency(0.6)
+window:SetBackgroundImage(nil) -- clear it
+```
+
 ## Page lifecycle and lazy content
 
 Tabs and pages accept `on_enter` and `on_leave` callbacks. A page definition can use `lazy` to build its controls on its first open; page IDs remain independent of the displayed name and are used when restoring a saved layout.

@@ -17,11 +17,29 @@ function library:window(properties)
     assert(not library.unloaded, "Kaeryn has been unloaded")
     assert(not library.items, "This Kaeryn instance already has a window; load a new instance for another window")
     properties = properties or {}
+    local background_image = properties.background
+    if background_image == nil then background_image = properties.background_image end
+    if background_image == nil then background_image = properties.Background end
+    if background_image == "" then background_image = nil end
+    assert(background_image == nil or (type(background_image) == "string"
+        and (background_image:match("^rbxassetid://%d+$") or background_image:match("^https?://%S+$"))),
+        "window background must be a Roblox image asset or an HTTP(S) image URL")
+
+    local background_transparency = properties.background_transparency
+    if background_transparency == nil then background_transparency = properties.background_image_transparency end
+    if background_transparency == nil then background_transparency = properties.BackgroundImageTransparency end
+    if background_transparency == nil then background_transparency = 0 end
+    assert(type(background_transparency) == "number" and background_transparency == background_transparency
+        and background_transparency >= 0 and background_transparency <= 1,
+        "window background_transparency must be a number between 0 and 1")
+
     local cfg = {
         suffix = properties.suffix or properties.Suffix or "tech";
         name = properties.name or properties.Name or "nebula";
         game_name = properties.gameInfo or properties.game_info or properties.GameInfo or "Kaeryn";
         size = properties.size or properties.Size or dim2(0, 700, 0, 565);
+        background = background_image;
+        background_transparency = background_transparency;
         min_size = properties.min_size or properties.MinSize or vec2(420, 320);
         max_size = properties.max_size or properties.MaxSize;
         selected_tab;
@@ -69,6 +87,20 @@ function library:window(properties)
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(14, 14, 16)
         });
+
+        items["background_image"] = library:create("ImageLabel", {
+            Parent = items.main;
+            Name = "WindowBackground";
+            Size = dim2(1, 0, 1, 0);
+            BackgroundTransparency = 1;
+            BorderSizePixel = 0;
+            Image = cfg.background;
+            ImageTransparency = cfg.background_transparency;
+            ScaleType = Enum.ScaleType.Crop;
+            Visible = cfg.background ~= nil;
+            ZIndex = 1;
+        })
+        library:create("UICorner", {Parent = items.background_image, CornerRadius = dim(0, 10)})
 
         library:create( "UICorner" , {
             Parent = items[ "main" ];
@@ -365,6 +397,29 @@ function library:window(properties)
         assert(type(callback) == "function", "OnDestroy expects a function")
         self._on_destroy = callback
         return self
+    end
+
+    function cfg:SetBackgroundImage(image)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if image == "" then image = nil end
+        if image ~= nil and (type(image) ~= "string"
+            or not (image:match("^rbxassetid://%d+$") or image:match("^https?://%S+$"))) then
+            return false, "background must be a Roblox image asset or an HTTP(S) image URL"
+        end
+        self.background = image
+        items.background_image.Image = image or ""
+        items.background_image.Visible = image ~= nil
+        return true
+    end
+
+    function cfg:SetBackgroundImageTransparency(transparency)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if type(transparency) ~= "number" or transparency ~= transparency or transparency < 0 or transparency > 1 then
+            return false, "background transparency must be a number between 0 and 1"
+        end
+        self.background_transparency = transparency
+        items.background_image.ImageTransparency = transparency
+        return true
     end
 
     function cfg:IsOpen()
