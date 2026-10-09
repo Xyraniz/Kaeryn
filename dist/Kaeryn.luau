@@ -152,6 +152,13 @@ local keys = {
 
 library.__index = library
 
+function library:round(number, interval)
+    if type(number) ~= "number" then return 0 end
+    if type(interval) ~= "number" or interval <= 0 then interval = 1 end
+    local multiplier = 1 / interval
+    return floor(number * multiplier + 0.5) / multiplier
+end
+
 library.is_mobile = uis.TouchEnabled and (not uis.MouseEnabled or not uis.KeyboardEnabled)
 library.mobile_tabs = {}
 library.mobile_columns = {}
