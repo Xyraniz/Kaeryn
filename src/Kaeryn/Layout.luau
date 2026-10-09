@@ -362,8 +362,9 @@ function library:refresh_mobile_layout()
             sec.scrolling.ScrollBarThickness = 0
             sec.scrolling.AutomaticCanvasSize = Enum.AutomaticSize.None
             sec.scrolling.CanvasSize = dim_offset(0, 0)
-            sec.elements.Position = dim_offset(8, 8)
-            sec.elements.Size = dim2(1, -16, 0, 0)
+            sec.elements.AnchorPoint = vec2(0.5, 0)
+            sec.elements.Position = dim2(0.5, 0, 0, 8)
+            sec.elements.Size = dim2(library.section_control_width, 0, 0, 0)
             sec.layout.Padding = dim(0, 9)
         end
     end

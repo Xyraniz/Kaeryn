@@ -738,8 +738,9 @@ function library:section(properties)
             Parent = items[ "scrolling" ];
             Name = "\0";
             BackgroundTransparency = 1;
-            Position = dim2(0, 10, 0, 10);
-            Size = dim2(1, -20, 0, 0);
+            AnchorPoint = vec2(0.5, 0);
+            Position = dim2(0.5, 0, 0, 10);
+            Size = dim2(library.section_control_width, 0, 0, 0);
             BorderSizePixel = 0;
             AutomaticSize = Enum.AutomaticSize.Y;
             BackgroundColor3 = rgb(255, 255, 255)

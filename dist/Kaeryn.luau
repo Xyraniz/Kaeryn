@@ -167,6 +167,7 @@ end
 
 library.is_mobile = uis.TouchEnabled and (not uis.MouseEnabled or not uis.KeyboardEnabled)
 library.section_content_width = library.is_mobile and 0.86 or 0.76
+library.section_control_width = library.is_mobile and 0.92 or 0.88
 library.mobile_tabs = {}
 library.mobile_columns = {}
 library.mobile_pages = {}
@@ -6836,8 +6837,9 @@ function library:refresh_mobile_layout()
             sec.scrolling.ScrollBarThickness = 0
             sec.scrolling.AutomaticCanvasSize = Enum.AutomaticSize.None
             sec.scrolling.CanvasSize = dim_offset(0, 0)
-            sec.elements.Position = dim_offset(8, 8)
-            sec.elements.Size = dim2(1, -16, 0, 0)
+            sec.elements.AnchorPoint = vec2(0.5, 0)
+            sec.elements.Position = dim2(0.5, 0, 0, 8)
+            sec.elements.Size = dim2(library.section_control_width, 0, 0, 0)
             sec.layout.Padding = dim(0, 9)
         end
     end
@@ -9612,8 +9614,9 @@ function library:section(properties)
             Parent = items[ "scrolling" ];
             Name = "\0";
             BackgroundTransparency = 1;
-            Position = dim2(0, 10, 0, 10);
-            Size = dim2(1, -20, 0, 0);
+            AnchorPoint = vec2(0.5, 0);
+            Position = dim2(0.5, 0, 0, 10);
+            Size = dim2(library.section_control_width, 0, 0, 0);
             BorderSizePixel = 0;
             AutomaticSize = Enum.AutomaticSize.Y;
             BackgroundColor3 = rgb(255, 255, 255)
