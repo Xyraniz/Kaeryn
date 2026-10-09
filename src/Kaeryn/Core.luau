@@ -76,6 +76,12 @@ library.option_schemas = {
             separator = descriptor("boolean", false)}, nil, false),
         aliases = common_aliases,
     },
+    code = {
+        fields = fields({name = descriptor("string", "Code"), code = descriptor("string", ""),
+            code_size = descriptor("number", 14, {min = 8, max = 32}), height = descriptor("number", nil, {min = 64, max = 900}),
+            code_theme = descriptor("table"), can_copy = descriptor("boolean", true), on_copy = descriptor("function")}, nil, false),
+        aliases = {},
+    },
     colorpicker = {
         fields = fields({name = descriptor("string", "Color"), info = descriptor("string"), color = descriptor("Color3"), alpha = descriptor("number", nil, {min = 0, max = 1}),
             callback = descriptor("function", function() end), on_commit = descriptor("function"), separator = descriptor("boolean", false)}),

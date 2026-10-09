@@ -301,6 +301,30 @@ print(region:Get()) -- "na"; the menu displays "North America"
 
 Dropdown configs save the stable `value`. During loading, old label-based values are still accepted and converted to their matching stable values.
 
+## Rich text and code blocks
+
+Kaeryn enables Roblox RichText on its text labels. Use Roblox markup such as `<b>bold</b>`, `<i>italic</i>`, or `<font color="#7aa2f7">colored text</font>` in labels and descriptions. This is Roblox's supported RichText markup, not a full HTML renderer.
+
+`code` adds a syntax-highlighted Luau block with optional scrolling and a copy button. `height` is an optional pixel height; without it, the block grows to fit the snippet. `code_theme` accepts Color3 values for `keyword`, `builtin`, `literal`, `number`, `string`, `comment`, `operator`, `call`, `property`, and `text`. The `on_copy` callback receives the source and whether Kaeryn copied it through an available clipboard function; return `true` if your callback handled copying itself.
+
+```lua
+section:label({name = "Status: <b><font color=\"#8bd5ca\">Ready</font></b>"})
+
+local snippet = section:code({
+    id = "guide.sample",
+    name = "Luau example",
+    code = [[local ready = true
+print(ready)]],
+    height = 120,
+    can_copy = true,
+    on_copy = function(source, copied)
+        if not copied then warn("Clipboard access is unavailable") end
+    end,
+})
+
+snippet:SetCode("print(\"Updated snippet\")")
+```
+
 ## Keybind contexts, segmented controls, and numeric steppers
 
 Keybinds are handled by one manager. Global bindings work in every context; scoped bindings run only while their exact context is active. Duplicate keys whose scopes overlap are reported by `GetConflicts()` and suppressed until resolved. `Rebind()` starts key capture on keyboard/mouse layouts, `Reset()` restores the configured key and mode, and `library:set_keybind_context()` switches the active scope.

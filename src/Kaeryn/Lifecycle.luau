@@ -28,6 +28,7 @@ end
 
 function library:create(instance, options)
     local ins = Instance.new(instance)
+    if instance == "TextLabel" then ins.RichText = true end
 
     for prop, value in options do
         if prop == "Image" and type(value) == "string" then

@@ -711,6 +711,184 @@ end
 end
 
     end,
+    ["src/Kaeryn/Controls/Code.luau"] = function(__kaeryn_require)
+return function(__kaeryn)
+    local vec2 = __kaeryn.vec2
+    local dim2 = __kaeryn.dim2
+    local dim = __kaeryn.dim
+    local library = __kaeryn.library
+    local themes = __kaeryn.themes
+    local highlighter = __kaeryn_require("src/Kaeryn/Controls/Highlighter.luau")
+
+local theme_tokens = {keyword = true, builtin = true, literal = true, number = true, string = true,
+    comment = true, operator = true, call = true, property = true, text = true}
+
+function library:code(options)
+    options = library:normalize_options("code", options)
+    local id = library:resolve_identity(options, "code", self.name, false)
+    local code_theme = table.clone(options.code_theme or {})
+    for token, color in pairs(code_theme) do
+        assert(theme_tokens[token], "Unknown code_theme token '" .. tostring(token) .. "'")
+        assert(typeof(color) == "Color3", "code_theme." .. token .. " must be a Color3")
+    end
+
+    local cfg = {
+        id = id,
+        control_type = "code",
+        name = options.name,
+        code = options.code,
+        value = options.code,
+        code_size = options.code_size,
+        height = options.height,
+        code_theme = code_theme,
+        can_copy = options.can_copy,
+        on_copy = options.on_copy,
+        items = {},
+    }
+    local items = cfg.items
+
+    items.root = library:create("Frame", {
+        Parent = self.items.elements,
+        BackgroundColor3 = themes.preset.surface_alt,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Size = dim2(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+    })
+    library:apply_theme(items.root, "surface_alt", "BackgroundColor3")
+    library:create("UICorner", {Parent = items.root, CornerRadius = dim(0, 6)})
+    local outline = library:create("UIStroke", {
+        Parent = items.root,
+        Color = themes.preset.border,
+        Thickness = 1,
+        Transparency = 0.2,
+    })
+    library:apply_theme(outline, "border", "Color")
+    library:create("UIListLayout", {Parent = items.root, Padding = dim(0, 0), SortOrder = Enum.SortOrder.LayoutOrder})
+
+    items.header = library:create("Frame", {
+        Parent = items.root,
+        BackgroundColor3 = themes.preset.surface,
+        BorderSizePixel = 0,
+        Size = dim2(1, 0, 0, 32),
+        LayoutOrder = 1,
+    })
+    library:apply_theme(items.header, "surface", "BackgroundColor3")
+
+    items.title = library:create("TextLabel", {
+        Parent = items.header,
+        BackgroundTransparency = 1,
+        FontFace = __kaeryn.fonts.small,
+        Text = cfg.name,
+        TextColor3 = themes.preset.text_soft,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        Size = dim2(1, cfg.can_copy and -48 or -16, 1, 0),
+        Position = dim2(0, 10, 0, 0),
+    })
+    library:apply_theme(items.title, "text_soft", "TextColor3")
+
+    if cfg.can_copy then
+        items.copy = library:create("ImageButton", {
+            Parent = items.header,
+            AnchorPoint = vec2(1, 0.5),
+            Position = dim2(1, -7, 0.5, 0),
+            Size = dim2(0, 24, 0, 24),
+            BackgroundTransparency = 1,
+            AutoButtonColor = false,
+            Image = "lucide:copy",
+            ImageColor3 = themes.preset.muted,
+            ImageTransparency = 0.1,
+        })
+        library:apply_theme(items.copy, "muted", "ImageColor3")
+    end
+
+    items.body = library:create("ScrollingFrame", {
+        Parent = items.root,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Size = dim2(1, 0, 0, cfg.height or 0),
+        AutomaticSize = cfg.height == nil and Enum.AutomaticSize.Y or Enum.AutomaticSize.None,
+        AutomaticCanvasSize = Enum.AutomaticSize.XY,
+        CanvasSize = dim2(0, 0, 0, 0),
+        ScrollingDirection = Enum.ScrollingDirection.XY,
+        ScrollBarThickness = 2,
+        ScrollBarImageColor3 = themes.preset.muted,
+        LayoutOrder = 2,
+    })
+
+    library:create("UIPadding", {
+        Parent = items.body,
+        PaddingTop = dim(0, 9),
+        PaddingBottom = dim(0, 9),
+        PaddingLeft = dim(0, 10),
+        PaddingRight = dim(0, 10),
+    })
+
+    items.text = library:create("TextLabel", {
+        Parent = items.body,
+        BackgroundTransparency = 1,
+        FontFace = Font.fromEnum(Enum.Font.Code),
+        RichText = true,
+        Text = "",
+        TextColor3 = themes.preset.text_soft,
+        TextSize = cfg.code_size,
+        TextWrapped = false,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        AutomaticSize = Enum.AutomaticSize.XY,
+        Size = dim2(0, 0, 0, 0),
+    })
+    library:apply_theme(items.text, "text_soft", "TextColor3")
+
+    local function render_code()
+        items.text.Text = highlighter(cfg.code, cfg.code_theme)
+    end
+
+    function cfg.set(source)
+        if type(source) ~= "string" then return false, "code must be a string" end
+        cfg.code = source
+        cfg.value = source
+        render_code()
+        return true
+    end
+
+    if items.copy then
+        items.copy.Activated:Connect(function()
+            local copied = false
+            if type(setclipboard) == "function" then copied = pcall(setclipboard, cfg.code) end
+            if not copied and type(toclipboard) == "function" then copied = pcall(toclipboard, cfg.code) end
+            if type(cfg.on_copy) == "function" then
+                local metadata = {source = "user", phase = "commit", id = cfg.id, name = cfg.name, type = cfg.control_type}
+                local callback_ok, callback_result = pcall(cfg.on_copy, cfg.code, copied, metadata)
+                if not callback_ok then
+                    warn("[Kaeryn] callback failed during user/commit for '" .. tostring(cfg.name)
+                        .. "' (id " .. cfg.id .. "): " .. tostring(callback_result))
+                else
+                    copied = copied or callback_result == true
+                end
+            end
+            items.copy.Image = library:resolve_icon(copied and "lucide:check" or "lucide:clipboard-x")
+            items.copy.ImageColor3 = copied and themes.preset.success or themes.preset.warning
+            task.delay(1, function()
+                if cfg._destroyed or not items.copy.Parent then return end
+                items.copy.Image = library:resolve_icon("lucide:copy")
+                items.copy.ImageColor3 = themes.preset.muted
+            end)
+        end)
+    end
+
+    render_code()
+    library:attach_control(cfg, items.root, self)
+    function cfg:SetCode(source)
+        return self:Set(source)
+    end
+    return setmetatable(cfg, library)
+end
+end
+
+    end,
     ["src/Kaeryn/Controls/Colorpicker.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
     local uis = __kaeryn.uis
@@ -2255,6 +2433,168 @@ function library:dropdown(options)
     cfg:AddCleanup(function() cfg._locale_connection:Disconnect() end)
     return setmetatable(cfg, library)
 end
+end
+
+    end,
+    ["src/Kaeryn/Controls/Highlighter.luau"] = function(__kaeryn_require)
+local keywords = {}
+for _, keyword in ipairs({
+    "and", "break", "continue", "do", "else", "elseif", "end", "export", "for", "function", "if", "in",
+    "local", "not", "or", "repeat", "return", "then", "type", "until", "while",
+}) do
+    keywords[keyword] = true
+end
+
+local builtins = {}
+for _, name in ipairs({
+    "assert", "Axes", "BrickColor", "CFrame", "Color3", "Enum", "Instance", "ipairs", "math", "next", "pairs",
+    "pcall", "print", "Random", "Ray", "RaycastParams", "Region3", "require", "select", "setmetatable", "shared",
+    "string", "table", "task", "tonumber", "tostring", "type", "typeof", "UDim", "UDim2", "unpack", "utf8",
+    "Vector2", "Vector3", "wait", "workspace", "xpcall",
+}) do
+    builtins[name] = true
+end
+
+local default_colors = {
+    keyword = Color3.fromHex("#CBA6F7"),
+    builtin = Color3.fromHex("#F38BA8"),
+    literal = Color3.fromHex("#FAB387"),
+    number = Color3.fromHex("#FAB387"),
+    string = Color3.fromHex("#A6E3A1"),
+    comment = Color3.fromHex("#9399B2"),
+    operator = Color3.fromHex("#94E2D5"),
+    call = Color3.fromHex("#89B4FA"),
+    property = Color3.fromHex("#F9E2AF"),
+    text = Color3.fromHex("#CDD6F4"),
+}
+
+local operators = {
+    ["#"] = true, ["%"] = true, ["*"] = true, ["+"] = true, ["-"] = true, ["."] = true, ["/"] = true,
+    ["<"] = true, ["="] = true, [">"] = true, ["^"] = true, ["~"] = true, [":"] = true,
+}
+
+local function long_bracket_end(source, start)
+    local equals = source:sub(start):match("^%[(=*)%[")
+    if equals == nil then return nil end
+    local closing = "]" .. equals .. "]"
+    local closing_start = source:find(closing, start + #equals + 2, true)
+    return closing_start and closing_start + #closing or #source + 1
+end
+
+local function escape_markup(text)
+    return text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"):gsub("'", "&apos;")
+end
+
+return function(source, custom_colors)
+    local colors = table.clone(default_colors)
+    for token, color in pairs(custom_colors or {}) do colors[token] = color end
+
+    local output = {}
+    local previous_significant
+    local index = 1
+    local length = #source
+
+    local function emit(token, category)
+        local color = colors[category or "text"]
+        local value = escape_markup(token)
+        if color then
+            table.insert(output, '<font color="#' .. color:ToHex() .. '">' .. value .. "</font>")
+        else
+            table.insert(output, value)
+        end
+    end
+
+    while index <= length do
+        local first = source:sub(index, index)
+        local token, category
+
+        if source:sub(index, index + 1) == "--" then
+            local long_end = long_bracket_end(source, index + 2)
+            if long_end then
+                token = source:sub(index, long_end - 1)
+                index = long_end
+            else
+                local newline = source:find("\n", index, true)
+                local last = newline and newline - 1 or length
+                token = source:sub(index, last)
+                index = last + 1
+            end
+            category = "comment"
+        elseif first == "'" or first == '"' or first == "`" then
+            local start = index
+            local quote = first
+            index += 1
+            while index <= length do
+                local char = source:sub(index, index)
+                if char == "\\" then
+                    index += 2
+                elseif char == quote then
+                    index += 1
+                    break
+                else
+                    index += 1
+                end
+            end
+            token = source:sub(start, index - 1)
+            category = "string"
+        elseif first == "[" and long_bracket_end(source, index) then
+            local long_end = long_bracket_end(source, index)
+            token = source:sub(index, long_end - 1)
+            index = long_end
+            category = "string"
+        elseif first:match("%d") then
+            local rest = source:sub(index)
+            token = rest:match("^0[xX][%da-fA-F_]+")
+                or rest:match("^%d[%d_]*%.%d[%d_]*[eE][%+%-]?[%d_]+")
+                or rest:match("^%d[%d_]*[eE][%+%-]?[%d_]+")
+                or rest:match("^%d[%d_]*%.%d[%d_]*")
+                or rest:match("^%d[%d_]*")
+            index += #token
+            category = "number"
+        elseif first:match("[_%a]") then
+            token = source:sub(index):match("^[_%a][_%w]*")
+            local after = source:sub(index + #token):match("^%s*%(") ~= nil
+            if token == "true" or token == "false" or token == "nil" then
+                category = "literal"
+            elseif keywords[token] then
+                category = "keyword"
+            elseif builtins[token] then
+                category = "builtin"
+            elseif previous_significant == "." then
+                category = "property"
+            elseif after then
+                category = "call"
+            end
+            index += #token
+        elseif first:match("%s") then
+            local start = index
+            repeat index += 1 until index > length or not source:sub(index, index):match("%s")
+            token = source:sub(start, index - 1)
+        else
+            local three = source:sub(index, index + 2)
+            local two = source:sub(index, index + 1)
+            if three == "..." then
+                token = three
+            elseif two == "==" or two == "~=" or two == "<=" or two == ">=" or two == ".." or two == "//" or two == "::" then
+                token = two
+            else
+                token = first
+            end
+            index += #token
+            if operators[first] or token == "..." or token == "==" or token == "~=" or token == "<=" or token == ">=" or token == ".." or token == "//" or token == "::" then
+                category = "operator"
+            end
+        end
+
+        emit(token, category)
+        if token:find("\n", 1, true) then
+            previous_significant = nil
+        elseif not token:match("^%s+$") then
+            previous_significant = token:sub(-1)
+        end
+    end
+
+    return table.concat(output)
 end
 
     end,
@@ -4339,6 +4679,12 @@ library.option_schemas = {
             separator = descriptor("boolean", false)}, nil, false),
         aliases = common_aliases,
     },
+    code = {
+        fields = fields({name = descriptor("string", "Code"), code = descriptor("string", ""),
+            code_size = descriptor("number", 14, {min = 8, max = 32}), height = descriptor("number", nil, {min = 64, max = 900}),
+            code_theme = descriptor("table"), can_copy = descriptor("boolean", true), on_copy = descriptor("function")}, nil, false),
+        aliases = {},
+    },
     colorpicker = {
         fields = fields({name = descriptor("string", "Color"), info = descriptor("string"), color = descriptor("Color3"), alpha = descriptor("number", nil, {min = 0, max = 1}),
             callback = descriptor("function", function() end), on_commit = descriptor("function"), separator = descriptor("boolean", false)}),
@@ -5847,6 +6193,7 @@ __kaeryn_require("src/Kaeryn/Controls/Toggle.luau")(context)
 __kaeryn_require("src/Kaeryn/Controls/Slider.luau")(context)
 __kaeryn_require("src/Kaeryn/Controls/Dropdown.luau")(context)
 __kaeryn_require("src/Kaeryn/Controls/Label.luau")(context)
+__kaeryn_require("src/Kaeryn/Controls/Code.luau")(context)
 __kaeryn_require("src/Kaeryn/Controls/Colorpicker.luau")(context)
 __kaeryn_require("src/Kaeryn/Controls/Segmented.luau")(context)
 __kaeryn_require("src/Kaeryn/Controls/Stepper.luau")(context)
@@ -6604,6 +6951,7 @@ end
 
 function library:create(instance, options)
     local ins = Instance.new(instance)
+    if instance == "TextLabel" then ins.RichText = true end
 
     for prop, value in options do
         if prop == "Image" and type(value) == "string" then
