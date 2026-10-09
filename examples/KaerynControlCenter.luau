@@ -111,8 +111,8 @@ local window = library:window({
 	background = "rbxassetid://85347758476506",
 	background_transparency = 0.48,
 	toggle_button = {
-		size = UDim2.fromOffset(46, 46),
-		icon = "rbxassetid://77021539815611",
+		size = UDim2.fromOffset(54, 54),
+		icon = "rbxassetid://116078774441563",
 		draggable = true,
 	},
 })
