@@ -324,7 +324,7 @@ function library:dropdown(options)
             end
             insert(cfg.option_instances, button)
 
-            button.MouseButton1Down:Connect(function()
+            button.Activated:Connect(function()
                 if cfg.multi then
                     local selected_index = find(cfg.multi_items, button.Text)
 
@@ -346,7 +346,7 @@ function library:dropdown(options)
         if previous ~= nil then cfg.set(previous) end
     end
 
-    items[ "dropdown" ].MouseButton1Click:Connect(function()
+    items[ "dropdown" ].Activated:Connect(function()
         cfg.open = not cfg.open
 
         cfg.set_visible(cfg.open)

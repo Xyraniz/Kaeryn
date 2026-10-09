@@ -675,11 +675,17 @@ function library:colorpicker(options)
             Parent = label and label.items.right_components or self.items[ "right_components" ];
             Name = "\0";
             Position = dim2(1, 0, 0, 0);
-            Size = dim2(0, 16, 0, 16);
+            Size = dim_offset(library.is_mobile and 36 or 16, library.is_mobile and 36 or 16);
             BorderSizePixel = 0;
             TextSize = 14;
+            BackgroundTransparency = 1;
             BackgroundColor3 = rgb(54, 31, 184)
         });
+
+        if library.is_mobile and label then
+            label.items.right_components.Size = dim_offset(40, 40)
+            label.items.name.Size = dim2(1, -52, 0, 0)
+        end
 
         library:create( "UICorner" , {
             Parent = items[ "colorpicker" ];
@@ -688,11 +694,12 @@ function library:colorpicker(options)
 
         items[ "colorpicker_inline" ] = library:create( "Frame" , {
             Parent = items[ "colorpicker" ];
-            Size = dim2(1, -2, 1, -2);
+            AnchorPoint = vec2(0.5, 0.5);
+            Position = dim2(0.5, 0, 0.5, 0);
+            Size = dim_offset(library.is_mobile and 26 or 14, library.is_mobile and 26 or 14);
             Name = "\0";
             BorderMode = Enum.BorderMode.Inset;
             BorderColor3 = rgb(0, 0, 0);
-            Position = dim2(0, 1, 0, 1);
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(54, 31, 184)
         });
@@ -811,7 +818,7 @@ function library:colorpicker(options)
             Parent = items[ "saturation_holder" ];
             Name = "\0";
             Position = dim2(0, 0, 4, 0);
-            Size = dim2(0, 8, 0, 8);
+            Size = dim2(0, 16, 0, 16);
             ZIndex = 5;
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 0, 0)
@@ -831,22 +838,32 @@ function library:colorpicker(options)
         items[ "hue_gradient" ] = library:create( "TextButton" , {
             Parent = items[ "colorpicker_components" ];
             Name = "\0";
-            Position = dim2(0, 10, 1, -64);
+            Position = dim2(0, 10, 1, -71);
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(1, -20, 0, 8);
+            Size = dim2(1, -20, 0, 20);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(255, 255, 255);
+            BackgroundTransparency = 1;
             AutoButtonColor = false;
             Text = "";
         });
 
+        items[ "hue_bar" ] = library:create( "Frame" , {
+            Parent = items[ "hue_gradient" ];
+            Name = "\0";
+            AnchorPoint = vec2(0, 0.5);
+            Position = dim2(0, 0, 0.5, 0);
+            Size = dim2(1, 0, 0, 8);
+            BorderSizePixel = 0;
+            BackgroundColor3 = rgb(255, 255, 255)
+        });
+
         library:create( "UIGradient" , {
             Color = rgbseq{rgbkey(0, rgb(255, 0, 0)), rgbkey(0.17, rgb(255, 255, 0)), rgbkey(0.33, rgb(0, 255, 0)), rgbkey(0.5, rgb(0, 255, 255)), rgbkey(0.67, rgb(0, 0, 255)), rgbkey(0.83, rgb(255, 0, 255)), rgbkey(1, rgb(255, 0, 0))};
-            Parent = items[ "hue_gradient" ]
+            Parent = items[ "hue_bar" ]
         });
 
         library:create( "UICorner" , {
-            Parent = items[ "hue_gradient" ];
+            Parent = items[ "hue_bar" ];
             CornerRadius = dim(0, 6)
         });
 
@@ -855,10 +872,10 @@ function library:colorpicker(options)
             AutoButtonColor = false;
             Text = "";
             AnchorPoint = vec2(0, 0.5);
-            Parent = items[ "hue_gradient" ];
+            Parent = items[ "hue_bar" ];
             Name = "\0";
             Position = dim2(0, 0, 0.5, 0);
-            Size = dim2(0, 8, 0, 8);
+            Size = dim2(0, 14, 0, 14);
             ZIndex = 5;
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 0, 0)
@@ -878,17 +895,27 @@ function library:colorpicker(options)
         items[ "alpha_gradient" ] = library:create( "TextButton" , {
             Parent = items[ "colorpicker_components" ];
             Name = "\0";
-            Position = dim2(0, 10, 1, -46);
+            Position = dim2(0, 10, 1, -49);
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(1, -20, 0, 8);
+            Size = dim2(1, -20, 0, 18);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(25, 25, 29);
+            BackgroundTransparency = 1;
             AutoButtonColor = false;
             Text = "";
         });
 
-        library:create( "UICorner" , {
+        items[ "alpha_bar" ] = library:create( "Frame" , {
             Parent = items[ "alpha_gradient" ];
+            Name = "\0";
+            AnchorPoint = vec2(0, 0.5);
+            Position = dim2(0, 0, 0.5, 0);
+            Size = dim2(1, 0, 0, 8);
+            BorderSizePixel = 0;
+            BackgroundColor3 = rgb(25, 25, 29)
+        });
+
+        library:create( "UICorner" , {
+            Parent = items[ "alpha_bar" ];
             CornerRadius = dim(0, 6)
         });
 
@@ -897,10 +924,10 @@ function library:colorpicker(options)
             AutoButtonColor = false;
             Text = "";
             AnchorPoint = vec2(0, 0.5);
-            Parent = items[ "alpha_gradient" ];
+            Parent = items[ "alpha_bar" ];
             Name = "\0";
             Position = dim2(1, 0, 0.5, 0);
-            Size = dim2(0, 8, 0, 8);
+            Size = dim2(0, 14, 0, 14);
             ZIndex = 5;
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 0, 0)
@@ -919,13 +946,13 @@ function library:colorpicker(options)
 
         library:create( "UIGradient" , {
             Color = rgbseq{rgbkey(0, rgb(0, 0, 0)), rgbkey(1, rgb(255, 255, 255))};
-            Parent = items[ "alpha_gradient" ]
+            Parent = items[ "alpha_bar" ]
         });
 
         items[ "alpha_indicator" ] = library:create( "ImageLabel" , {
             ScaleType = Enum.ScaleType.Tile;
             BorderColor3 = rgb(0, 0, 0);
-            Parent = items[ "alpha_gradient" ];
+            Parent = items[ "alpha_bar" ];
             Image = "rbxassetid://18274452449";
             BackgroundTransparency = 1;
             Name = "\0";
@@ -984,6 +1011,18 @@ function library:colorpicker(options)
         });
     end;
 
+    local function update_indicators()
+        local hue_width = items[ "hue_bar" ].AbsoluteSize.X - items[ "hue_picker" ].AbsoluteSize.X
+        local alpha_width = items[ "alpha_bar" ].AbsoluteSize.X - items[ "alpha_picker" ].AbsoluteSize.X
+        local saturation_width = items[ "saturation_holder" ].AbsoluteSize.X - items[ "satvalpicker" ].AbsoluteSize.X
+        local saturation_height = items[ "saturation_holder" ].AbsoluteSize.Y - items[ "satvalpicker" ].AbsoluteSize.Y
+        if hue_width <= 0 or alpha_width <= 0 or saturation_width <= 0 or saturation_height <= 0 then return end
+
+        items[ "hue_picker" ].Position = dim2(0, hue_width * h, 0.5, 0)
+        items[ "alpha_picker" ].Position = dim2(0, alpha_width * (1 - a), 0.5, 0)
+        items[ "satvalpicker" ].Position = dim2(0, s * saturation_width, 1, 1 - v * saturation_height)
+    end
+
     function cfg.set_visible(bool)
         items[ "colorpicker_fade" ].BackgroundTransparency = 0
         items[ "colorpicker_holder" ].Parent = bool and library[ "items" ] or library[ "other" ]
@@ -999,6 +1038,9 @@ function library:colorpicker(options)
 
         if bool then
             library:close_element(cfg)
+            task.defer(function()
+                if not library.unloaded and cfg.open then update_indicators() end
+            end)
         elseif library.current_open == cfg then
             library.current_open = nil
         end
@@ -1020,9 +1062,7 @@ function library:colorpicker(options)
 
         local Color = hsv(h, s, v)
 
-        library:tween(items[ "hue_picker" ], {Position = dim2(0, (items[ "hue_gradient" ].AbsoluteSize.X - items[ "hue_picker" ].AbsoluteSize.X) * h, 0.5, 0)}, Enum.EasingStyle.Linear, 0.05)
-        library:tween(items[ "alpha_picker" ], {Position = dim2(0, (items[ "alpha_gradient" ].AbsoluteSize.X - items[ "alpha_picker" ].AbsoluteSize.X) * (1 - a), 0.5, 0)}, Enum.EasingStyle.Linear, 0.05)
-        library:tween(items[ "satvalpicker" ], {Position = dim2(0, s * (items[ "saturation_holder" ].AbsoluteSize.X - items[ "satvalpicker" ].AbsoluteSize.X), 1, 1 - v * (items[ "saturation_holder" ].AbsoluteSize.Y - items[ "satvalpicker" ].AbsoluteSize.Y))}, Enum.EasingStyle.Linear, 0.05)
+        update_indicators()
 
         items[ "alpha_indicator" ]:FindFirstChildOfClass("UIGradient").Color = rgbseq{rgbkey(0, rgb(112, 112, 112)), rgbkey(1, hsv(h, 1, 1))};
 
@@ -1048,21 +1088,29 @@ function library:colorpicker(options)
 
     function cfg.update_color(input_position)
         local cursor = input_position or uis:GetMouseLocation()
-        local offset = cursor
 
         if dragging_sat then
-            s = math.clamp((offset - items["sat"].AbsolutePosition).X / items["sat"].AbsoluteSize.X, 0, 1)
-            v = 1 - math.clamp((offset - items["sat"].AbsolutePosition).Y / items["sat"].AbsoluteSize.Y, 0, 1)
+            local area = items["sat"]
+            local size = area.AbsoluteSize
+            if size.X <= 0 or size.Y <= 0 then return end
+            s = clamp((cursor.X - area.AbsolutePosition.X) / size.X, 0, 1)
+            v = 1 - clamp((cursor.Y - area.AbsolutePosition.Y) / size.Y, 0, 1)
         elseif dragging_hue then
-            h = math.clamp((offset - items[ "hue_gradient" ].AbsolutePosition).X / items[ "hue_gradient" ].AbsoluteSize.X, 0, 1)
+            local area = items["hue_gradient"]
+            local width = area.AbsoluteSize.X
+            if width <= 0 then return end
+            h = clamp((cursor.X - area.AbsolutePosition.X) / width, 0, 1)
         elseif dragging_alpha then
-            a = 1 - math.clamp((offset - items[ "alpha_gradient" ].AbsolutePosition).X / items[ "alpha_gradient" ].AbsoluteSize.X, 0, 1)
+            local area = items["alpha_gradient"]
+            local width = area.AbsoluteSize.X
+            if width <= 0 then return end
+            a = 1 - clamp((cursor.X - area.AbsolutePosition.X) / width, 0, 1)
         end
 
         cfg.set()
     end
 
-    items[ "colorpicker" ].MouseButton1Click:Connect(function()
+    items[ "colorpicker" ].Activated:Connect(function()
         cfg.open = not cfg.open
 
         cfg.set_visible(cfg.open)
@@ -1092,12 +1140,18 @@ function library:colorpicker(options)
             end)
         end
         attach_drag(items.alpha_gradient, "alpha")
+        attach_drag(items.alpha_picker, "alpha")
         attach_drag(items.hue_gradient, "hue")
+        attach_drag(items.hue_picker, "hue")
         attach_drag(items.sat, "sat")
+        attach_drag(items.satvalpicker, "sat")
     else
         items["alpha_gradient"].MouseButton1Down:Connect(function() start_drag(nil, "alpha") end)
+        items["alpha_picker"].MouseButton1Down:Connect(function() start_drag(nil, "alpha") end)
         items["hue_gradient"].MouseButton1Down:Connect(function() start_drag(nil, "hue") end)
+        items["hue_picker"].MouseButton1Down:Connect(function() start_drag(nil, "hue") end)
         items["sat"].MouseButton1Down:Connect(function() start_drag(nil, "sat") end)
+        items["satvalpicker"].MouseButton1Down:Connect(function() start_drag(nil, "sat") end)
     end
 
     items[ "input" ].FocusLost:Connect(function()
@@ -1467,7 +1521,7 @@ function library:dropdown(options)
             end
             insert(cfg.option_instances, button)
 
-            button.MouseButton1Down:Connect(function()
+            button.Activated:Connect(function()
                 if cfg.multi then
                     local selected_index = find(cfg.multi_items, button.Text)
 
@@ -1489,7 +1543,7 @@ function library:dropdown(options)
         if previous ~= nil then cfg.set(previous) end
     end
 
-    items[ "dropdown" ].MouseButton1Click:Connect(function()
+    items[ "dropdown" ].Activated:Connect(function()
         cfg.open = not cfg.open
 
         cfg.set_visible(cfg.open)
@@ -2302,21 +2356,59 @@ function library:slider(options)
             BackgroundColor3 = rgb(255, 255, 255)
         });
 
+        library:create("UIListLayout", {
+            Parent = items["slider_object"],
+            FillDirection = Enum.FillDirection.Vertical,
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = dim(0, 3),
+        })
+
+        items["header"] = library:create("Frame", {
+            Parent = items["slider_object"],
+            Name = "\0",
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Size = dim2(1, 0, 0, 22),
+            LayoutOrder = 1,
+        })
+
         items[ "name" ] = library:create( "TextLabel" , {
             FontFace = fonts.small;
             TextColor3 = rgb(245, 245, 245);
             BorderColor3 = rgb(0, 0, 0);
             Text = cfg.name;
-            Parent = items[ "slider_object" ];
+            Parent = items[ "header" ];
             Name = "\0";
-            Size = dim2(1, 0, 0, 0);
+            Position = dim2(0, 4, 0, 0);
+            Size = dim2(1, -88, 1, 0);
             BackgroundTransparency = 1;
             TextXAlignment = Enum.TextXAlignment.Left;
+            TextYAlignment = Enum.TextYAlignment.Center;
+            TextTruncate = Enum.TextTruncate.AtEnd;
             BorderSizePixel = 0;
-            AutomaticSize = Enum.AutomaticSize.XY;
-            TextSize = 16;
+            TextSize = 15;
             BackgroundColor3 = rgb(255, 255, 255)
         });
+
+        items["value"] = library:create("TextLabel", {
+            FontFace = fonts.small,
+            TextColor3 = themes.preset.accent,
+            BorderColor3 = rgb(0, 0, 0),
+            Text = "",
+            Parent = items["header"],
+            Name = "\0",
+            AnchorPoint = vec2(1, 0),
+            Position = dim2(1, -4, 0, 0),
+            Size = dim2(0, 78, 1, 0),
+            BackgroundTransparency = 1,
+            TextXAlignment = Enum.TextXAlignment.Right,
+            TextYAlignment = Enum.TextYAlignment.Center,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            BorderSizePixel = 0,
+            TextSize = 14,
+            BackgroundColor3 = rgb(255, 255, 255),
+        })
+        library:apply_theme(items["value"], "accent", "TextColor3")
 
         if cfg.info then
             items[ "info" ] = library:create( "TextLabel" , {
@@ -2327,39 +2419,27 @@ function library:slider(options)
                 Text = cfg.info;
                 Parent = items[ "slider_object" ];
                 Name = "\0";
-                Position = dim2(0, 5, 0, 37);
-                Size = dim2(1, -10, 0, 0);
+                Size = dim2(1, 0, 0, 0);
                 BackgroundTransparency = 1;
                 TextXAlignment = Enum.TextXAlignment.Left;
+                TextYAlignment = Enum.TextYAlignment.Top;
                 BorderSizePixel = 0;
-                AutomaticSize = Enum.AutomaticSize.XY;
-                TextSize = 16;
+                AutomaticSize = Enum.AutomaticSize.Y;
+                TextSize = 13;
+                LayoutOrder = 2;
                 BackgroundColor3 = rgb(255, 255, 255)
             });
         end
-
-        library:create( "UIPadding" , {
-            Parent = items[ "name" ];
-            PaddingRight = dim(0, 5);
-            PaddingLeft = dim(0, 5)
-        });
 
         items[ "right_components" ] = library:create( "Frame" , {
             Parent = items[ "slider_object" ];
             Name = "\0";
             BackgroundTransparency = 1;
-            Position = dim2(0, 4, 0, 23);
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(1, 0, 0, 12);
+            Size = dim2(1, 0, 0, 38);
             BorderSizePixel = 0;
+            LayoutOrder = cfg.info and 3 or 2;
             BackgroundColor3 = rgb(255, 255, 255)
-        });
-
-        library:create( "UIListLayout" , {
-            Parent = items[ "right_components" ];
-            Padding = dim(0, 7);
-            SortOrder = Enum.SortOrder.LayoutOrder;
-            FillDirection = Enum.FillDirection.Horizontal
         });
 
         items[ "slider" ] = library:create( "TextButton" , {
@@ -2368,78 +2448,58 @@ function library:slider(options)
             BorderColor3 = rgb(0, 0, 0);
             Text = "";
             AutoButtonColor = false;
-            AnchorPoint = vec2(1, 0);
             Parent = items[ "right_components" ];
             Name = "\0";
-            Position = dim2(1, 0, 0, 0);
-            Size = dim2(1, -4, 0, 4);
+            Position = dim2(0, 6, 0, 0);
+            Size = dim2(1, -12, 1, 0);
             BorderSizePixel = 0;
             TextSize = 14;
-            BackgroundColor3 = rgb(33, 33, 35)
+            BackgroundTransparency = 1;
+            BackgroundColor3 = rgb(255, 255, 255)
         });
 
-        library:create( "UICorner" , {
+        items["track"] = library:create("Frame", {
             Parent = items[ "slider" ];
-            CornerRadius = dim(0, 999)
+            Name = "\0";
+            AnchorPoint = vec2(0, 0.5);
+            Position = dim2(0, 0, 0.5, 0);
+            Size = dim2(1, 0, 0, 6);
+            BorderSizePixel = 0;
+            BackgroundColor3 = themes.preset.surface_hover,
         });
+        library:apply_theme(items["track"], "surface_hover", "BackgroundColor3")
+
+        library:create("UICorner", {Parent = items["track"], CornerRadius = dim(0, 999)})
 
         items[ "fill" ] = library:create( "Frame" , {
             Name = "\0";
-            Parent = items[ "slider" ];
+            Parent = items["track"];
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(0.5, 0, 0, 4);
+            Size = dim2(0.5, 0, 1, 0);
             BorderSizePixel = 0;
             BackgroundColor3 = themes.preset.accent
         });  library:apply_theme(items[ "fill" ], "accent", "BackgroundColor3");
 
-        library:create( "UICorner" , {
-            Parent = items[ "fill" ];
-            CornerRadius = dim(0, 999)
-        });
+        library:create("UICorner", {Parent = items["fill"], CornerRadius = dim(0, 999)})
 
         items[ "circle" ] = library:create( "Frame" , {
             AnchorPoint = vec2(0.5, 0.5);
-            Parent = items[ "fill" ];
+            Parent = items["track"];
             Name = "\0";
-            Position = dim2(1, 0, 0.5, 0);
+            Position = dim2(0.5, 0, 0.5, 0);
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(0, 12, 0, 12);
+            Size = dim2(0, 16, 0, 16);
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(244, 244, 244)
         });
 
-        library:create( "UICorner" , {
-            Parent = items[ "circle" ];
-            CornerRadius = dim(0, 999)
-        });
-
-        library:create( "UIPadding" , {
-            Parent = items[ "right_components" ];
-            PaddingTop = dim(0, 4)
-        });
-
-        items[ "value" ] = library:create( "TextLabel" , {
-            FontFace = fonts.small;
-            TextColor3 = rgb(72, 72, 73);
-            BorderColor3 = rgb(0, 0, 0);
-            Text = "50%";
-            Parent = items[ "slider_object" ];
-            Name = "\0";
-            Size = dim2(1, 0, 0, 0);
-            Position = dim2(0, 6, 0, 0);
-            BackgroundTransparency = 1;
-            TextXAlignment = Enum.TextXAlignment.Right;
-            BorderSizePixel = 0;
-            AutomaticSize = Enum.AutomaticSize.XY;
-            TextSize = 16;
-            BackgroundColor3 = rgb(255, 255, 255)
-        });
-
-        library:create( "UIPadding" , {
-            Parent = items[ "value" ];
-            PaddingRight = dim(0, 5);
-            PaddingLeft = dim(0, 5)
-        });
+        library:create("UICorner", {Parent = items["circle"], CornerRadius = dim(0, 999)})
+        library:create("UIStroke", {
+            Parent = items["circle"],
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            Color = themes.preset.surface,
+            Thickness = 2,
+        })
     end
 
     function cfg.set(value)
@@ -2448,7 +2508,8 @@ function library:slider(options)
         local range = cfg.max - cfg.min
         cfg.value = clamp(cfg.min + library:round(numeric - cfg.min, cfg.intervals), cfg.min, cfg.max)
         local fraction = range > 0 and (cfg.value - cfg.min) / range or 0
-        items["fill"].Size = dim2(fraction, cfg.value == cfg.min and 0 or -4, 0, 2)
+        items["fill"].Size = dim2(fraction, 0, 1, 0)
+        items["circle"].Position = dim2(fraction, 0, 0.5, 0)
         items[ "value" ].Text = tostring(cfg.value) .. cfg.suffix
 
         flags[cfg.flag] = cfg.value
@@ -2456,10 +2517,9 @@ function library:slider(options)
     end
 
     if library.is_mobile then
-        items.slider.Size = dim2(1, -4, 0, 20)
         local function update(position)
-            local width = max(1, items.slider.AbsoluteSize.X)
-            local fraction = clamp((position.X - items.slider.AbsolutePosition.X) / width, 0, 1)
+            local width = max(1, items.track.AbsoluteSize.X)
+            local fraction = clamp((position.X - items.track.AbsolutePosition.X) / width, 0, 1)
             cfg.set(cfg.min + (cfg.max - cfg.min) * fraction)
         end
         items.slider.InputBegan:Connect(function(input)
@@ -2474,13 +2534,16 @@ function library:slider(options)
     else
         items[ "slider" ].MouseButton1Down:Connect(function()
             if library:begin_pointer_drag(nil, function(position)
-                local size_x = clamp((position.X - items[ "slider" ].AbsolutePosition.X) / max(1, items[ "slider" ].AbsoluteSize.X), 0, 1)
+                local size_x = clamp((position.X - items[ "track" ].AbsolutePosition.X) / max(1, items[ "track" ].AbsoluteSize.X), 0, 1)
                 cfg.set(((cfg.max - cfg.min) * size_x) + cfg.min)
             end, function()
                 cfg.dragging = false
                 library:tween(items[ "value" ], {TextColor3 = rgb(72, 72, 73)}, Enum.EasingStyle.Quad, 0.2)
             end) then
                 cfg.dragging = true
+                local position = uis:GetMouseLocation()
+                local size_x = clamp((position.X - items[ "track" ].AbsolutePosition.X) / max(1, items[ "track" ].AbsoluteSize.X), 0, 1)
+                cfg.set(((cfg.max - cfg.min) * size_x) + cfg.min)
                 library:tween(items[ "value" ], {TextColor3 = rgb(255, 255, 255)}, Enum.EasingStyle.Quad, 0.2)
             end
         end)
@@ -3199,9 +3262,25 @@ return context.library
     end,
     ["src/Kaeryn/InputManager.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
-    local uis = __kaeryn.uis
-    local library = __kaeryn.library
-    local active_drag
+local uis = __kaeryn.uis
+local library = __kaeryn.library
+local active_drag
+
+local function same_touch(first, second)
+    return first == second or (first and second
+        and first.UserInputType == Enum.UserInputType.Touch
+        and second.UserInputType == Enum.UserInputType.Touch
+        and first.TouchId == second.TouchId)
+end
+
+local function contains(gui_object, position)
+    if not gui_object or not gui_object.Parent or not gui_object.Visible then return false end
+    local origin = gui_object.AbsolutePosition
+    local size = gui_object.AbsoluteSize
+    return size.X > 0 and size.Y > 0
+        and position.X >= origin.X and position.X <= origin.X + size.X
+        and position.Y >= origin.Y and position.Y <= origin.Y + size.Y
+end
 
 function library:begin_pointer_drag(input, on_changed, on_ended)
     if active_drag then return false end
@@ -3226,7 +3305,7 @@ end
 library:connection(uis.InputChanged, function(input)
     local drag = active_drag
     if not drag then return end
-    local matches = drag.touch and input == drag.input
+    local matches = drag.touch and same_touch(input, drag.input)
         or (not drag.touch and input.UserInputType == Enum.UserInputType.MouseMovement)
     if matches and type(drag.on_changed) == "function" then
         pcall(drag.on_changed, input.Position)
@@ -3236,9 +3315,29 @@ end)
 library:connection(uis.InputEnded, function(input)
     local drag = active_drag
     if not drag then return end
-    local ended = drag.touch and input == drag.input
+    local ended = drag.touch and same_touch(input, drag.input)
         or (not drag.touch and input.UserInputType == Enum.UserInputType.MouseButton1)
     if ended then library:cancel_pointer_drag() end
+end)
+
+library:connection(uis.InputBegan, function(input)
+    local input_type = input.UserInputType
+    if input_type ~= Enum.UserInputType.Touch and input_type ~= Enum.UserInputType.MouseButton1 then return end
+
+    local current = library.current_open
+    if not current or not current.items then return end
+    local items = current.items
+    local position = input.Position
+    if contains(items.dropdown_holder, position)
+        or contains(items.colorpicker_holder, position)
+        or contains(items.outline, position)
+        or contains(items.dropdown, position)
+        or contains(items.colorpicker, position)
+        or contains(items.tick, position) then
+        return
+    end
+
+    library:close_element()
 end)
 end
 
@@ -3281,6 +3380,29 @@ function library:mobile_format_control(items, kind)
     local name = items.name
     if not root or not name then return end
 
+    if kind == "slider" then
+        items.header.Size = dim2(1, -8, 0, 24)
+        name.TextSize = 14
+        name.TextWrapped = false
+        name.TextTruncate = Enum.TextTruncate.AtEnd
+        name.AutomaticSize = Enum.AutomaticSize.None
+        name.TextYAlignment = Enum.TextYAlignment.Center
+        name.Size = dim2(1, -88, 1, 0)
+        items.value.TextSize = 13
+        items.value.Size = dim_offset(76, 24)
+        if items.info then
+            items.info.TextSize = 12
+            items.info.TextWrapped = true
+            items.info.TextTruncate = Enum.TextTruncate.None
+            items.info.AutomaticSize = Enum.AutomaticSize.Y
+            items.info.Size = dim2(1, -8, 0, 0)
+        end
+        items.right_components.Size = dim2(1, -8, 0, 38)
+        items.slider.Position = dim_offset(6, 0)
+        items.slider.Size = dim2(1, -12, 1, 0)
+        return
+    end
+
     name.TextSize = 14
     name.TextWrapped = true
     name.TextTruncate = Enum.TextTruncate.None
@@ -3293,8 +3415,6 @@ function library:mobile_format_control(items, kind)
         name_offset = -82
     elseif kind == "label" then
         name_offset = -41
-    elseif kind == "slider" then
-        name_offset = -82
     end
     name.Size = dim2(1, name_offset, 0, 0)
     if items.info then
@@ -3325,14 +3445,6 @@ function library:mobile_format_control(items, kind)
     elseif kind == "textbox" then
         items.right_components.Size = dim2(1, -8, 0, 34)
         items.input.Size = dim2(1, -4, 0, 30)
-    elseif kind == "slider" then
-        items.right_components.Size = dim2(1, -8, 0, 27)
-        items.slider.Size = dim2(1, -4, 0, 20)
-        items.value.AutomaticSize = Enum.AutomaticSize.None
-        items.value.AnchorPoint = vec2(1, 0)
-        items.value.Position = dim2(1, -4, 0, 0)
-        items.value.Size = dim_offset(78, 20)
-        items.value.TextSize = 13
     end
 
     local last_name_y = -1
@@ -3342,9 +3454,7 @@ function library:mobile_format_control(items, kind)
         if label_y == last_name_y then return end
         last_name_y = label_y
         if items.info then
-            if kind == "slider" then
-                items.info.Position = dim_offset(4, label_y + 36)
-            elseif kind == "dropdown" then
+            if kind == "dropdown" then
                 items.info.Position = dim_offset(4, label_y + 38)
             elseif kind == "textbox" then
                 items.info.Position = dim_offset(4, label_y + 39)
@@ -3352,9 +3462,7 @@ function library:mobile_format_control(items, kind)
                 items.info.Position = dim_offset(4, label_y + 3)
             end
         end
-        if kind == "slider" then
-            items.right_components.Position = dim_offset(4, label_y + 6)
-        elseif kind == "dropdown" or kind == "textbox" then
+        if kind == "dropdown" or kind == "textbox" then
             items.right_components.Position = dim_offset(4, label_y + 6)
         end
         library:queue_mobile_layout()
@@ -3875,7 +3983,7 @@ function library:tab(properties)
                 library:close_element()
             end
 
-            multi_items[ "button" ].MouseButton1Down:Connect(function()
+            multi_items[ "button" ].Activated:Connect(function()
                 data.open_page()
             end)
 
@@ -3930,7 +4038,7 @@ function library:tab(properties)
         if library.is_mobile then library:queue_mobile_layout() end
     end
 
-    items[ "button" ].MouseButton1Down:Connect(function()
+    items[ "button" ].Activated:Connect(function()
         cfg.open_tab()
     end)
 

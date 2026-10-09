@@ -274,7 +274,7 @@ function library:tab(properties)
                 library:close_element()
             end
 
-            multi_items[ "button" ].MouseButton1Down:Connect(function()
+            multi_items[ "button" ].Activated:Connect(function()
                 data.open_page()
             end)
 
@@ -329,7 +329,7 @@ function library:tab(properties)
         if library.is_mobile then library:queue_mobile_layout() end
     end
 
-    items[ "button" ].MouseButton1Down:Connect(function()
+    items[ "button" ].Activated:Connect(function()
         cfg.open_tab()
     end)
 

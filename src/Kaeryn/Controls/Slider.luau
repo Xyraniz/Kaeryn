@@ -58,21 +58,59 @@ function library:slider(options)
             BackgroundColor3 = rgb(255, 255, 255)
         });
 
+        library:create("UIListLayout", {
+            Parent = items["slider_object"],
+            FillDirection = Enum.FillDirection.Vertical,
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = dim(0, 3),
+        })
+
+        items["header"] = library:create("Frame", {
+            Parent = items["slider_object"],
+            Name = "\0",
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Size = dim2(1, 0, 0, 22),
+            LayoutOrder = 1,
+        })
+
         items[ "name" ] = library:create( "TextLabel" , {
             FontFace = fonts.small;
             TextColor3 = rgb(245, 245, 245);
             BorderColor3 = rgb(0, 0, 0);
             Text = cfg.name;
-            Parent = items[ "slider_object" ];
+            Parent = items[ "header" ];
             Name = "\0";
-            Size = dim2(1, 0, 0, 0);
+            Position = dim2(0, 4, 0, 0);
+            Size = dim2(1, -88, 1, 0);
             BackgroundTransparency = 1;
             TextXAlignment = Enum.TextXAlignment.Left;
+            TextYAlignment = Enum.TextYAlignment.Center;
+            TextTruncate = Enum.TextTruncate.AtEnd;
             BorderSizePixel = 0;
-            AutomaticSize = Enum.AutomaticSize.XY;
-            TextSize = 16;
+            TextSize = 15;
             BackgroundColor3 = rgb(255, 255, 255)
         });
+
+        items["value"] = library:create("TextLabel", {
+            FontFace = fonts.small,
+            TextColor3 = themes.preset.accent,
+            BorderColor3 = rgb(0, 0, 0),
+            Text = "",
+            Parent = items["header"],
+            Name = "\0",
+            AnchorPoint = vec2(1, 0),
+            Position = dim2(1, -4, 0, 0),
+            Size = dim2(0, 78, 1, 0),
+            BackgroundTransparency = 1,
+            TextXAlignment = Enum.TextXAlignment.Right,
+            TextYAlignment = Enum.TextYAlignment.Center,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            BorderSizePixel = 0,
+            TextSize = 14,
+            BackgroundColor3 = rgb(255, 255, 255),
+        })
+        library:apply_theme(items["value"], "accent", "TextColor3")
 
         if cfg.info then
             items[ "info" ] = library:create( "TextLabel" , {
@@ -83,39 +121,27 @@ function library:slider(options)
                 Text = cfg.info;
                 Parent = items[ "slider_object" ];
                 Name = "\0";
-                Position = dim2(0, 5, 0, 37);
-                Size = dim2(1, -10, 0, 0);
+                Size = dim2(1, 0, 0, 0);
                 BackgroundTransparency = 1;
                 TextXAlignment = Enum.TextXAlignment.Left;
+                TextYAlignment = Enum.TextYAlignment.Top;
                 BorderSizePixel = 0;
-                AutomaticSize = Enum.AutomaticSize.XY;
-                TextSize = 16;
+                AutomaticSize = Enum.AutomaticSize.Y;
+                TextSize = 13;
+                LayoutOrder = 2;
                 BackgroundColor3 = rgb(255, 255, 255)
             });
         end
-
-        library:create( "UIPadding" , {
-            Parent = items[ "name" ];
-            PaddingRight = dim(0, 5);
-            PaddingLeft = dim(0, 5)
-        });
 
         items[ "right_components" ] = library:create( "Frame" , {
             Parent = items[ "slider_object" ];
             Name = "\0";
             BackgroundTransparency = 1;
-            Position = dim2(0, 4, 0, 23);
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(1, 0, 0, 12);
+            Size = dim2(1, 0, 0, 38);
             BorderSizePixel = 0;
+            LayoutOrder = cfg.info and 3 or 2;
             BackgroundColor3 = rgb(255, 255, 255)
-        });
-
-        library:create( "UIListLayout" , {
-            Parent = items[ "right_components" ];
-            Padding = dim(0, 7);
-            SortOrder = Enum.SortOrder.LayoutOrder;
-            FillDirection = Enum.FillDirection.Horizontal
         });
 
         items[ "slider" ] = library:create( "TextButton" , {
@@ -124,78 +150,58 @@ function library:slider(options)
             BorderColor3 = rgb(0, 0, 0);
             Text = "";
             AutoButtonColor = false;
-            AnchorPoint = vec2(1, 0);
             Parent = items[ "right_components" ];
             Name = "\0";
-            Position = dim2(1, 0, 0, 0);
-            Size = dim2(1, -4, 0, 4);
+            Position = dim2(0, 6, 0, 0);
+            Size = dim2(1, -12, 1, 0);
             BorderSizePixel = 0;
             TextSize = 14;
-            BackgroundColor3 = rgb(33, 33, 35)
+            BackgroundTransparency = 1;
+            BackgroundColor3 = rgb(255, 255, 255)
         });
 
-        library:create( "UICorner" , {
+        items["track"] = library:create("Frame", {
             Parent = items[ "slider" ];
-            CornerRadius = dim(0, 999)
+            Name = "\0";
+            AnchorPoint = vec2(0, 0.5);
+            Position = dim2(0, 0, 0.5, 0);
+            Size = dim2(1, 0, 0, 6);
+            BorderSizePixel = 0;
+            BackgroundColor3 = themes.preset.surface_hover,
         });
+        library:apply_theme(items["track"], "surface_hover", "BackgroundColor3")
+
+        library:create("UICorner", {Parent = items["track"], CornerRadius = dim(0, 999)})
 
         items[ "fill" ] = library:create( "Frame" , {
             Name = "\0";
-            Parent = items[ "slider" ];
+            Parent = items["track"];
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(0.5, 0, 0, 4);
+            Size = dim2(0.5, 0, 1, 0);
             BorderSizePixel = 0;
             BackgroundColor3 = themes.preset.accent
         });  library:apply_theme(items[ "fill" ], "accent", "BackgroundColor3");
 
-        library:create( "UICorner" , {
-            Parent = items[ "fill" ];
-            CornerRadius = dim(0, 999)
-        });
+        library:create("UICorner", {Parent = items["fill"], CornerRadius = dim(0, 999)})
 
         items[ "circle" ] = library:create( "Frame" , {
             AnchorPoint = vec2(0.5, 0.5);
-            Parent = items[ "fill" ];
+            Parent = items["track"];
             Name = "\0";
-            Position = dim2(1, 0, 0.5, 0);
+            Position = dim2(0.5, 0, 0.5, 0);
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(0, 12, 0, 12);
+            Size = dim2(0, 16, 0, 16);
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(244, 244, 244)
         });
 
-        library:create( "UICorner" , {
-            Parent = items[ "circle" ];
-            CornerRadius = dim(0, 999)
-        });
-
-        library:create( "UIPadding" , {
-            Parent = items[ "right_components" ];
-            PaddingTop = dim(0, 4)
-        });
-
-        items[ "value" ] = library:create( "TextLabel" , {
-            FontFace = fonts.small;
-            TextColor3 = rgb(72, 72, 73);
-            BorderColor3 = rgb(0, 0, 0);
-            Text = "50%";
-            Parent = items[ "slider_object" ];
-            Name = "\0";
-            Size = dim2(1, 0, 0, 0);
-            Position = dim2(0, 6, 0, 0);
-            BackgroundTransparency = 1;
-            TextXAlignment = Enum.TextXAlignment.Right;
-            BorderSizePixel = 0;
-            AutomaticSize = Enum.AutomaticSize.XY;
-            TextSize = 16;
-            BackgroundColor3 = rgb(255, 255, 255)
-        });
-
-        library:create( "UIPadding" , {
-            Parent = items[ "value" ];
-            PaddingRight = dim(0, 5);
-            PaddingLeft = dim(0, 5)
-        });
+        library:create("UICorner", {Parent = items["circle"], CornerRadius = dim(0, 999)})
+        library:create("UIStroke", {
+            Parent = items["circle"],
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            Color = themes.preset.surface,
+            Thickness = 2,
+        })
     end
 
     function cfg.set(value)
@@ -204,7 +210,8 @@ function library:slider(options)
         local range = cfg.max - cfg.min
         cfg.value = clamp(cfg.min + library:round(numeric - cfg.min, cfg.intervals), cfg.min, cfg.max)
         local fraction = range > 0 and (cfg.value - cfg.min) / range or 0
-        items["fill"].Size = dim2(fraction, cfg.value == cfg.min and 0 or -4, 0, 2)
+        items["fill"].Size = dim2(fraction, 0, 1, 0)
+        items["circle"].Position = dim2(fraction, 0, 0.5, 0)
         items[ "value" ].Text = tostring(cfg.value) .. cfg.suffix
 
         flags[cfg.flag] = cfg.value
@@ -212,10 +219,9 @@ function library:slider(options)
     end
 
     if library.is_mobile then
-        items.slider.Size = dim2(1, -4, 0, 20)
         local function update(position)
-            local width = max(1, items.slider.AbsoluteSize.X)
-            local fraction = clamp((position.X - items.slider.AbsolutePosition.X) / width, 0, 1)
+            local width = max(1, items.track.AbsoluteSize.X)
+            local fraction = clamp((position.X - items.track.AbsolutePosition.X) / width, 0, 1)
             cfg.set(cfg.min + (cfg.max - cfg.min) * fraction)
         end
         items.slider.InputBegan:Connect(function(input)
@@ -230,13 +236,16 @@ function library:slider(options)
     else
         items[ "slider" ].MouseButton1Down:Connect(function()
             if library:begin_pointer_drag(nil, function(position)
-                local size_x = clamp((position.X - items[ "slider" ].AbsolutePosition.X) / max(1, items[ "slider" ].AbsoluteSize.X), 0, 1)
+                local size_x = clamp((position.X - items[ "track" ].AbsolutePosition.X) / max(1, items[ "track" ].AbsoluteSize.X), 0, 1)
                 cfg.set(((cfg.max - cfg.min) * size_x) + cfg.min)
             end, function()
                 cfg.dragging = false
                 library:tween(items[ "value" ], {TextColor3 = rgb(72, 72, 73)}, Enum.EasingStyle.Quad, 0.2)
             end) then
                 cfg.dragging = true
+                local position = uis:GetMouseLocation()
+                local size_x = clamp((position.X - items[ "track" ].AbsolutePosition.X) / max(1, items[ "track" ].AbsoluteSize.X), 0, 1)
+                cfg.set(((cfg.max - cfg.min) * size_x) + cfg.min)
                 library:tween(items[ "value" ], {TextColor3 = rgb(255, 255, 255)}, Enum.EasingStyle.Quad, 0.2)
             end
         end)

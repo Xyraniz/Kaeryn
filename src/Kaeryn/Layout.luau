@@ -35,6 +35,29 @@ function library:mobile_format_control(items, kind)
     local name = items.name
     if not root or not name then return end
 
+    if kind == "slider" then
+        items.header.Size = dim2(1, -8, 0, 24)
+        name.TextSize = 14
+        name.TextWrapped = false
+        name.TextTruncate = Enum.TextTruncate.AtEnd
+        name.AutomaticSize = Enum.AutomaticSize.None
+        name.TextYAlignment = Enum.TextYAlignment.Center
+        name.Size = dim2(1, -88, 1, 0)
+        items.value.TextSize = 13
+        items.value.Size = dim_offset(76, 24)
+        if items.info then
+            items.info.TextSize = 12
+            items.info.TextWrapped = true
+            items.info.TextTruncate = Enum.TextTruncate.None
+            items.info.AutomaticSize = Enum.AutomaticSize.Y
+            items.info.Size = dim2(1, -8, 0, 0)
+        end
+        items.right_components.Size = dim2(1, -8, 0, 38)
+        items.slider.Position = dim_offset(6, 0)
+        items.slider.Size = dim2(1, -12, 1, 0)
+        return
+    end
+
     name.TextSize = 14
     name.TextWrapped = true
     name.TextTruncate = Enum.TextTruncate.None
@@ -47,8 +70,6 @@ function library:mobile_format_control(items, kind)
         name_offset = -82
     elseif kind == "label" then
         name_offset = -41
-    elseif kind == "slider" then
-        name_offset = -82
     end
     name.Size = dim2(1, name_offset, 0, 0)
     if items.info then
@@ -79,14 +100,6 @@ function library:mobile_format_control(items, kind)
     elseif kind == "textbox" then
         items.right_components.Size = dim2(1, -8, 0, 34)
         items.input.Size = dim2(1, -4, 0, 30)
-    elseif kind == "slider" then
-        items.right_components.Size = dim2(1, -8, 0, 27)
-        items.slider.Size = dim2(1, -4, 0, 20)
-        items.value.AutomaticSize = Enum.AutomaticSize.None
-        items.value.AnchorPoint = vec2(1, 0)
-        items.value.Position = dim2(1, -4, 0, 0)
-        items.value.Size = dim_offset(78, 20)
-        items.value.TextSize = 13
     end
 
     local last_name_y = -1
@@ -96,9 +109,7 @@ function library:mobile_format_control(items, kind)
         if label_y == last_name_y then return end
         last_name_y = label_y
         if items.info then
-            if kind == "slider" then
-                items.info.Position = dim_offset(4, label_y + 36)
-            elseif kind == "dropdown" then
+            if kind == "dropdown" then
                 items.info.Position = dim_offset(4, label_y + 38)
             elseif kind == "textbox" then
                 items.info.Position = dim_offset(4, label_y + 39)
@@ -106,9 +117,7 @@ function library:mobile_format_control(items, kind)
                 items.info.Position = dim_offset(4, label_y + 3)
             end
         end
-        if kind == "slider" then
-            items.right_components.Position = dim_offset(4, label_y + 6)
-        elseif kind == "dropdown" or kind == "textbox" then
+        if kind == "dropdown" or kind == "textbox" then
             items.right_components.Position = dim_offset(4, label_y + 6)
         end
         library:queue_mobile_layout()

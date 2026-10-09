@@ -58,11 +58,17 @@ function library:colorpicker(options)
             Parent = label and label.items.right_components or self.items[ "right_components" ];
             Name = "\0";
             Position = dim2(1, 0, 0, 0);
-            Size = dim2(0, 16, 0, 16);
+            Size = dim_offset(library.is_mobile and 36 or 16, library.is_mobile and 36 or 16);
             BorderSizePixel = 0;
             TextSize = 14;
+            BackgroundTransparency = 1;
             BackgroundColor3 = rgb(54, 31, 184)
         });
+
+        if library.is_mobile and label then
+            label.items.right_components.Size = dim_offset(40, 40)
+            label.items.name.Size = dim2(1, -52, 0, 0)
+        end
 
         library:create( "UICorner" , {
             Parent = items[ "colorpicker" ];
@@ -71,11 +77,12 @@ function library:colorpicker(options)
 
         items[ "colorpicker_inline" ] = library:create( "Frame" , {
             Parent = items[ "colorpicker" ];
-            Size = dim2(1, -2, 1, -2);
+            AnchorPoint = vec2(0.5, 0.5);
+            Position = dim2(0.5, 0, 0.5, 0);
+            Size = dim_offset(library.is_mobile and 26 or 14, library.is_mobile and 26 or 14);
             Name = "\0";
             BorderMode = Enum.BorderMode.Inset;
             BorderColor3 = rgb(0, 0, 0);
-            Position = dim2(0, 1, 0, 1);
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(54, 31, 184)
         });
@@ -194,7 +201,7 @@ function library:colorpicker(options)
             Parent = items[ "saturation_holder" ];
             Name = "\0";
             Position = dim2(0, 0, 4, 0);
-            Size = dim2(0, 8, 0, 8);
+            Size = dim2(0, 16, 0, 16);
             ZIndex = 5;
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 0, 0)
@@ -214,22 +221,32 @@ function library:colorpicker(options)
         items[ "hue_gradient" ] = library:create( "TextButton" , {
             Parent = items[ "colorpicker_components" ];
             Name = "\0";
-            Position = dim2(0, 10, 1, -64);
+            Position = dim2(0, 10, 1, -71);
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(1, -20, 0, 8);
+            Size = dim2(1, -20, 0, 20);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(255, 255, 255);
+            BackgroundTransparency = 1;
             AutoButtonColor = false;
             Text = "";
         });
 
+        items[ "hue_bar" ] = library:create( "Frame" , {
+            Parent = items[ "hue_gradient" ];
+            Name = "\0";
+            AnchorPoint = vec2(0, 0.5);
+            Position = dim2(0, 0, 0.5, 0);
+            Size = dim2(1, 0, 0, 8);
+            BorderSizePixel = 0;
+            BackgroundColor3 = rgb(255, 255, 255)
+        });
+
         library:create( "UIGradient" , {
             Color = rgbseq{rgbkey(0, rgb(255, 0, 0)), rgbkey(0.17, rgb(255, 255, 0)), rgbkey(0.33, rgb(0, 255, 0)), rgbkey(0.5, rgb(0, 255, 255)), rgbkey(0.67, rgb(0, 0, 255)), rgbkey(0.83, rgb(255, 0, 255)), rgbkey(1, rgb(255, 0, 0))};
-            Parent = items[ "hue_gradient" ]
+            Parent = items[ "hue_bar" ]
         });
 
         library:create( "UICorner" , {
-            Parent = items[ "hue_gradient" ];
+            Parent = items[ "hue_bar" ];
             CornerRadius = dim(0, 6)
         });
 
@@ -238,10 +255,10 @@ function library:colorpicker(options)
             AutoButtonColor = false;
             Text = "";
             AnchorPoint = vec2(0, 0.5);
-            Parent = items[ "hue_gradient" ];
+            Parent = items[ "hue_bar" ];
             Name = "\0";
             Position = dim2(0, 0, 0.5, 0);
-            Size = dim2(0, 8, 0, 8);
+            Size = dim2(0, 14, 0, 14);
             ZIndex = 5;
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 0, 0)
@@ -261,17 +278,27 @@ function library:colorpicker(options)
         items[ "alpha_gradient" ] = library:create( "TextButton" , {
             Parent = items[ "colorpicker_components" ];
             Name = "\0";
-            Position = dim2(0, 10, 1, -46);
+            Position = dim2(0, 10, 1, -49);
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(1, -20, 0, 8);
+            Size = dim2(1, -20, 0, 18);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(25, 25, 29);
+            BackgroundTransparency = 1;
             AutoButtonColor = false;
             Text = "";
         });
 
-        library:create( "UICorner" , {
+        items[ "alpha_bar" ] = library:create( "Frame" , {
             Parent = items[ "alpha_gradient" ];
+            Name = "\0";
+            AnchorPoint = vec2(0, 0.5);
+            Position = dim2(0, 0, 0.5, 0);
+            Size = dim2(1, 0, 0, 8);
+            BorderSizePixel = 0;
+            BackgroundColor3 = rgb(25, 25, 29)
+        });
+
+        library:create( "UICorner" , {
+            Parent = items[ "alpha_bar" ];
             CornerRadius = dim(0, 6)
         });
 
@@ -280,10 +307,10 @@ function library:colorpicker(options)
             AutoButtonColor = false;
             Text = "";
             AnchorPoint = vec2(0, 0.5);
-            Parent = items[ "alpha_gradient" ];
+            Parent = items[ "alpha_bar" ];
             Name = "\0";
             Position = dim2(1, 0, 0.5, 0);
-            Size = dim2(0, 8, 0, 8);
+            Size = dim2(0, 14, 0, 14);
             ZIndex = 5;
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 0, 0)
@@ -302,13 +329,13 @@ function library:colorpicker(options)
 
         library:create( "UIGradient" , {
             Color = rgbseq{rgbkey(0, rgb(0, 0, 0)), rgbkey(1, rgb(255, 255, 255))};
-            Parent = items[ "alpha_gradient" ]
+            Parent = items[ "alpha_bar" ]
         });
 
         items[ "alpha_indicator" ] = library:create( "ImageLabel" , {
             ScaleType = Enum.ScaleType.Tile;
             BorderColor3 = rgb(0, 0, 0);
-            Parent = items[ "alpha_gradient" ];
+            Parent = items[ "alpha_bar" ];
             Image = "rbxassetid://18274452449";
             BackgroundTransparency = 1;
             Name = "\0";
@@ -367,6 +394,18 @@ function library:colorpicker(options)
         });
     end;
 
+    local function update_indicators()
+        local hue_width = items[ "hue_bar" ].AbsoluteSize.X - items[ "hue_picker" ].AbsoluteSize.X
+        local alpha_width = items[ "alpha_bar" ].AbsoluteSize.X - items[ "alpha_picker" ].AbsoluteSize.X
+        local saturation_width = items[ "saturation_holder" ].AbsoluteSize.X - items[ "satvalpicker" ].AbsoluteSize.X
+        local saturation_height = items[ "saturation_holder" ].AbsoluteSize.Y - items[ "satvalpicker" ].AbsoluteSize.Y
+        if hue_width <= 0 or alpha_width <= 0 or saturation_width <= 0 or saturation_height <= 0 then return end
+
+        items[ "hue_picker" ].Position = dim2(0, hue_width * h, 0.5, 0)
+        items[ "alpha_picker" ].Position = dim2(0, alpha_width * (1 - a), 0.5, 0)
+        items[ "satvalpicker" ].Position = dim2(0, s * saturation_width, 1, 1 - v * saturation_height)
+    end
+
     function cfg.set_visible(bool)
         items[ "colorpicker_fade" ].BackgroundTransparency = 0
         items[ "colorpicker_holder" ].Parent = bool and library[ "items" ] or library[ "other" ]
@@ -382,6 +421,9 @@ function library:colorpicker(options)
 
         if bool then
             library:close_element(cfg)
+            task.defer(function()
+                if not library.unloaded and cfg.open then update_indicators() end
+            end)
         elseif library.current_open == cfg then
             library.current_open = nil
         end
@@ -403,9 +445,7 @@ function library:colorpicker(options)
 
         local Color = hsv(h, s, v)
 
-        library:tween(items[ "hue_picker" ], {Position = dim2(0, (items[ "hue_gradient" ].AbsoluteSize.X - items[ "hue_picker" ].AbsoluteSize.X) * h, 0.5, 0)}, Enum.EasingStyle.Linear, 0.05)
-        library:tween(items[ "alpha_picker" ], {Position = dim2(0, (items[ "alpha_gradient" ].AbsoluteSize.X - items[ "alpha_picker" ].AbsoluteSize.X) * (1 - a), 0.5, 0)}, Enum.EasingStyle.Linear, 0.05)
-        library:tween(items[ "satvalpicker" ], {Position = dim2(0, s * (items[ "saturation_holder" ].AbsoluteSize.X - items[ "satvalpicker" ].AbsoluteSize.X), 1, 1 - v * (items[ "saturation_holder" ].AbsoluteSize.Y - items[ "satvalpicker" ].AbsoluteSize.Y))}, Enum.EasingStyle.Linear, 0.05)
+        update_indicators()
 
         items[ "alpha_indicator" ]:FindFirstChildOfClass("UIGradient").Color = rgbseq{rgbkey(0, rgb(112, 112, 112)), rgbkey(1, hsv(h, 1, 1))};
 
@@ -431,21 +471,29 @@ function library:colorpicker(options)
 
     function cfg.update_color(input_position)
         local cursor = input_position or uis:GetMouseLocation()
-        local offset = cursor
 
         if dragging_sat then
-            s = math.clamp((offset - items["sat"].AbsolutePosition).X / items["sat"].AbsoluteSize.X, 0, 1)
-            v = 1 - math.clamp((offset - items["sat"].AbsolutePosition).Y / items["sat"].AbsoluteSize.Y, 0, 1)
+            local area = items["sat"]
+            local size = area.AbsoluteSize
+            if size.X <= 0 or size.Y <= 0 then return end
+            s = clamp((cursor.X - area.AbsolutePosition.X) / size.X, 0, 1)
+            v = 1 - clamp((cursor.Y - area.AbsolutePosition.Y) / size.Y, 0, 1)
         elseif dragging_hue then
-            h = math.clamp((offset - items[ "hue_gradient" ].AbsolutePosition).X / items[ "hue_gradient" ].AbsoluteSize.X, 0, 1)
+            local area = items["hue_gradient"]
+            local width = area.AbsoluteSize.X
+            if width <= 0 then return end
+            h = clamp((cursor.X - area.AbsolutePosition.X) / width, 0, 1)
         elseif dragging_alpha then
-            a = 1 - math.clamp((offset - items[ "alpha_gradient" ].AbsolutePosition).X / items[ "alpha_gradient" ].AbsoluteSize.X, 0, 1)
+            local area = items["alpha_gradient"]
+            local width = area.AbsoluteSize.X
+            if width <= 0 then return end
+            a = 1 - clamp((cursor.X - area.AbsolutePosition.X) / width, 0, 1)
         end
 
         cfg.set()
     end
 
-    items[ "colorpicker" ].MouseButton1Click:Connect(function()
+    items[ "colorpicker" ].Activated:Connect(function()
         cfg.open = not cfg.open
 
         cfg.set_visible(cfg.open)
@@ -475,12 +523,18 @@ function library:colorpicker(options)
             end)
         end
         attach_drag(items.alpha_gradient, "alpha")
+        attach_drag(items.alpha_picker, "alpha")
         attach_drag(items.hue_gradient, "hue")
+        attach_drag(items.hue_picker, "hue")
         attach_drag(items.sat, "sat")
+        attach_drag(items.satvalpicker, "sat")
     else
         items["alpha_gradient"].MouseButton1Down:Connect(function() start_drag(nil, "alpha") end)
+        items["alpha_picker"].MouseButton1Down:Connect(function() start_drag(nil, "alpha") end)
         items["hue_gradient"].MouseButton1Down:Connect(function() start_drag(nil, "hue") end)
+        items["hue_picker"].MouseButton1Down:Connect(function() start_drag(nil, "hue") end)
         items["sat"].MouseButton1Down:Connect(function() start_drag(nil, "sat") end)
+        items["satvalpicker"].MouseButton1Down:Connect(function() start_drag(nil, "sat") end)
     end
 
     items[ "input" ].FocusLost:Connect(function()
