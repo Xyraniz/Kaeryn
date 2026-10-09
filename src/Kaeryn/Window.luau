@@ -141,7 +141,7 @@ function library:window(properties)
 
         items[ "side_frame" ] = library:create( "Frame" , {
             Parent = items[ "main" ];
-            BackgroundTransparency = 0.1;
+            BackgroundTransparency = cfg.background_transparency;
             Name = "\0";
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(0, 196, 1, -25);
@@ -445,6 +445,7 @@ function library:window(properties)
         end
         self.background_transparency = transparency
         items.background_image.ImageTransparency = transparency
+        items.side_frame.BackgroundTransparency = transparency
         return true
     end
 

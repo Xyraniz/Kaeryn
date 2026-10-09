@@ -165,7 +165,7 @@ end
 
 library.is_mobile = uis.TouchEnabled and (not uis.MouseEnabled or not uis.KeyboardEnabled)
 library.tab_content_width = library.is_mobile and 0.86 or 0.80
-library.section_content_width = library.is_mobile and 0.86 or 0.76
+library.section_content_width = library.is_mobile and 0.92 or 0.82
 library.section_control_width = library.is_mobile and 0.92 or 0.88
 library.mobile_tabs = {}
 library.mobile_columns = {}

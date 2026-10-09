@@ -167,7 +167,7 @@ end
 
 library.is_mobile = uis.TouchEnabled and (not uis.MouseEnabled or not uis.KeyboardEnabled)
 library.tab_content_width = library.is_mobile and 0.86 or 0.80
-library.section_content_width = library.is_mobile and 0.86 or 0.76
+library.section_content_width = library.is_mobile and 0.92 or 0.82
 library.section_control_width = library.is_mobile and 0.92 or 0.88
 library.mobile_tabs = {}
 library.mobile_columns = {}
@@ -10801,7 +10801,7 @@ function library:window(properties)
 
         items[ "side_frame" ] = library:create( "Frame" , {
             Parent = items[ "main" ];
-            BackgroundTransparency = 0.1;
+            BackgroundTransparency = cfg.background_transparency;
             Name = "\0";
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(0, 196, 1, -25);
@@ -11105,6 +11105,7 @@ function library:window(properties)
         end
         self.background_transparency = transparency
         items.background_image.ImageTransparency = transparency
+        items.side_frame.BackgroundTransparency = transparency
         return true
     end
 
