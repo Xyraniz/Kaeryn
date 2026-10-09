@@ -312,9 +312,8 @@ function library:window(properties)
                 library:create("ImageLabel", {
                     Parent = cfg.mobile_button,
                     Name = "MenuIcon",
-                    AnchorPoint = vec2(0.5, 0.5),
-                    Position = dim2(0.5, 0, 0.5, 0),
-                    Size = dim2(0.56, 0, 0.56, 0),
+                    Position = dim2(0, 0, 0, 0),
+                    Size = dim2(1, 0, 1, 0),
                     BackgroundTransparency = 1,
                     BorderSizePixel = 0,
                     Image = toggle_button_icon,
@@ -322,6 +321,7 @@ function library:window(properties)
                     ScaleType = Enum.ScaleType.Fit,
                     ZIndex = 51,
                 })
+                library:create("UICorner", {Parent = cfg.mobile_button.MenuIcon, CornerRadius = dim(0, 9)})
             end
 
             local active_drag
