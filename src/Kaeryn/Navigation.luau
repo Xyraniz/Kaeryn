@@ -15,6 +15,7 @@ function library:tab(properties)
     local cfg = {
         name = properties.name or properties.Name or "visuals";
         icon = properties.icon or properties.Icon or "http://www.roblox.com/asset/?id=6034767608";
+        custom_icon = properties.icon ~= nil or properties.Icon ~= nil;
 
         tabs = properties.tabs or properties.Tabs or {"Main", "Misc.", "Settings"};
         pages = {};
@@ -64,6 +65,24 @@ function library:tab(properties)
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 255, 255)
         }); library:apply_theme(items[ "icon" ], "accent", "ImageColor3");
+
+        if library.is_mobile and not cfg.custom_icon then
+            items["compact_mark"] = library:create("TextLabel", {
+                Parent = items["button"],
+                Name = "CompactMark",
+                AnchorPoint = vec2(0.5, 0.5),
+                Position = dim2(0.5, 0, 0.5, 0),
+                Size = dim_offset(28, 28),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                FontFace = fonts.font,
+                Text = string.upper(cfg.name:match("[%w]") or "?"),
+                TextColor3 = rgb(72, 72, 73),
+                TextSize = 15,
+                Visible = false,
+            })
+            library:apply_theme(items["compact_mark"], "accent", "TextColor3")
+        end
 
         items[ "name" ] = library:create( "TextLabel" , {
             FontFace = fonts.font;
@@ -298,6 +317,9 @@ function library:tab(properties)
             library:tween(selected_tab[ 1 ], {BackgroundTransparency = 1})
             library:tween(selected_tab[ 2 ], {ImageColor3 = rgb(72, 72, 73)})
             library:tween(selected_tab[ 3 ], {TextColor3 = rgb(72, 72, 73)})
+            if selected_tab[6] then
+                library:tween(selected_tab[6], {TextColor3 = rgb(72, 72, 73)})
+            end
 
             selected_tab[ 4 ].Visible = false
             selected_tab[ 4 ].Parent = library[ "cache" ]
@@ -308,6 +330,9 @@ function library:tab(properties)
         library:tween(items[ "button" ], {BackgroundTransparency = 0})
         library:tween(items[ "icon" ], {ImageColor3 = themes.preset.accent})
         library:tween(items[ "name" ], {TextColor3 = rgb(255, 255, 255)})
+        if items["compact_mark"] then
+            library:tween(items["compact_mark"], {TextColor3 = themes.preset.accent})
+        end
         if not library.is_mobile then
             library:tween(items[ "tab_holder" ], {Size = dim2(1, -196, 1, -81)}, Enum.EasingStyle.Quad, 0.4)
         end
@@ -323,6 +348,7 @@ function library:tab(properties)
             items[ "name" ];
             items[ "tab_holder" ];
             items[ "multi_section_button_holder" ];
+            items["compact_mark"];
         }
 
         library:close_element()

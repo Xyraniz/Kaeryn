@@ -3553,8 +3553,13 @@ function library:refresh_mobile_layout()
             t.name.AutomaticSize = Enum.AutomaticSize.None
             t.name.Size = dim2(1, -48, 1, 0)
             t.name.Position = dim_offset(40, 0)
+            t.icon.Visible = not (compact and t.compact_mark)
             t.icon.Position = dim2(0, compact and 15 or 11, 0.5, 0)
-            t.icon.Size = dim_offset(21, 21)
+            t.icon.Size = dim_offset(compact and 24 or 21, compact and 24 or 21)
+            if t.compact_mark then
+                t.compact_mark.Visible = compact
+                t.compact_mark.Size = dim_offset(28, 28)
+            end
             t.button.Size = dim2(1, 0, 0, 39)
             t.tab_holder.Position = dim_offset(side, header)
             t.tab_holder.Size = dim2(1, -side - 6, 1, -(header + footer + 6))
@@ -3564,12 +3569,18 @@ function library:refresh_mobile_layout()
     for _, page in library.mobile_pages do
         if page.Parent then
             local layout = page:FindFirstChildOfClass("UIListLayout")
+            local padding = page:FindFirstChildOfClass("UIPadding")
             page.Active = true
             page.ScrollingEnabled = true
             page.ScrollingDirection = Enum.ScrollingDirection.Y
             page.AutomaticCanvasSize = Enum.AutomaticSize.Y
             page.CanvasSize = dim_offset(0, 0)
             page.ScrollBarThickness = 3
+            if padding then
+                local content_inset = clamp(floor(viewport.X * 0.045), 8, 36)
+                padding.PaddingLeft = dim(0, content_inset)
+                padding.PaddingRight = dim(0, content_inset)
+            end
             if layout then
                 layout.FillDirection = Enum.FillDirection.Vertical
                 layout.HorizontalFlex = Enum.UIFlexAlignment.Fill
@@ -3724,6 +3735,7 @@ function library:tab(properties)
     local cfg = {
         name = properties.name or properties.Name or "visuals";
         icon = properties.icon or properties.Icon or "http://www.roblox.com/asset/?id=6034767608";
+        custom_icon = properties.icon ~= nil or properties.Icon ~= nil;
 
         tabs = properties.tabs or properties.Tabs or {"Main", "Misc.", "Settings"};
         pages = {};
@@ -3773,6 +3785,24 @@ function library:tab(properties)
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 255, 255)
         }); library:apply_theme(items[ "icon" ], "accent", "ImageColor3");
+
+        if library.is_mobile and not cfg.custom_icon then
+            items["compact_mark"] = library:create("TextLabel", {
+                Parent = items["button"],
+                Name = "CompactMark",
+                AnchorPoint = vec2(0.5, 0.5),
+                Position = dim2(0.5, 0, 0.5, 0),
+                Size = dim_offset(28, 28),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                FontFace = fonts.font,
+                Text = string.upper(cfg.name:match("[%w]") or "?"),
+                TextColor3 = rgb(72, 72, 73),
+                TextSize = 15,
+                Visible = false,
+            })
+            library:apply_theme(items["compact_mark"], "accent", "TextColor3")
+        end
 
         items[ "name" ] = library:create( "TextLabel" , {
             FontFace = fonts.font;
@@ -4007,6 +4037,9 @@ function library:tab(properties)
             library:tween(selected_tab[ 1 ], {BackgroundTransparency = 1})
             library:tween(selected_tab[ 2 ], {ImageColor3 = rgb(72, 72, 73)})
             library:tween(selected_tab[ 3 ], {TextColor3 = rgb(72, 72, 73)})
+            if selected_tab[6] then
+                library:tween(selected_tab[6], {TextColor3 = rgb(72, 72, 73)})
+            end
 
             selected_tab[ 4 ].Visible = false
             selected_tab[ 4 ].Parent = library[ "cache" ]
@@ -4017,6 +4050,9 @@ function library:tab(properties)
         library:tween(items[ "button" ], {BackgroundTransparency = 0})
         library:tween(items[ "icon" ], {ImageColor3 = themes.preset.accent})
         library:tween(items[ "name" ], {TextColor3 = rgb(255, 255, 255)})
+        if items["compact_mark"] then
+            library:tween(items["compact_mark"], {TextColor3 = themes.preset.accent})
+        end
         if not library.is_mobile then
             library:tween(items[ "tab_holder" ], {Size = dim2(1, -196, 1, -81)}, Enum.EasingStyle.Quad, 0.4)
         end
@@ -4032,6 +4068,7 @@ function library:tab(properties)
             items[ "name" ];
             items[ "tab_holder" ];
             items[ "multi_section_button_holder" ];
+            items["compact_mark"];
         }
 
         library:close_element()

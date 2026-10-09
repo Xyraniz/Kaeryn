@@ -208,8 +208,13 @@ function library:refresh_mobile_layout()
             t.name.AutomaticSize = Enum.AutomaticSize.None
             t.name.Size = dim2(1, -48, 1, 0)
             t.name.Position = dim_offset(40, 0)
+            t.icon.Visible = not (compact and t.compact_mark)
             t.icon.Position = dim2(0, compact and 15 or 11, 0.5, 0)
-            t.icon.Size = dim_offset(21, 21)
+            t.icon.Size = dim_offset(compact and 24 or 21, compact and 24 or 21)
+            if t.compact_mark then
+                t.compact_mark.Visible = compact
+                t.compact_mark.Size = dim_offset(28, 28)
+            end
             t.button.Size = dim2(1, 0, 0, 39)
             t.tab_holder.Position = dim_offset(side, header)
             t.tab_holder.Size = dim2(1, -side - 6, 1, -(header + footer + 6))
@@ -219,12 +224,18 @@ function library:refresh_mobile_layout()
     for _, page in library.mobile_pages do
         if page.Parent then
             local layout = page:FindFirstChildOfClass("UIListLayout")
+            local padding = page:FindFirstChildOfClass("UIPadding")
             page.Active = true
             page.ScrollingEnabled = true
             page.ScrollingDirection = Enum.ScrollingDirection.Y
             page.AutomaticCanvasSize = Enum.AutomaticSize.Y
             page.CanvasSize = dim_offset(0, 0)
             page.ScrollBarThickness = 3
+            if padding then
+                local content_inset = clamp(floor(viewport.X * 0.045), 8, 36)
+                padding.PaddingLeft = dim(0, content_inset)
+                padding.PaddingRight = dim(0, content_inset)
+            end
             if layout then
                 layout.FillDirection = Enum.FillDirection.Vertical
                 layout.HorizontalFlex = Enum.UIFlexAlignment.Fill
