@@ -83,19 +83,28 @@ return function(__kaeryn)
             Parent = items.multi_holder,
             AnchorPoint = Vector2.new(1, 0.5),
             Position = dim2(1, -9, 0.5, -2),
-            Size = dim2(0, 66, 0, 30),
-            BackgroundColor3 = themes.preset.surface_hover,
+            Size = dim2(0, 36, 0, 30),
+            BackgroundColor3 = rgb(0, 0, 0),
+            BackgroundTransparency = 0,
             BorderSizePixel = 0,
             AutoButtonColor = false,
-            FontFace = fonts.small,
-            Text = "Find",
-            TextColor3 = themes.preset.text,
-            TextSize = 13,
+            Name = "Search",
+            Text = "",
             ZIndex = 5,
         })
         library:create("UICorner", {Parent = button, CornerRadius = dim(0, 5)})
-        library:apply_theme(button, "surface_hover", "BackgroundColor3")
-        library:apply_theme(button, "text", "TextColor3")
+        library:create("ImageLabel", {
+            Parent = button,
+            Name = "Icon",
+            AnchorPoint = vec2(0.5, 0.5),
+            Position = dim2(0.5, 0, 0.5, 0),
+            Size = dim2(0, 18, 0, 18),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Image = library:resolve_icon("search"),
+            ImageColor3 = rgb(255, 255, 255),
+            ZIndex = 6,
+        })
         window.search_button = button
 
         local overlay = library:create("Frame", {

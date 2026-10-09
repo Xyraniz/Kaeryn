@@ -714,6 +714,8 @@ section_transparency_picker = appearance_section:dropdown({
 		{value = "appearance", label = "Appearance"},
 		{value = "window_actions", label = "Window and dialogs"},
 		{value = "resources", label = "On-demand loading"},
+		{value = "config_list", label = "Config list"},
+		{value = "config_settings", label = "Config settings"},
 	},
 	default = {"all"},
 	callback = function(value)
@@ -925,6 +927,9 @@ actions_section:button({
 })
 
 window:separator({name = "Persistence"})
-library:init_config(window)
+local config_sections = library:init_config(window)
+section_transparency_targets.config_list = config_sections.list
+section_transparency_targets.config_settings = config_sections.settings
+apply_section_transparency()
 
 print("[Kaeryn] Control center started", window:IsOpen(), library.breakpoint)

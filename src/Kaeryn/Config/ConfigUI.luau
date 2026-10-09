@@ -21,6 +21,7 @@ function library:init_config(window)
     local right = main:column({})
     local section = right:section({name = "Settings", side = "right", size = 1, default = true, icon = "lucide:settings"})
     section:textbox({name = "Config name:", flag = "config_name_text"})
+    local config_sections = {list = list_section, settings = section}
 
     local function notice(message)
         if not library.unloaded then notifications:create_notification({name = "Configs", info = message}) end
@@ -81,5 +82,6 @@ function library:init_config(window)
     section:colorpicker({name = "Menu Accent", callback = function(accent) library:update_theme("accent", accent) end, color = themes.preset.accent})
     section:keybind({name = "Menu Bind", callback = function(enabled) window.toggle_menu(enabled) end, default = true})
     library:update_config_list()
+    return config_sections
 end
 end
