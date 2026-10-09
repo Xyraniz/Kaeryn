@@ -32,9 +32,9 @@ function library:toggle(options)
     flags[cfg.flag] = cfg.default
 
     local mobile_switch = library.is_mobile and cfg.type ~= "checkbox"
-    local switch_width = mobile_switch and 48 or 40
-    local switch_height = mobile_switch and 26 or 22
-    local thumb_size = mobile_switch and 18 or 14
+    local switch_width = mobile_switch and 42 or 40
+    local switch_height = 22
+    local thumb_size = mobile_switch and 16 or 14
     local thumb_y = (switch_height - 2 - thumb_size) / 2
 
     local items = cfg.items; do

@@ -2762,9 +2762,9 @@ function library:toggle(options)
     flags[cfg.flag] = cfg.default
 
     local mobile_switch = library.is_mobile and cfg.type ~= "checkbox"
-    local switch_width = mobile_switch and 48 or 40
-    local switch_height = mobile_switch and 26 or 22
-    local thumb_size = mobile_switch and 18 or 14
+    local switch_width = mobile_switch and 42 or 40
+    local switch_height = 22
+    local thumb_size = mobile_switch and 16 or 14
     local thumb_y = (switch_height - 2 - thumb_size) / 2
 
     local items = cfg.items; do
@@ -3450,7 +3450,7 @@ function library:mobile_format_control(items, kind)
         if kind == "keybind" then name.Size = dim2(1, -82, 0, 0) end
         if kind == "label" and not items.right_components then name.Size = dim2(1, -8, 0, 0) end
         if kind == "toggle" and items.toggle_button then
-            items.toggle_button.Size = dim_offset(items.outline and 24 or 48, items.outline and 22 or 26)
+            items.toggle_button.Size = dim_offset(items.outline and 24 or 42, 22)
         end
     elseif kind == "dropdown" then
         items.right_components.AnchorPoint = vec2(0, 0)
