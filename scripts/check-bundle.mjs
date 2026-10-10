@@ -53,7 +53,12 @@ if (holderStart < 0 || holderEnd < 0 || !holderSetup.includes('library:create( "
     || !holderSetup.includes("ClipsDescendants = true")
     || !holderSetup.includes("ScrollingEnabled = library.is_mobile")
     || !holderSetup.includes("ScrollingDirection = Enum.ScrollingDirection.X")
-    || !holderSetup.includes("MouseWheelForward") || !holderSetup.includes("MouseWheelBackward")
+    || !holderSetup.includes("library:connection(uis.InputChanged")
+    || !holderSetup.includes("Enum.UserInputType.MouseWheel")
+    || !holderSetup.includes("not library.items.Enabled")
+    || !holderSetup.includes("local pointer = uis:GetMouseLocation()")
+    || !holderSetup.includes("pointer.X < origin.X") || !holderSetup.includes("pointer.Y < origin.Y")
+    || !holderSetup.includes("scroll_horizontal(-input.Position.Z)")
     || !holderSetup.includes("AbsoluteCanvasSize.X") || !holderSetup.includes("holder.CanvasPosition = vec2")) {
     throw new Error("Top-level page navigation lost clipping or horizontal touch/mouse-wheel scrolling");
 }
