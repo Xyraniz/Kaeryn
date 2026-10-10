@@ -9068,24 +9068,31 @@ function library:tab(properties)
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         });
 
-        items[ "multi_section_button_holder" ] = library:create( library.is_mobile and "ScrollingFrame" or "Frame" , {
+        items[ "multi_section_button_holder" ] = library:create( "ScrollingFrame" , {
             Parent = library.cache;
             BackgroundTransparency = 1;
             Name = "\0";
             Visible = false;
+            Active = true;
+            ClipsDescendants = true;
+            ScrollingEnabled = library.is_mobile;
+            ScrollBarThickness = 0;
+            ScrollingDirection = Enum.ScrollingDirection.X;
+            AutomaticCanvasSize = Enum.AutomaticSize.X;
+            CanvasSize = dim_offset(0, 0);
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(1, -82, 1, 0);
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 255, 255)
         });
-        if library.is_mobile then
-            local holder = items.multi_section_button_holder
-            holder.Active = true
-            holder.ClipsDescendants = true
-            holder.ScrollBarThickness = 0
-            holder.ScrollingDirection = Enum.ScrollingDirection.X
-            holder.AutomaticCanvasSize = Enum.AutomaticSize.X
-            holder.CanvasSize = dim_offset(0, 0)
+        local holder = items.multi_section_button_holder
+        if not library.is_mobile then
+            local function scroll_horizontal(direction)
+                local max_x = math.max(0, holder.AbsoluteCanvasSize.X - holder.AbsoluteSize.X)
+                holder.CanvasPosition = vec2(math.clamp(holder.CanvasPosition.X + direction * 120, 0, max_x), 0)
+            end
+            library:connection(holder.MouseWheelForward, function() scroll_horizontal(-1) end)
+            library:connection(holder.MouseWheelBackward, function() scroll_horizontal(1) end)
         end
 
         library:create( "UIListLayout" , {

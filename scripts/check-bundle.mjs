@@ -45,6 +45,18 @@ if (sourceText.get("src/Kaeryn/Config/ConfigManager.luau").indexOf("config_valid
 if (!/section:keybind\(\{name = "Menu Bind", callback = function\(enabled, change\)\s*if change and change\.source == "user" and change\.phase == "change" then\s*window\.toggle_menu\(enabled\)/.test(sourceText.get("src/Kaeryn/Config/ConfigUI.luau"))) {
     throw new Error("Config loading can unexpectedly change the window visibility");
 }
+const navigation = sourceText.get("src/Kaeryn/Navigation.luau");
+const holderStart = navigation.indexOf('items[ "multi_section_button_holder" ] =');
+const holderEnd = navigation.indexOf('library:create( "UIListLayout" ,', holderStart);
+const holderSetup = navigation.slice(holderStart, holderEnd);
+if (holderStart < 0 || holderEnd < 0 || !holderSetup.includes('library:create( "ScrollingFrame"')
+    || !holderSetup.includes("ClipsDescendants = true")
+    || !holderSetup.includes("ScrollingEnabled = library.is_mobile")
+    || !holderSetup.includes("ScrollingDirection = Enum.ScrollingDirection.X")
+    || !holderSetup.includes("MouseWheelForward") || !holderSetup.includes("MouseWheelBackward")
+    || !holderSetup.includes("AbsoluteCanvasSize.X") || !holderSetup.includes("holder.CanvasPosition = vec2")) {
+    throw new Error("Top-level page navigation lost clipping or horizontal touch/mouse-wheel scrolling");
+}
 const moduleCount = (bundle.match(/\["src\/Kaeryn\//g) || []).length;
 if (moduleCount !== sourceFiles.length) {
     throw new Error(`Expected ${sourceFiles.length} bundled modules, got ${moduleCount}`);
