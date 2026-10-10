@@ -50,16 +50,12 @@ const holderStart = navigation.indexOf('items[ "multi_section_button_holder" ] =
 const holderEnd = navigation.indexOf('library:create( "UIListLayout" ,', holderStart);
 const holderSetup = navigation.slice(holderStart, holderEnd);
 if (holderStart < 0 || holderEnd < 0 || !holderSetup.includes('library:create( "ScrollingFrame"')
+    || !holderSetup.includes("Active = true")
     || !holderSetup.includes("ClipsDescendants = true")
-    || !holderSetup.includes("ScrollingEnabled = library.is_mobile")
+    || !holderSetup.includes("ScrollingEnabled = true")
+    || !holderSetup.includes("ScrollBarThickness = 2")
     || !holderSetup.includes("ScrollingDirection = Enum.ScrollingDirection.X")
-    || !holderSetup.includes("library:connection(uis.InputChanged")
-    || !holderSetup.includes("Enum.UserInputType.MouseWheel")
-    || !holderSetup.includes("not library.items.Enabled")
-    || !holderSetup.includes("local pointer = uis:GetMouseLocation()")
-    || !holderSetup.includes("pointer.X < origin.X") || !holderSetup.includes("pointer.Y < origin.Y")
-    || !holderSetup.includes("scroll_horizontal(-input.Position.Z)")
-    || !holderSetup.includes("AbsoluteCanvasSize.X") || !holderSetup.includes("holder.CanvasPosition = vec2")) {
+    || !holderSetup.includes("AutomaticCanvasSize = Enum.AutomaticSize.X")) {
     throw new Error("Top-level page navigation lost clipping or horizontal touch/mouse-wheel scrolling");
 }
 const moduleCount = (bundle.match(/\["src\/Kaeryn\//g) || []).length;

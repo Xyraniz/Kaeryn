@@ -8915,7 +8915,6 @@ return {
     end,
     ["src/Kaeryn/Navigation.luau"] = function(__kaeryn_require)
 return function(__kaeryn)
-    local uis = __kaeryn.uis
     local vec2 = __kaeryn.vec2
     local dim2 = __kaeryn.dim2
     local dim = __kaeryn.dim
@@ -9076,8 +9075,9 @@ function library:tab(properties)
             Visible = false;
             Active = true;
             ClipsDescendants = true;
-            ScrollingEnabled = library.is_mobile;
-            ScrollBarThickness = 0;
+            ScrollingEnabled = true;
+            ScrollBarThickness = 2;
+            ScrollBarImageColor3 = themes.preset.muted;
             ScrollingDirection = Enum.ScrollingDirection.X;
             AutomaticCanvasSize = Enum.AutomaticSize.X;
             CanvasSize = dim_offset(0, 0);
@@ -9086,22 +9086,6 @@ function library:tab(properties)
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 255, 255)
         });
-        local holder = items.multi_section_button_holder
-        if not library.is_mobile then
-            local function scroll_horizontal(direction)
-                local max_x = math.max(0, holder.AbsoluteCanvasSize.X - holder.AbsoluteSize.X)
-                holder.CanvasPosition = vec2(math.clamp(holder.CanvasPosition.X + direction * 120, 0, max_x), 0)
-            end
-            library:connection(uis.InputChanged, function(input)
-                if input.UserInputType ~= Enum.UserInputType.MouseWheel or not library.items.Enabled or not holder.Visible then return end
-                local pointer = uis:GetMouseLocation()
-                local origin = holder.AbsolutePosition
-                local size = holder.AbsoluteSize
-                if pointer.X < origin.X or pointer.X > origin.X + size.X
-                    or pointer.Y < origin.Y or pointer.Y > origin.Y + size.Y then return end
-                scroll_horizontal(-input.Position.Z)
-            end)
-        end
 
         library:create( "UIListLayout" , {
             Parent = items[ "multi_section_button_holder" ];
