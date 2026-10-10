@@ -167,8 +167,8 @@ end
 
 library.is_mobile = uis.TouchEnabled and (not uis.MouseEnabled or not uis.KeyboardEnabled)
 library.tab_content_width = library.is_mobile and 0.86 or 0.80
-library.section_content_width = library.is_mobile and 0.92 or 0.82
-library.section_control_width = library.is_mobile and 0.92 or 0.88
+library.section_content_width = library.is_mobile and 0.92 or 0.94
+library.section_control_width = library.is_mobile and 0.92 or 0.94
 library.mobile_tabs = {}
 library.mobile_columns = {}
 library.mobile_pages = {}
@@ -2615,6 +2615,18 @@ return function(__kaeryn)
     local flags = __kaeryn.flags
     local fonts = __kaeryn.fonts
 
+local function resolve_key(value)
+    local resolved = library:convert_enum(value)
+    if resolved or type(value) ~= "string" then return resolved end
+
+    local qualified = value:match("^(KeyCode%.[%w_]+)$")
+    if qualified then return library:convert_enum("Enum." .. qualified) end
+    if value:match("^[%w_]+$") then
+        return library:convert_enum("Enum.KeyCode." .. value)
+    end
+    return nil
+end
+
 function library:keybind(options)
     local default_was_set = type(options) == "table" and options.default ~= nil
     options = library:normalize_options("keybind", options)
@@ -2630,6 +2642,8 @@ function library:keybind(options)
         end
         assert(toggle_target, "keybind toggle_flag '" .. options.toggle_flag .. "' must reference a toggle created before the keybind")
     end
+    local key = options.key or nil
+    if key then key = resolve_key(key) or key end
     local id, flag = library:resolve_identity(options, "keybind", self.name, true)
     local cfg = {
         id = id,
@@ -2640,12 +2654,12 @@ function library:keybind(options)
         name = options.name or nil,
         ignore_key = options.ignore or false,
         context = options.context or "global",
-        default_key = options.key or "NONE",
+        default_key = key or "NONE",
         default_mode = options.mode or "Toggle",
         default_active = options.default == true,
         toggle_target = toggle_target,
 
-        key = options.key or nil,
+        key = key,
         mode = options.mode or "Toggle",
         active = options.default or false,
 
@@ -2893,12 +2907,12 @@ function library:keybind(options)
             elseif input == "NONE" then
                 cfg.key = "NONE"
             else
-                local resolved = library:convert_enum(input)
+                local resolved = resolve_key(input)
                 if resolved then cfg.key = resolved end
             end
         elseif type(input) == "table" then
             cfg.mode = (input.mode == "Toggle" or input.mode == "Hold" or input.mode == "Always") and input.mode or "Toggle"
-            local resolved = type(input.key) == "string" and library:convert_enum(input.key) or input.key
+            local resolved = type(input.key) == "string" and resolve_key(input.key) or input.key
             cfg.key = (input.key == "NONE" and "NONE") or resolved or "NONE"
             if input.active ~= nil then cfg.active = input.active == true end
             if cfg.mode == "Always" then cfg.active = true end
@@ -2991,7 +3005,11 @@ function library:keybind(options)
         end
         if type(value.key) ~= "string" then return false, nil, "key must be an enum name or NONE" end
         local key = value.key
-        if key ~= "NONE" and not library:convert_enum(key) then return false, nil, "key is not a valid enum name" end
+        if key ~= "NONE" then
+            local resolved = resolve_key(key)
+            if not resolved then return false, nil, "key is not a valid enum name" end
+            key = tostring(resolved)
+        end
         if value.active ~= nil and type(value.active) ~= "boolean" then
             return false, nil, "active must be a boolean"
         end
