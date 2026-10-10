@@ -623,7 +623,11 @@ function library:init_config(window)
         notice("Deleted config: " .. selected)
     end})
     section:colorpicker({name = "Menu Accent", callback = function(accent) library:update_theme("accent", accent) end, color = themes.preset.accent})
-    section:keybind({name = "Menu Bind", callback = function(enabled) window.toggle_menu(enabled) end, default = true})
+    section:keybind({name = "Menu Bind", callback = function(enabled, change)
+        if change and change.source == "user" and change.phase == "change" then
+            window.toggle_menu(enabled)
+        end
+    end, default = true})
     library:update_config_list()
     return config_sections
 end

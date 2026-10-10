@@ -42,6 +42,9 @@ for (const file of ["src/Kaeryn/Controls/Slider.luau", "src/Kaeryn/Controls/Colo
 if (sourceText.get("src/Kaeryn/Config/ConfigManager.luau").indexOf("config_validators[key]") < 0) {
     throw new Error("Config loading no longer validates values before applying them");
 }
+if (!/section:keybind\(\{name = "Menu Bind", callback = function\(enabled, change\)\s*if change and change\.source == "user" and change\.phase == "change" then\s*window\.toggle_menu\(enabled\)/.test(sourceText.get("src/Kaeryn/Config/ConfigUI.luau"))) {
+    throw new Error("Config loading can unexpectedly change the window visibility");
+}
 const moduleCount = (bundle.match(/\["src\/Kaeryn\//g) || []).length;
 if (moduleCount !== sourceFiles.length) {
     throw new Error(`Expected ${sourceFiles.length} bundled modules, got ${moduleCount}`);
