@@ -5516,9 +5516,7 @@ function library:mouse_in_frame(uiobject)
     return (y_cond and x_cond)
 end
 
-function library:draggify(frame, handle)
-    handle = handle or frame
-    handle.Active = true
+function library:draggify(frame)
     local active_input
     local drag_origin
     local start_position
@@ -5571,7 +5569,7 @@ function library:draggify(frame, handle)
         end)
     end
 
-    library:connection(handle.InputBegan, function(input)
+    library:connection(frame.InputBegan, function(input)
         local input_type = input.UserInputType
         if input_type ~= Enum.UserInputType.MouseButton1 and input_type ~= Enum.UserInputType.Touch then return end
         if settle_tween then settle_tween:Cancel(); settle_tween = nil end
@@ -6965,7 +6963,28 @@ function library:queue_mobile_layout()
 end
 
 function library:mobile_drag(handle, frame)
-    self:draggify(frame, handle)
+    local touch
+    local origin
+    local start
+    handle.Active = true
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch and not touch then
+            touch = input
+            origin = input.Position
+            start = frame.Position
+            library:close_element()
+        end
+    end)
+    library:connection(uis.InputChanged, function(input)
+        if input ~= touch then return end
+        local view = ws.CurrentCamera.ViewportSize
+        local next_x = clamp(start.X.Offset + input.Position.X - origin.X, 0, max(0, view.X - frame.AbsoluteSize.X))
+        local next_y = clamp(start.Y.Offset + input.Position.Y - origin.Y, 0, max(0, view.Y - frame.AbsoluteSize.Y))
+        frame.Position = dim_offset(next_x, next_y)
+    end)
+    library:connection(uis.InputEnded, function(input)
+        if input == touch then touch = nil end
+    end)
 end
 
 function library:unload_menu()

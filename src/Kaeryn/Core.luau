@@ -884,9 +884,7 @@ function library:mouse_in_frame(uiobject)
     return (y_cond and x_cond)
 end
 
-function library:draggify(frame, handle)
-    handle = handle or frame
-    handle.Active = true
+function library:draggify(frame)
     local active_input
     local drag_origin
     local start_position
@@ -939,7 +937,7 @@ function library:draggify(frame, handle)
         end)
     end
 
-    library:connection(handle.InputBegan, function(input)
+    library:connection(frame.InputBegan, function(input)
         local input_type = input.UserInputType
         if input_type ~= Enum.UserInputType.MouseButton1 and input_type ~= Enum.UserInputType.Touch then return end
         if settle_tween then settle_tween:Cancel(); settle_tween = nil end
