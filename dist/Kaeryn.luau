@@ -4633,6 +4633,7 @@ end
 return function(__kaeryn)
     local uis = __kaeryn.uis
     local ws = __kaeryn.ws
+    local run = __kaeryn.run
     local tween_service = __kaeryn.tween_service
     local dim2 = __kaeryn.dim2
     local rgb = __kaeryn.rgb
@@ -5516,48 +5517,109 @@ function library:mouse_in_frame(uiobject)
 end
 
 function library:draggify(frame)
-    local dragging = false
-    local start_size = frame.Position
-    local start
+    local active_input
+    local drag_origin
+    local start_position
+    local target_position
+    local ghost
+    local ghost_stroke
+    local settle_tween
 
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            start = input.Position
-            start_size = frame.Position
-        end
+    local function clamp_position(position)
+        local viewport = (ws.CurrentCamera and ws.CurrentCamera.ViewportSize) or camera.ViewportSize
+        return Vector2.new(
+            clamp(position.X, 0, max(0, viewport.X - frame.AbsoluteSize.X)),
+            clamp(position.Y, 0, max(0, viewport.Y - frame.AbsoluteSize.Y))
+        )
+    end
+
+    local function create_ghost()
+        ghost = library:create("Frame", {
+            Parent = frame.Parent;
+            AnchorPoint = frame.AnchorPoint;
+            Position = frame.Position;
+            Size = dim2(0, frame.AbsoluteSize.X, 0, frame.AbsoluteSize.Y);
+            BackgroundColor3 = themes.preset.background;
+            BackgroundTransparency = 1;
+            BorderSizePixel = 0;
+            ZIndex = 40;
+        })
+        library:create("UICorner", {Parent = ghost, CornerRadius = UDim.new(0, 10)})
+        ghost_stroke = library:create("UIStroke", {
+            Parent = ghost;
+            Color = themes.preset.border;
+            Transparency = 1;
+            Thickness = 1;
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+        })
+        local scale = library:create("UIScale", {Parent = ghost, Scale = 1.02})
+        library:tween(ghost, {BackgroundTransparency = 0.35}, Enum.EasingStyle.Quad, 0.15)
+        library:tween(ghost_stroke, {Transparency = 0}, Enum.EasingStyle.Quad, 0.15)
+        library:tween(scale, {Scale = 1}, Enum.EasingStyle.Quint, 0.25)
+    end
+
+    local function hide_ghost()
+        if not ghost then return end
+        local previous_ghost, previous_stroke = ghost, ghost_stroke
+        ghost, ghost_stroke = nil, nil
+        library:tween(previous_ghost, {BackgroundTransparency = 1}, Enum.EasingStyle.Quad, 0.2)
+        library:tween(previous_stroke, {Transparency = 1}, Enum.EasingStyle.Quad, 0.2)
+        task.delay(0.22, function()
+            if previous_ghost.Parent then previous_ghost:Destroy() end
+        end)
+    end
+
+    library:connection(frame.InputBegan, function(input)
+        local input_type = input.UserInputType
+        if input_type ~= Enum.UserInputType.MouseButton1 and input_type ~= Enum.UserInputType.Touch then return end
+        if settle_tween then settle_tween:Cancel(); settle_tween = nil end
+        active_input = input
+        drag_origin = input.Position
+        start_position = Vector2.new(frame.Position.X.Offset, frame.Position.Y.Offset)
+        target_position = start_position
     end)
 
-    frame.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
+    library:connection(uis.InputChanged, function(input)
+        if not active_input then return end
+        local pointer_position
+        if active_input.UserInputType == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseMovement then
+            pointer_position = input.Position
+        elseif active_input.UserInputType == Enum.UserInputType.Touch and input == active_input then
+            pointer_position = input.Position
+        else
+            return
         end
-    end)
 
-    library:connection(uis.InputChanged, function(input, game_event)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local viewport = (ws.CurrentCamera and ws.CurrentCamera.ViewportSize) or camera.ViewportSize
-            local viewport_x = viewport.X
-            local viewport_y = viewport.Y
-
-            local current_position = dim2(
-                0,
-                clamp(
-                    start_size.X.Offset + (input.Position.X - start.X),
-                    0,
-                    max(0, viewport_x - frame.AbsoluteSize.X)
-                ),
-                0,
-                math.clamp(
-                    start_size.Y.Offset + (input.Position.Y - start.Y),
-                    0,
-                    max(0, viewport_y - frame.AbsoluteSize.Y)
-                )
-            )
-
-            library:tween(frame, {Position = current_position}, Enum.EasingStyle.Linear, 0.05)
+        local delta = pointer_position - drag_origin
+        if not ghost and delta.Magnitude > 3 then
+            if not frame.Parent then active_input = nil; return end
+            create_ghost()
             library:close_element()
         end
+        if ghost then target_position = start_position + delta end
+    end)
+
+    library:connection(uis.InputEnded, function(input)
+        if not active_input then return end
+        local input_type = active_input.UserInputType
+        local ended = input_type == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseButton1
+            or input_type == Enum.UserInputType.Touch and input == active_input
+        if not ended then return end
+
+        if ghost then
+            local position = clamp_position(Vector2.new(ghost.Position.X.Offset, ghost.Position.Y.Offset))
+            settle_tween = library:tween(frame, {Position = dim2(0, position.X, 0, position.Y)}, Enum.EasingStyle.Quint, 0.3)
+            hide_ghost()
+        end
+        active_input, drag_origin, start_position, target_position = nil, nil, nil, nil
+    end)
+
+    library:connection(run.RenderStepped, function(delta_time)
+        if not ghost or not target_position or not ghost.Parent then return end
+        local position = Vector2.new(ghost.Position.X.Offset, ghost.Position.Y.Offset)
+        local alpha = 1 - math.exp(-delta_time * 45)
+        position = position:Lerp(target_position, alpha)
+        ghost.Position = dim2(0, position.X, 0, position.Y)
     end)
 end
 
