@@ -949,11 +949,16 @@ function library:draggify(frame, handle)
         target_position = start_position
     end)
 
-    local function update_drag_target()
+    library:connection(uis.InputChanged, function(input)
         if not active_input then return end
-        local pointer_position = active_input.UserInputType == Enum.UserInputType.MouseButton1
-            and uis:GetMouseLocation() or active_input.Position
-        if not pointer_position then return end
+        local pointer_position
+        if active_input.UserInputType == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseMovement then
+            pointer_position = input.Position
+        elseif active_input.UserInputType == Enum.UserInputType.Touch and input == active_input then
+            pointer_position = input.Position
+        else
+            return
+        end
 
         local delta = pointer_position - drag_origin
         if not ghost and delta.Magnitude > 3 then
@@ -971,9 +976,8 @@ function library:draggify(frame, handle)
             or input_type == Enum.UserInputType.Touch and input == active_input
         if not ended then return end
 
-        update_drag_target()
         if ghost then
-            local position = clamp_position(target_position or Vector2.new(ghost.Position.X.Offset, ghost.Position.Y.Offset))
+            local position = clamp_position(Vector2.new(ghost.Position.X.Offset, ghost.Position.Y.Offset))
             settle_tween = library:tween(frame, {Position = dim2(0, position.X, 0, position.Y)}, Enum.EasingStyle.Quint, 0.3)
             hide_ghost()
         end
@@ -981,7 +985,6 @@ function library:draggify(frame, handle)
     end)
 
     library:connection(run.RenderStepped, function(delta_time)
-        update_drag_target()
         if not ghost or not target_position or not ghost.Parent then return end
         local position = Vector2.new(ghost.Position.X.Offset, ghost.Position.Y.Offset)
         local alpha = 1 - math.exp(-delta_time * 45)
