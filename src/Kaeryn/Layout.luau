@@ -404,28 +404,7 @@ function library:queue_mobile_layout()
 end
 
 function library:mobile_drag(handle, frame)
-    local touch
-    local origin
-    local start
-    handle.Active = true
-    handle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch and not touch then
-            touch = input
-            origin = input.Position
-            start = frame.Position
-            library:close_element()
-        end
-    end)
-    library:connection(uis.InputChanged, function(input)
-        if input ~= touch then return end
-        local view = ws.CurrentCamera.ViewportSize
-        local next_x = clamp(start.X.Offset + input.Position.X - origin.X, 0, max(0, view.X - frame.AbsoluteSize.X))
-        local next_y = clamp(start.Y.Offset + input.Position.Y - origin.Y, 0, max(0, view.Y - frame.AbsoluteSize.Y))
-        frame.Position = dim_offset(next_x, next_y)
-    end)
-    library:connection(uis.InputEnded, function(input)
-        if input == touch then touch = nil end
-    end)
+    self:draggify(frame, handle)
 end
 
 function library:unload_menu()
