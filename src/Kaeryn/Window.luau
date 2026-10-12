@@ -14,6 +14,7 @@ return function(__kaeryn)
     local library = __kaeryn.library
     local themes = __kaeryn.themes
     local fonts = __kaeryn.fonts
+    local configure_settings_folder = __kaeryn.configure_settings_folder
 
 function library:window(properties)
     assert(not library.unloaded, "Kaeryn has been unloaded")
@@ -39,6 +40,8 @@ function library:window(properties)
     if subname == nil then subname = properties.Subname end
     if subname == "" then subname = nil end
     assert(subname == nil or type(subname) == "string", "window subname must be a string")
+    local config_folder_option = properties.folder
+    if config_folder_option == nil then config_folder_option = properties.Folder end
 
     local toggle_button_options = properties.toggle_button
     if toggle_button_options == nil then toggle_button_options = {} end
@@ -86,6 +89,10 @@ function library:window(properties)
         assert(cfg.max_size.X > 0 and cfg.max_size.Y > 0 and cfg.max_size.X < math.huge and cfg.max_size.Y < math.huge,
             "window max_size values must be finite and positive")
         assert(cfg.max_size.X >= cfg.min_size.X and cfg.max_size.Y >= cfg.min_size.Y, "window max_size must be greater than or equal to min_size")
+    end
+    cfg.folder = configure_settings_folder(config_folder_option)
+    if type(library.load_auto_config) == "function" then
+        library:load_auto_config()
     end
 
     library[ "items" ] = library:create( "ScreenGui" , {

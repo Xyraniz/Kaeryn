@@ -115,6 +115,7 @@ If it gets moved out of reach, `window:ResetToggleButtonPosition()` places it ba
 local window = library:window({
     name = "Kaeryn",
     subname = "Modular UI library",
+    Folder = "DmvsLatam",
     toggle_button = {
         size = UDim2.fromOffset(48, 48),
         icon = "rbxassetid://1234567890", -- replace with your image asset
@@ -124,6 +125,8 @@ local window = library:window({
 ```
 
 `subname` (also accepted as `Subname`) appears beneath the window name in the sidebar. It truncates to fit and is hidden while the mobile sidebar is collapsed. Update or clear it later with `window:SetSubname("New subtitle")` or `window:SetSubname(nil)`.
+
+Kaeryn automatically saves committed control changes and restores them on the next run from `default_config.json`. It uses the same validated config loader as manual configs, so invalid or obsolete values are skipped safely. The built-in config screen stores named configs in `Kaeryn/Settings/<Folder>/`. Set `Folder` (or `folder`) on `library:window(...)` to keep each script's settings separate; when omitted, settings use `Kaeryn/Settings/Randoms/`. Folder names are sanitized to safe path characters. Automatic save and load work without calling `library:init_config(window)`.
 
 ## Window lifecycle and saved layout
 

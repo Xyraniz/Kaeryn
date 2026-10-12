@@ -589,6 +589,9 @@ function library:register_config_flag(flag, setter, validator, legacy_flags)
     end
     config_flags[flag] = setter
     library.config_validators[flag] = validator
+    if type(library.queue_auto_config_flag) == "function" then
+        library:queue_auto_config_flag(flag)
+    end
 end
 
 function library:with_change_context(source, phase, callback, ...)
@@ -657,6 +660,11 @@ function library:commit_control(control, metadata, ...)
     for _, listener in ipairs(control._committed_listeners or {}) do
         local listener_ok, listener_err = pcall(listener, table.unpack(args, 1, args.n))
         if not listener_ok then log_callback_error(control, metadata.source .. "/OnCommitted", listener_err, metadata.source) end
+    end
+    if control.flag and (metadata.source == "user" or metadata.source == "code") then
+        if type(self.save_auto_config) == "function" then
+            self:save_auto_config(control.flag)
+        end
     end
 end
 

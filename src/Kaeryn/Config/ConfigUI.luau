@@ -29,9 +29,12 @@ function library:init_config(window)
         local selected = config_name(flags.config_name_text) or config_name(flags.config_name_list)
         local path = config_path(selected)
         if not path then notice("Enter a configuration name first") return end
-        if not ensure_folder(library.directory) or not ensure_folder(library.directory .. "/configs") then
+        if not ensure_folder(library.directory)
+            or not ensure_folder(library.directory .. "/Settings")
+            or not ensure_folder(library.settings_directory) then
             notice("Cannot create configuration folder") return
         end
+        library.settings_directory_available = true
         local ok, data = pcall(function() return library:get_config() end)
         if not ok then notice("Cannot encode config: " .. tostring(data)) return end
         local wrote, err = write_file(path, data)

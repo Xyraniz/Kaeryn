@@ -58,10 +58,13 @@ local remove = table.remove
 local concat = table.concat
 
 local library = {
-    directory = "kaeryn",
+    directory = "Kaeryn",
+    settings_folder = "Randoms",
+    settings_directory = "Kaeryn/Settings/Randoms",
     folders = {
         "/fonts",
-        "/configs",
+        "/Settings",
+        "/Settings/Randoms",
     },
     flags = {},
     config_flags = {},
@@ -225,6 +228,28 @@ local function config_name(value)
     return name
 end
 
+local function configure_settings_folder(value)
+    if value ~= nil and type(value) ~= "string" then
+        error("window Folder must be a string", 2)
+    end
+    local folder = value and value:match("^%s*(.-)%s*$") or ""
+    folder = folder:gsub("[^%w%._%-]", "_"):sub(1, 64)
+    folder = folder:gsub("%.+$", "")
+    if folder == "" or folder == "." or folder == ".." then folder = "Randoms" end
+    local reserved = string.upper(folder)
+    if reserved == "CON" or reserved == "PRN" or reserved == "AUX" or reserved == "NUL"
+        or reserved:match("^COM[1-9]$") or reserved:match("^LPT[1-9]$") then
+        folder = "_" .. folder
+    end
+
+    library.settings_folder = folder
+    library.settings_directory = library.directory .. "/Settings/" .. folder
+    library.settings_directory_available = ensure_folder(library.directory)
+        and ensure_folder(library.directory .. "/Settings")
+        and ensure_folder(library.settings_directory)
+    return folder
+end
+
 local function separator_option(options, default)
     if options.separator ~= nil then return options.separator end
     if options.seperator ~= nil then return options.seperator end
@@ -234,13 +259,20 @@ end
 
 local function config_path(value)
     local name = config_name(value)
-    return name and (library.directory .. "/configs/" .. name .. ".cfg") or nil
+    return name and (library.settings_directory .. "/" .. name .. ".cfg") or nil
+end
+
+local function auto_config_path()
+    return library.settings_directory .. "/default_config.json"
 end
 
 library.filesystem_available = ensure_folder(library.directory)
 for _, path in ipairs(library.folders) do
     library.filesystem_available = ensure_folder(library.directory .. path) and library.filesystem_available
 end
+library.settings_directory_available = ensure_folder(library.directory)
+    and ensure_folder(library.directory .. "/Settings")
+    and ensure_folder(library.settings_directory)
 
 local flags = library.flags
 local config_flags = library.config_flags
@@ -347,8 +379,10 @@ return {
     write_file = write_file,
     safe_callback = safe_callback,
     config_name = config_name,
+    configure_settings_folder = configure_settings_folder,
     separator_option = separator_option,
     config_path = config_path,
+    auto_config_path = auto_config_path,
     flags = flags,
     config_flags = config_flags,
     config_validators = library.config_validators,
@@ -362,9 +396,13 @@ return function(__kaeryn)
     local http_service = __kaeryn.http_service
     local hex = __kaeryn.hex
     local library = __kaeryn.library
+    local auto_config_path = __kaeryn.auto_config_path
     local flags = __kaeryn.flags
     local config_flags = __kaeryn.config_flags
     local config_validators = __kaeryn.config_validators
+    local read_file = __kaeryn.read_file
+    local write_file = __kaeryn.write_file
+    local ensure_folder = __kaeryn.ensure_folder
 
 local function copy_value(value)
     if type(value) ~= "table" then return value end
@@ -373,10 +411,146 @@ local function copy_value(value)
     return copy
 end
 
+local function resolve_auto_config_flag(self, source_flag)
+    local flag, visited = source_flag, {}
+    while self.flag_migrations[flag] do
+        if visited[flag] then return nil end
+        visited[flag] = true
+        flag = self.flag_migrations[flag]
+    end
+    return flag
+end
+
+function library:queue_auto_config_flag(flag)
+    if not self._auto_config_pending or self._auto_config_scheduled[flag] then return end
+    self._auto_config_scheduled[flag] = true
+    local function apply()
+        self._auto_config_scheduled[flag] = nil
+        if not self.unloaded then self:apply_auto_config_flag(flag) end
+    end
+    if task and type(task.defer) == "function" then task.defer(apply) else apply() end
+end
+
+function library:load_auto_config()
+    if self._auto_config_checked then return false end
+    self._auto_config_checked = true
+    local path = auto_config_path()
+    local content = path and read_file(path)
+    if not content then return false end
+
+    local ok, data = pcall(function() return http_service:JSONDecode(content) end)
+    if not ok or type(data) ~= "table" then
+        warn("[Kaeryn] saved settings could not be read; using control defaults")
+        return false
+    end
+
+    self._auto_config_pending = data
+    self._auto_config_applied = {}
+    self._auto_config_scheduled = {}
+    for flag in pairs(config_flags) do self:queue_auto_config_flag(flag) end
+    return true
+end
+
+function library:apply_auto_config_flag(flag)
+    local pending = self._auto_config_pending
+    if type(pending) ~= "table" then return false end
+    self._auto_config_applied = self._auto_config_applied or {}
+
+    local source_flags = {}
+    for source_flag, value in pairs(pending) do
+        if value ~= nil and resolve_auto_config_flag(self, source_flag) == flag then
+            table.insert(source_flags, source_flag)
+        end
+    end
+    table.sort(source_flags)
+    if #source_flags == 0 then return false end
+
+    local source_flag = table.find(source_flags, flag) and flag or source_flags[1]
+    if self._auto_config_applied[source_flag] then return false end
+    if #source_flags > 1 and source_flag ~= flag then
+        for _, conflicting_flag in ipairs(source_flags) do
+            self._auto_config_applied[conflicting_flag] = true
+        end
+        warn("[Kaeryn] saved settings contain multiple values for control '" .. flag .. "'; skipped")
+        return false
+    end
+
+    local encoded_ok, encoded = pcall(function()
+        return http_service:JSONEncode({[source_flag] = pending[source_flag]})
+    end)
+    if not encoded_ok then
+        self._auto_config_applied[source_flag] = true
+        warn("[Kaeryn] saved setting for '" .. flag .. "' could not be encoded")
+        return false
+    end
+
+    self._auto_config_applying = true
+    local loaded, reason = self:load_config(encoded)
+    self._auto_config_applying = false
+    for _, applied_flag in ipairs(source_flags) do
+        self._auto_config_applied[applied_flag] = true
+    end
+    if not loaded then
+        warn("[Kaeryn] saved setting for '" .. flag .. "' was skipped: " .. tostring(reason))
+        return false
+    end
+    return true
+end
+
+function library:save_auto_config(changed_flag, all_registered)
+    local path = auto_config_path()
+    if not path then return false end
+    self.settings_directory_available = ensure_folder(self.directory)
+        and ensure_folder(self.directory .. "/Settings")
+        and ensure_folder(self.settings_directory)
+    if not self.settings_directory_available then return false end
+
+    self._auto_config_applied = self._auto_config_applied or {}
+    if changed_flag then
+        for source_flag in pairs(self._auto_config_pending or {}) do
+            if resolve_auto_config_flag(self, source_flag) == changed_flag then
+                self._auto_config_applied[source_flag] = true
+            end
+        end
+    end
+
+    local encoded_ok, encoded = pcall(function() return self:get_config() end)
+    if not encoded_ok then
+        warn("[Kaeryn] automatic settings could not be encoded: " .. tostring(encoded))
+        return false
+    end
+    local decoded_ok, data = pcall(function() return http_service:JSONDecode(encoded) end)
+    if not decoded_ok or type(data) ~= "table" then return false end
+
+    for source_flag, value in pairs(self._auto_config_pending or {}) do
+        local target_flag = resolve_auto_config_flag(self, source_flag)
+        if all_registered and target_flag and config_flags[target_flag] then
+            self._auto_config_applied[source_flag] = true
+        end
+        if not self._auto_config_applied[source_flag] then
+            if target_flag then data[target_flag] = nil end
+            data[source_flag] = value
+        end
+    end
+
+    local write_ok, output = pcall(function() return http_service:JSONEncode(data) end)
+    if not write_ok then
+        warn("[Kaeryn] automatic settings could not be encoded: " .. tostring(output))
+        return false
+    end
+    local saved, err = write_file(path, output)
+    if not saved then
+        warn("[Kaeryn] automatic settings could not be saved: " .. tostring(err))
+        return false
+    end
+    self._auto_config_pending = data
+    return true
+end
+
 function library:update_config_list()
     local config_holder = __kaeryn.config_holder
-    if not config_holder or type(listfiles) ~= "function" or not library.filesystem_available then return end
-    local ok, files = pcall(listfiles, library.directory .. "/configs")
+    if not config_holder or type(listfiles) ~= "function" or not library.settings_directory_available then return end
+    local ok, files = pcall(listfiles, library.settings_directory)
     if not ok or type(files) ~= "table" then return end
     local result, seen = {}, {}
     for _, file in ipairs(files) do
@@ -536,6 +710,7 @@ function library:load_config(config_json)
             return false, message
         end
     end
+    if not self._auto_config_applying then self:save_auto_config(nil, true) end
     return true, prepared.migrations
 end
 end
@@ -573,9 +748,12 @@ function library:init_config(window)
         local selected = config_name(flags.config_name_text) or config_name(flags.config_name_list)
         local path = config_path(selected)
         if not path then notice("Enter a configuration name first") return end
-        if not ensure_folder(library.directory) or not ensure_folder(library.directory .. "/configs") then
+        if not ensure_folder(library.directory)
+            or not ensure_folder(library.directory .. "/Settings")
+            or not ensure_folder(library.settings_directory) then
             notice("Cannot create configuration folder") return
         end
+        library.settings_directory_available = true
         local ok, data = pcall(function() return library:get_config() end)
         if not ok then notice("Cannot encode config: " .. tostring(data)) return end
         local wrote, err = write_file(path, data)
@@ -5221,6 +5399,9 @@ function library:register_config_flag(flag, setter, validator, legacy_flags)
     end
     config_flags[flag] = setter
     library.config_validators[flag] = validator
+    if type(library.queue_auto_config_flag) == "function" then
+        library:queue_auto_config_flag(flag)
+    end
 end
 
 function library:with_change_context(source, phase, callback, ...)
@@ -5289,6 +5470,11 @@ function library:commit_control(control, metadata, ...)
     for _, listener in ipairs(control._committed_listeners or {}) do
         local listener_ok, listener_err = pcall(listener, table.unpack(args, 1, args.n))
         if not listener_ok then log_callback_error(control, metadata.source .. "/OnCommitted", listener_err, metadata.source) end
+    end
+    if control.flag and (metadata.source == "user" or metadata.source == "code") then
+        if type(self.save_auto_config) == "function" then
+            self:save_auto_config(control.flag)
+        end
     end
 end
 
@@ -10830,6 +11016,7 @@ return function(__kaeryn)
     local library = __kaeryn.library
     local themes = __kaeryn.themes
     local fonts = __kaeryn.fonts
+    local configure_settings_folder = __kaeryn.configure_settings_folder
 
 function library:window(properties)
     assert(not library.unloaded, "Kaeryn has been unloaded")
@@ -10855,6 +11042,8 @@ function library:window(properties)
     if subname == nil then subname = properties.Subname end
     if subname == "" then subname = nil end
     assert(subname == nil or type(subname) == "string", "window subname must be a string")
+    local config_folder_option = properties.folder
+    if config_folder_option == nil then config_folder_option = properties.Folder end
 
     local toggle_button_options = properties.toggle_button
     if toggle_button_options == nil then toggle_button_options = {} end
@@ -10902,6 +11091,10 @@ function library:window(properties)
         assert(cfg.max_size.X > 0 and cfg.max_size.Y > 0 and cfg.max_size.X < math.huge and cfg.max_size.Y < math.huge,
             "window max_size values must be finite and positive")
         assert(cfg.max_size.X >= cfg.min_size.X and cfg.max_size.Y >= cfg.min_size.Y, "window max_size must be greater than or equal to min_size")
+    end
+    cfg.folder = configure_settings_folder(config_folder_option)
+    if type(library.load_auto_config) == "function" then
+        library:load_auto_config()
     end
 
     library[ "items" ] = library:create( "ScreenGui" , {

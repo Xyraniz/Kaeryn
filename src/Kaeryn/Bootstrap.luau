@@ -56,10 +56,13 @@ local remove = table.remove
 local concat = table.concat
 
 local library = {
-    directory = "kaeryn",
+    directory = "Kaeryn",
+    settings_folder = "Randoms",
+    settings_directory = "Kaeryn/Settings/Randoms",
     folders = {
         "/fonts",
-        "/configs",
+        "/Settings",
+        "/Settings/Randoms",
     },
     flags = {},
     config_flags = {},
@@ -223,6 +226,28 @@ local function config_name(value)
     return name
 end
 
+local function configure_settings_folder(value)
+    if value ~= nil and type(value) ~= "string" then
+        error("window Folder must be a string", 2)
+    end
+    local folder = value and value:match("^%s*(.-)%s*$") or ""
+    folder = folder:gsub("[^%w%._%-]", "_"):sub(1, 64)
+    folder = folder:gsub("%.+$", "")
+    if folder == "" or folder == "." or folder == ".." then folder = "Randoms" end
+    local reserved = string.upper(folder)
+    if reserved == "CON" or reserved == "PRN" or reserved == "AUX" or reserved == "NUL"
+        or reserved:match("^COM[1-9]$") or reserved:match("^LPT[1-9]$") then
+        folder = "_" .. folder
+    end
+
+    library.settings_folder = folder
+    library.settings_directory = library.directory .. "/Settings/" .. folder
+    library.settings_directory_available = ensure_folder(library.directory)
+        and ensure_folder(library.directory .. "/Settings")
+        and ensure_folder(library.settings_directory)
+    return folder
+end
+
 local function separator_option(options, default)
     if options.separator ~= nil then return options.separator end
     if options.seperator ~= nil then return options.seperator end
@@ -232,13 +257,20 @@ end
 
 local function config_path(value)
     local name = config_name(value)
-    return name and (library.directory .. "/configs/" .. name .. ".cfg") or nil
+    return name and (library.settings_directory .. "/" .. name .. ".cfg") or nil
+end
+
+local function auto_config_path()
+    return library.settings_directory .. "/default_config.json"
 end
 
 library.filesystem_available = ensure_folder(library.directory)
 for _, path in ipairs(library.folders) do
     library.filesystem_available = ensure_folder(library.directory .. path) and library.filesystem_available
 end
+library.settings_directory_available = ensure_folder(library.directory)
+    and ensure_folder(library.directory .. "/Settings")
+    and ensure_folder(library.settings_directory)
 
 local flags = library.flags
 local config_flags = library.config_flags
@@ -345,8 +377,10 @@ return {
     write_file = write_file,
     safe_callback = safe_callback,
     config_name = config_name,
+    configure_settings_folder = configure_settings_folder,
     separator_option = separator_option,
     config_path = config_path,
+    auto_config_path = auto_config_path,
     flags = flags,
     config_flags = config_flags,
     config_validators = library.config_validators,
