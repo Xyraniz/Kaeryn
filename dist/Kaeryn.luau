@@ -5636,19 +5636,20 @@ function library:draggify(frame, handle)
             local input_type = input.UserInputType
             if input_type ~= Enum.UserInputType.MouseButton1 and input_type ~= Enum.UserInputType.Touch then return end
             local position = pointer_position(input)
+            local inside_window = false
             for _, object in ipairs(coregui:GetGuiObjectsAtPosition(position.X, position.Y)) do
                 if object == frame or frame:IsAncestorOf(object) then
+                    inside_window = true
                     local ancestor = object
                     while ancestor and ancestor ~= frame do
                         if ancestor:IsA("GuiButton") or ancestor:IsA("TextBox") then return end
                         ancestor = ancestor.Parent
                     end
-                    begin_drag(input)
-                    return
                 elseif object:IsA("GuiButton") or object:IsA("TextBox") then
                     return
                 end
             end
+            if inside_window then begin_drag(input) end
         end)
     end
     library:connection(uis.InputChanged, function(input)
