@@ -1,6 +1,8 @@
 return function(__kaeryn)
     local uis = __kaeryn.uis
     local ws = __kaeryn.ws
+    local run = __kaeryn.run
+    local coregui = __kaeryn.coregui
     local tween_service = __kaeryn.tween_service
     local dim2 = __kaeryn.dim2
     local rgb = __kaeryn.rgb
@@ -883,49 +885,184 @@ function library:mouse_in_frame(uiobject)
     return (y_cond and x_cond)
 end
 
-function library:draggify(frame)
-    local dragging = false
-    local start_size = frame.Position
-    local start
+function library:draggify(frame, handle)
+    local active_drag
+    local position_tween
 
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            start = input.Position
-            start_size = frame.Position
+    local function pointer_position(input)
+        return Vector2.new(input.Position.X, input.Position.Y)
+    end
+
+    local function same_touch(first, second)
+        return first == second or (first and second
+            and first.UserInputType == Enum.UserInputType.Touch
+            and second.UserInputType == Enum.UserInputType.Touch
+            and first.TouchId == second.TouchId)
+    end
+
+    local function parent_size()
+        local parent = frame.Parent
+        if parent and (parent:IsA("GuiObject") or parent:IsA("ScreenGui")) then return parent.AbsoluteSize end
+        return (ws.CurrentCamera and ws.CurrentCamera.ViewportSize) or camera.ViewportSize
+    end
+
+    local function clamp_anchor(position, size)
+        local viewport = parent_size()
+        local anchor_point = frame.AnchorPoint
+        local min_x, max_x = size.X * anchor_point.X, viewport.X - size.X * (1 - anchor_point.X)
+        local min_y, max_y = size.Y * anchor_point.Y, viewport.Y - size.Y * (1 - anchor_point.Y)
+        local x = max_x >= min_x and clamp(position.X, min_x, max_x)
+            or (viewport.X - size.X) * 0.5 + size.X * anchor_point.X
+        local y = max_y >= min_y and clamp(position.Y, min_y, max_y)
+            or (viewport.Y - size.Y) * 0.5 + size.Y * anchor_point.Y
+        return Vector2.new(x, y)
+    end
+
+    local function fade_preview(preview, stroke)
+        if not preview or not preview.Parent then return end
+        library:tween(preview, {BackgroundTransparency = 1}, Enum.EasingStyle.Quad, 0.2)
+        if stroke then library:tween(stroke, {Transparency = 1}, Enum.EasingStyle.Quad, 0.2) end
+        task.delay(0.22, function()
+            if preview.Parent then preview:Destroy() end
+        end)
+    end
+
+    local function make_preview(drag)
+        local preview = Instance.new("Frame")
+        preview.Name = "KaerynDragPreview"
+        preview.AnchorPoint = frame.AnchorPoint
+        preview.Position = dim2(0, drag.start_anchor.X, 0, drag.start_anchor.Y)
+        preview.Size = UDim2.fromOffset(frame.AbsoluteSize.X, frame.AbsoluteSize.Y)
+        preview.BackgroundColor3 = frame.BackgroundColor3
+        preview.BackgroundTransparency = 1
+        preview.BorderSizePixel = 0
+        preview.ZIndex = max(frame.ZIndex + 1, 40)
+        preview.Parent = frame.Parent
+
+        local corner = frame:FindFirstChildOfClass("UICorner")
+        if corner then
+            local preview_corner = corner:Clone()
+            preview_corner.Parent = preview
         end
-    end)
 
-    frame.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = themes.preset.accent
+        stroke.Thickness = 1.5
+        stroke.Transparency = 1
+        stroke.Parent = preview
+        library:apply_theme(stroke, "accent", "Color")
+
+        local scale = Instance.new("UIScale")
+        scale.Scale = 1.02
+        scale.Parent = preview
+
+        drag.preview, drag.stroke = preview, stroke
+        library:tween(preview, {BackgroundTransparency = 0.35}, Enum.EasingStyle.Quad, 0.15)
+        library:tween(stroke, {Transparency = 0}, Enum.EasingStyle.Quad, 0.15)
+        library:tween(scale, {Scale = 1}, Enum.EasingStyle.Quint, 0.25)
+    end
+
+    local function begin_drag(input)
+        local input_type = input.UserInputType
+        if active_drag or (input_type ~= Enum.UserInputType.MouseButton1 and input_type ~= Enum.UserInputType.Touch) then return end
+        if not frame.Parent or not frame.Visible or (handle and (not handle.Parent or not handle.Visible)) then return end
+        if position_tween then
+            position_tween:Cancel()
+            position_tween = nil
         end
-    end)
 
-    library:connection(uis.InputChanged, function(input, game_event)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local viewport = (ws.CurrentCamera and ws.CurrentCamera.ViewportSize) or camera.ViewportSize
-            local viewport_x = viewport.X
-            local viewport_y = viewport.Y
+        local size = parent_size()
+        local position = frame.Position
+        active_drag = {
+            input = input,
+            start_pointer = pointer_position(input),
+            start_anchor = Vector2.new(position.X.Scale * size.X + position.X.Offset, position.Y.Scale * size.Y + position.Y.Offset),
+            target = nil,
+            moved = false,
+        }
+    end
 
-            local current_position = dim2(
-                0,
-                clamp(
-                    start_size.X.Offset + (input.Position.X - start.X),
-                    0,
-                    max(0, viewport_x - frame.AbsoluteSize.X)
-                ),
-                0,
-                math.clamp(
-                    start_size.Y.Offset + (input.Position.Y - start.Y),
-                    0,
-                    max(0, viewport_y - frame.AbsoluteSize.Y)
-                )
-            )
+    local function finish_drag(commit)
+        local drag = active_drag
+        active_drag = nil
+        if not drag then return end
+        if drag.moved and commit and frame.Parent then
+            position_tween = library:tween(frame, {
+                Position = dim2(0, drag.target.X, 0, drag.target.Y),
+            }, Enum.EasingStyle.Quint, 0.3)
+            fade_preview(drag.preview, drag.stroke)
+        elseif drag.moved then
+            fade_preview(drag.preview, drag.stroke)
+        end
+    end
 
-            library:tween(frame, {Position = current_position}, Enum.EasingStyle.Linear, 0.05)
+    if handle then
+        handle.Active = true
+        library:connection(handle.InputBegan, begin_drag)
+    else
+        library:connection(uis.InputBegan, function(input)
+            local input_type = input.UserInputType
+            if input_type ~= Enum.UserInputType.MouseButton1 and input_type ~= Enum.UserInputType.Touch then return end
+            local position = pointer_position(input)
+            for _, object in ipairs(coregui:GetGuiObjectsAtPosition(position.X, position.Y)) do
+                if object == frame or frame:IsAncestorOf(object) then
+                    local ancestor = object
+                    while ancestor and ancestor ~= frame do
+                        if ancestor:IsA("GuiButton") or ancestor:IsA("TextBox") then return end
+                        ancestor = ancestor.Parent
+                    end
+                    begin_drag(input)
+                    return
+                elseif object:IsA("GuiButton") or object:IsA("TextBox") then
+                    return
+                end
+            end
+        end)
+    end
+    library:connection(uis.InputChanged, function(input)
+        local drag = active_drag
+        if not drag then return end
+        local matches = drag.input.UserInputType == Enum.UserInputType.MouseButton1
+            and input.UserInputType == Enum.UserInputType.MouseMovement
+            or drag.input.UserInputType == Enum.UserInputType.Touch and same_touch(input, drag.input)
+        if not matches then return end
+
+        local pointer = pointer_position(input)
+        if not drag.moved and (pointer - drag.start_pointer).Magnitude > 3 then
+            drag.moved = true
             library:close_element()
+            make_preview(drag)
         end
+        if drag.moved then
+            local delta = pointer - drag.start_pointer
+            drag.target = clamp_anchor(drag.start_anchor + delta, frame.AbsoluteSize)
+        end
+    end)
+    library:connection(uis.InputEnded, function(input)
+        local drag = active_drag
+        if not drag then return end
+        local ended = drag.input.UserInputType == Enum.UserInputType.MouseButton1
+            and input.UserInputType == Enum.UserInputType.MouseButton1
+            or drag.input.UserInputType == Enum.UserInputType.Touch and same_touch(input, drag.input)
+        if ended then finish_drag(true) end
+    end)
+    library:connection(run.RenderStepped, function(delta_time)
+        local drag = active_drag
+        if not drag then return end
+        if not frame.Parent or not frame.Visible then
+            finish_drag(false)
+            return
+        end
+        if not drag.preview then return end
+
+        local current = drag.preview.Position
+        local alpha = 1 - math.exp(-delta_time * 45)
+        local x = current.X.Offset + (drag.target.X - current.X.Offset) * alpha
+        local y = current.Y.Offset + (drag.target.Y - current.Y.Offset) * alpha
+        drag.preview.Position = dim2(0, x, 0, y)
+    end)
+    library:connection(uis.WindowFocusReleased, function()
+        finish_drag(false)
     end)
 end
 
