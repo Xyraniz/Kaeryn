@@ -76,16 +76,27 @@ function library:refresh_responsive_layout(window)
     items.multi_holder.Size = dim2(1, -side, 0, header)
     items.global_fade.Position = dim_offset(side, header)
     items.global_fade.Size = dim2(1, -side, 1, -header)
+    local show_subname = window.subname ~= nil and breakpoint ~= "phone"
+    items.subname.Text = window.subname or ""
+    items.subname.Visible = show_subname
     items.title.Position = dim_offset(breakpoint == "phone" and 0 or 11, 0)
-    items.title.Size = dim_offset(breakpoint == "phone" and side or side - 22, 48)
+    items.title.Size = dim_offset(breakpoint == "phone" and side or side - 22,
+        show_subname and (breakpoint == "tablet" and 27 or 36) or 48)
     items.title.TextSize = breakpoint == "phone" and 18 or breakpoint == "tablet" and 19 or 28
     items.title.TextXAlignment = breakpoint == "phone" and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
     items.title.TextWrapped = false
     items.title.TextTruncate = Enum.TextTruncate.AtEnd
     items.title.Text = breakpoint == "phone" and string.upper(window.name:match("[%w]") or "?")
         or string.format('<u>%s</u>', window.name)
-    items.button_holder.Position = dim_offset(0, header)
-    items.button_holder.Size = dim2(1, 0, 1, -(header + 4))
+    if show_subname then
+        local subname_y = breakpoint == "tablet" and 28 or 37
+        items.subname.Position = dim_offset(11, subname_y)
+        items.subname.Size = dim2(1, -22, 0, 18)
+        items.subname.TextSize = breakpoint == "tablet" and 11 or 12
+    end
+    local sidebar_header = show_subname and breakpoint == "desktop" and 66 or header
+    items.button_holder.Position = dim_offset(0, sidebar_header)
+    items.button_holder.Size = dim2(1, 0, 1, -(sidebar_header + 4))
     for _, child in ipairs(items.button_holder:GetChildren()) do
         if child:IsA("TextLabel") then
             child.Visible = breakpoint ~= "phone"
@@ -294,13 +305,21 @@ function library:refresh_mobile_layout()
         it.main.Position = dim_offset(left, y)
     end
     it.side_frame.Size = dim2(0, side, 1, 0)
+    local show_subname = win.subname ~= nil and not compact
+    it.subname.Text = win.subname or ""
+    it.subname.Visible = show_subname
     it.title.Text = compact and win.name:sub(1, 1):upper() or win.name
     it.title.TextSize = compact and 18 or (side < 185 and 13 or 14)
-    it.title.TextTruncate = compact and Enum.TextTruncate.AtEnd or Enum.TextTruncate.None
-    it.title.TextWrapped = not compact
+    it.title.TextTruncate = (compact or show_subname) and Enum.TextTruncate.AtEnd or Enum.TextTruncate.None
+    it.title.TextWrapped = not compact and not show_subname
     it.title.TextXAlignment = compact and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
     it.title.Position = dim_offset(compact and 2 or 11, 0)
-    it.title.Size = dim_offset(compact and 24 or side - 44, 44)
+    it.title.Size = dim_offset(compact and 24 or side - 44, show_subname and 23 or 44)
+    if show_subname then
+        it.subname.Position = dim_offset(11, 23)
+        it.subname.Size = dim2(1, -44, 0, 17)
+        it.subname.TextSize = 11
+    end
     it.button_holder.Position = dim_offset(0, 48)
     it.button_holder.Size = dim2(1, 0, 1, -52)
     if win.sidebar_toggle then

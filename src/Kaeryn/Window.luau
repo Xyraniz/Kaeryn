@@ -35,6 +35,11 @@ function library:window(properties)
         and background_transparency >= 0 and background_transparency <= 1,
         "window background_transparency must be a number between 0 and 1")
 
+    local subname = properties.subname
+    if subname == nil then subname = properties.Subname end
+    if subname == "" then subname = nil end
+    assert(subname == nil or type(subname) == "string", "window subname must be a string")
+
     local toggle_button_options = properties.toggle_button
     if toggle_button_options == nil then toggle_button_options = {} end
     assert(type(toggle_button_options) == "table", "window toggle_button must be a table")
@@ -58,6 +63,7 @@ function library:window(properties)
 
     local cfg = {
         name = properties.name or properties.Name or "nebula";
+        subname = subname;
         size = properties.size or properties.Size or dim2(0, 700, 0, 565);
         background = background_image;
         background_transparency = background_transparency;
@@ -101,6 +107,7 @@ function library:window(properties)
     library.cache = library:create("Folder", {Name = "TabCache", Parent = library.other})
     local initial_viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(1440, 900)
     local items = cfg.items; do
+        local sidebar_header_height = cfg.subname and 66 or 60
         items[ "main" ] = library:create( "Frame" , {
             Parent = library[ "items" ];
             Size = cfg.size;
@@ -171,9 +178,9 @@ function library:window(properties)
             CanvasSize = dim_offset(0, 0);
             ClipsDescendants = true;
             BackgroundTransparency = 1;
-            Position = dim2(0, 0, 0, 60);
+            Position = dim2(0, 0, 0, sidebar_header_height);
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(1, 0, 1, -60);
+            Size = dim2(1, 0, 1, -sidebar_header_height);
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 255, 255)
         }); cfg.button_holder = items[ "button_holder" ];
@@ -199,15 +206,35 @@ function library:window(properties)
             BorderColor3 = rgb(0, 0, 0);
             Parent = items[ "side_frame" ];
             Name = "\0";
+            Position = cfg.subname and dim2(0, 11, 0, 0) or dim2(0, 0, 0, 0);
             Text = string.format('<u>%s</u>', cfg.name);
             BackgroundTransparency = 1;
-            Size = dim2(1, 0, 0, 70);
+            Size = cfg.subname and dim2(1, -22, 0, 36) or dim2(1, 0, 0, 70);
             TextColor3 = themes.preset.accent;
             BorderSizePixel = 0;
             RichText = true;
             TextSize = 30;
             BackgroundColor3 = rgb(255, 255, 255)
         }); library:apply_theme(items[ "title" ], "accent", "TextColor3");
+
+        items["subname"] = library:create("TextLabel", {
+            Parent = items["side_frame"];
+            Name = "Subname";
+            Position = dim2(0, 11, 0, 37);
+            Size = dim2(1, -22, 0, 18);
+            BackgroundTransparency = 1;
+            BorderSizePixel = 0;
+            FontFace = fonts.font;
+            Text = cfg.subname or "";
+            TextColor3 = themes.preset.text_soft;
+            TextSize = 12;
+            TextTransparency = 0.2;
+            TextXAlignment = Enum.TextXAlignment.Left;
+            TextTruncate = Enum.TextTruncate.AtEnd;
+            TextWrapped = false;
+            Visible = cfg.subname ~= nil;
+        })
+        library:apply_theme(items["subname"], "text_soft", "TextColor3")
 
         items[ "multi_holder" ] = library:create( "Frame" , {
             Parent = items[ "main" ];
@@ -272,6 +299,7 @@ function library:window(properties)
         if library.is_mobile then
             library.mobile_window = cfg
             library:mobile_drag(items.title, items.main)
+            library:mobile_drag(items.subname, items.main)
             cfg.sidebar_toggle = library:create("TextButton", {
                 Parent = items.side_frame,
                 Name = "MobileSidebarToggle",
@@ -423,6 +451,16 @@ function library:window(properties)
         assert(type(callback) == "function", "OnDestroy expects a function")
         self._on_destroy = callback
         return self
+    end
+
+    function cfg:SetSubname(value)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if value ~= nil and type(value) ~= "string" then return false, "subname must be a string or nil" end
+        if value == "" then value = nil end
+        self.subname = value
+        items.subname.Text = value or ""
+        if library.is_mobile then library:queue_mobile_layout() else library:refresh_responsive_layout(self) end
+        return true
     end
 
     function cfg:SetBackgroundImage(image)

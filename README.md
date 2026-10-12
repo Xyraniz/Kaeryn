@@ -114,6 +114,7 @@ If it gets moved out of reach, `window:ResetToggleButtonPosition()` places it ba
 ```lua
 local window = library:window({
     name = "Kaeryn",
+    subname = "Modular UI library",
     toggle_button = {
         size = UDim2.fromOffset(48, 48),
         icon = "rbxassetid://1234567890", -- replace with your image asset
@@ -121,6 +122,8 @@ local window = library:window({
     },
 })
 ```
+
+`subname` (also accepted as `Subname`) appears beneath the window name in the sidebar. It truncates to fit and is hidden while the mobile sidebar is collapsed. Update or clear it later with `window:SetSubname("New subtitle")` or `window:SetSubname(nil)`.
 
 ## Window lifecycle and saved layout
 

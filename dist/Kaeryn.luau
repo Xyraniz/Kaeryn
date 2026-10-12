@@ -6711,16 +6711,27 @@ function library:refresh_responsive_layout(window)
     items.multi_holder.Size = dim2(1, -side, 0, header)
     items.global_fade.Position = dim_offset(side, header)
     items.global_fade.Size = dim2(1, -side, 1, -header)
+    local show_subname = window.subname ~= nil and breakpoint ~= "phone"
+    items.subname.Text = window.subname or ""
+    items.subname.Visible = show_subname
     items.title.Position = dim_offset(breakpoint == "phone" and 0 or 11, 0)
-    items.title.Size = dim_offset(breakpoint == "phone" and side or side - 22, 48)
+    items.title.Size = dim_offset(breakpoint == "phone" and side or side - 22,
+        show_subname and (breakpoint == "tablet" and 27 or 36) or 48)
     items.title.TextSize = breakpoint == "phone" and 18 or breakpoint == "tablet" and 19 or 28
     items.title.TextXAlignment = breakpoint == "phone" and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
     items.title.TextWrapped = false
     items.title.TextTruncate = Enum.TextTruncate.AtEnd
     items.title.Text = breakpoint == "phone" and string.upper(window.name:match("[%w]") or "?")
         or string.format('<u>%s</u>', window.name)
-    items.button_holder.Position = dim_offset(0, header)
-    items.button_holder.Size = dim2(1, 0, 1, -(header + 4))
+    if show_subname then
+        local subname_y = breakpoint == "tablet" and 28 or 37
+        items.subname.Position = dim_offset(11, subname_y)
+        items.subname.Size = dim2(1, -22, 0, 18)
+        items.subname.TextSize = breakpoint == "tablet" and 11 or 12
+    end
+    local sidebar_header = show_subname and breakpoint == "desktop" and 66 or header
+    items.button_holder.Position = dim_offset(0, sidebar_header)
+    items.button_holder.Size = dim2(1, 0, 1, -(sidebar_header + 4))
     for _, child in ipairs(items.button_holder:GetChildren()) do
         if child:IsA("TextLabel") then
             child.Visible = breakpoint ~= "phone"
@@ -6929,13 +6940,21 @@ function library:refresh_mobile_layout()
         it.main.Position = dim_offset(left, y)
     end
     it.side_frame.Size = dim2(0, side, 1, 0)
+    local show_subname = win.subname ~= nil and not compact
+    it.subname.Text = win.subname or ""
+    it.subname.Visible = show_subname
     it.title.Text = compact and win.name:sub(1, 1):upper() or win.name
     it.title.TextSize = compact and 18 or (side < 185 and 13 or 14)
-    it.title.TextTruncate = compact and Enum.TextTruncate.AtEnd or Enum.TextTruncate.None
-    it.title.TextWrapped = not compact
+    it.title.TextTruncate = (compact or show_subname) and Enum.TextTruncate.AtEnd or Enum.TextTruncate.None
+    it.title.TextWrapped = not compact and not show_subname
     it.title.TextXAlignment = compact and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
     it.title.Position = dim_offset(compact and 2 or 11, 0)
-    it.title.Size = dim_offset(compact and 24 or side - 44, 44)
+    it.title.Size = dim_offset(compact and 24 or side - 44, show_subname and 23 or 44)
+    if show_subname then
+        it.subname.Position = dim_offset(11, 23)
+        it.subname.Size = dim2(1, -44, 0, 17)
+        it.subname.TextSize = 11
+    end
     it.button_holder.Position = dim_offset(0, 48)
     it.button_holder.Size = dim2(1, 0, 1, -52)
     if win.sidebar_toggle then
@@ -10832,6 +10851,11 @@ function library:window(properties)
         and background_transparency >= 0 and background_transparency <= 1,
         "window background_transparency must be a number between 0 and 1")
 
+    local subname = properties.subname
+    if subname == nil then subname = properties.Subname end
+    if subname == "" then subname = nil end
+    assert(subname == nil or type(subname) == "string", "window subname must be a string")
+
     local toggle_button_options = properties.toggle_button
     if toggle_button_options == nil then toggle_button_options = {} end
     assert(type(toggle_button_options) == "table", "window toggle_button must be a table")
@@ -10855,6 +10879,7 @@ function library:window(properties)
 
     local cfg = {
         name = properties.name or properties.Name or "nebula";
+        subname = subname;
         size = properties.size or properties.Size or dim2(0, 700, 0, 565);
         background = background_image;
         background_transparency = background_transparency;
@@ -10898,6 +10923,7 @@ function library:window(properties)
     library.cache = library:create("Folder", {Name = "TabCache", Parent = library.other})
     local initial_viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(1440, 900)
     local items = cfg.items; do
+        local sidebar_header_height = cfg.subname and 66 or 60
         items[ "main" ] = library:create( "Frame" , {
             Parent = library[ "items" ];
             Size = cfg.size;
@@ -10968,9 +10994,9 @@ function library:window(properties)
             CanvasSize = dim_offset(0, 0);
             ClipsDescendants = true;
             BackgroundTransparency = 1;
-            Position = dim2(0, 0, 0, 60);
+            Position = dim2(0, 0, 0, sidebar_header_height);
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(1, 0, 1, -60);
+            Size = dim2(1, 0, 1, -sidebar_header_height);
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 255, 255)
         }); cfg.button_holder = items[ "button_holder" ];
@@ -10996,15 +11022,35 @@ function library:window(properties)
             BorderColor3 = rgb(0, 0, 0);
             Parent = items[ "side_frame" ];
             Name = "\0";
+            Position = cfg.subname and dim2(0, 11, 0, 0) or dim2(0, 0, 0, 0);
             Text = string.format('<u>%s</u>', cfg.name);
             BackgroundTransparency = 1;
-            Size = dim2(1, 0, 0, 70);
+            Size = cfg.subname and dim2(1, -22, 0, 36) or dim2(1, 0, 0, 70);
             TextColor3 = themes.preset.accent;
             BorderSizePixel = 0;
             RichText = true;
             TextSize = 30;
             BackgroundColor3 = rgb(255, 255, 255)
         }); library:apply_theme(items[ "title" ], "accent", "TextColor3");
+
+        items["subname"] = library:create("TextLabel", {
+            Parent = items["side_frame"];
+            Name = "Subname";
+            Position = dim2(0, 11, 0, 37);
+            Size = dim2(1, -22, 0, 18);
+            BackgroundTransparency = 1;
+            BorderSizePixel = 0;
+            FontFace = fonts.font;
+            Text = cfg.subname or "";
+            TextColor3 = themes.preset.text_soft;
+            TextSize = 12;
+            TextTransparency = 0.2;
+            TextXAlignment = Enum.TextXAlignment.Left;
+            TextTruncate = Enum.TextTruncate.AtEnd;
+            TextWrapped = false;
+            Visible = cfg.subname ~= nil;
+        })
+        library:apply_theme(items["subname"], "text_soft", "TextColor3")
 
         items[ "multi_holder" ] = library:create( "Frame" , {
             Parent = items[ "main" ];
@@ -11069,6 +11115,7 @@ function library:window(properties)
         if library.is_mobile then
             library.mobile_window = cfg
             library:mobile_drag(items.title, items.main)
+            library:mobile_drag(items.subname, items.main)
             cfg.sidebar_toggle = library:create("TextButton", {
                 Parent = items.side_frame,
                 Name = "MobileSidebarToggle",
@@ -11220,6 +11267,16 @@ function library:window(properties)
         assert(type(callback) == "function", "OnDestroy expects a function")
         self._on_destroy = callback
         return self
+    end
+
+    function cfg:SetSubname(value)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if value ~= nil and type(value) ~= "string" then return false, "subname must be a string or nil" end
+        if value == "" then value = nil end
+        self.subname = value
+        items.subname.Text = value or ""
+        if library.is_mobile then library:queue_mobile_layout() else library:refresh_responsive_layout(self) end
+        return true
     end
 
     function cfg:SetBackgroundImage(image)
