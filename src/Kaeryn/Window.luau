@@ -305,8 +305,7 @@ function library:window(properties)
     do
         if library.is_mobile then
             library.mobile_window = cfg
-            library:mobile_drag(items.title, items.main)
-            library:mobile_drag(items.subname, items.main)
+            library:mobile_drag({items.title, items.subname}, items.main)
             cfg.sidebar_toggle = library:create("TextButton", {
                 Parent = items.side_frame,
                 Name = "MobileSidebarToggle",

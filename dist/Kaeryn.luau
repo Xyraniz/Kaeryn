@@ -5815,8 +5815,13 @@ function library:draggify(frame, handle)
     end
 
     if handle then
-        handle.Active = true
-        library:connection(handle.InputBegan, begin_drag)
+        local handles = type(handle) == "table" and handle or {handle}
+        for _, drag_handle in ipairs(handles) do
+            if drag_handle and drag_handle.Parent then
+                drag_handle.Active = true
+                library:connection(drag_handle.InputBegan, begin_drag)
+            end
+        end
     else
         library:connection(uis.InputBegan, function(input)
             local input_type = input.UserInputType
@@ -10878,7 +10883,7 @@ return function(__kaeryn)
             local protrudes = main_right + bar_width <= viewport.X - 8
             local header = items.multi_holder
             local header_center_scale = header.Position.Y.Scale + header.Size.Y.Scale * 0.5
-            local header_center_offset = header.Position.Y.Offset + header.Size.Y.Offset * 0.5 - 2
+            local header_center_offset = header.Position.Y.Offset + header.Size.Y.Offset * 0.5 + 10
             action_bar.Position = dim2(1, protrudes and 0 or -action_bar.Size.X.Offset,
                 header_center_scale, header_center_offset)
         end
@@ -11372,8 +11377,7 @@ function library:window(properties)
     do
         if library.is_mobile then
             library.mobile_window = cfg
-            library:mobile_drag(items.title, items.main)
-            library:mobile_drag(items.subname, items.main)
+            library:mobile_drag({items.title, items.subname}, items.main)
             cfg.sidebar_toggle = library:create("TextButton", {
                 Parent = items.side_frame,
                 Name = "MobileSidebarToggle",

@@ -1005,8 +1005,13 @@ function library:draggify(frame, handle)
     end
 
     if handle then
-        handle.Active = true
-        library:connection(handle.InputBegan, begin_drag)
+        local handles = type(handle) == "table" and handle or {handle}
+        for _, drag_handle in ipairs(handles) do
+            if drag_handle and drag_handle.Parent then
+                drag_handle.Active = true
+                library:connection(drag_handle.InputBegan, begin_drag)
+            end
+        end
     else
         library:connection(uis.InputBegan, function(input)
             local input_type = input.UserInputType
