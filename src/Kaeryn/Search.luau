@@ -79,20 +79,61 @@ return function(__kaeryn)
 
     function library:init_search(window)
         local items = window.items
-        local button = library:create("TextButton", {
+        local menu_close_button = library:create("TextButton", {
             Parent = items.multi_holder,
             AnchorPoint = Vector2.new(1, 0.5),
             Position = dim2(1, -9, 0.5, -2),
-            Size = dim2(0, 36, 0, 30),
-            BackgroundColor3 = rgb(0, 0, 0),
+            Size = dim2(0, 44, 0, 44),
+            BackgroundColor3 = themes.preset.surface_hover,
             BackgroundTransparency = 0,
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+            Name = "CloseMenu",
+            Text = "",
+            ZIndex = 83,
+        })
+        library:apply_theme(menu_close_button, "surface_hover", "BackgroundColor3")
+        local close_icon = library:create("ImageLabel", {
+            Parent = menu_close_button,
+            Name = "Icon",
+            AnchorPoint = vec2(0.5, 0.5),
+            Position = dim2(0.5, 0, 0.5, 0),
+            Size = dim2(0, 16, 0, 16),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Image = library:resolve_icon("x"),
+            ImageColor3 = rgb(255, 255, 255),
+            ZIndex = 84,
+        })
+        library:apply_theme(close_icon, "text", "ImageColor3")
+        local search_extension = library:create("Frame", {
+            Parent = items.multi_holder,
+            Name = "SearchExtension",
+            AnchorPoint = vec2(0, 0.5),
+            Position = dim2(1, -9, 0.5, 0),
+            Size = dim2(0, 44, 0, 44),
+            BackgroundColor3 = themes.preset.surface_hover,
+            BorderSizePixel = 0,
+            ZIndex = 5,
+        })
+        local extension_stroke = library:create("UIStroke", {
+            Parent = search_extension,
+            Color = themes.preset.border,
+            Thickness = 1,
+        })
+        library:apply_theme(search_extension, "surface_hover", "BackgroundColor3")
+        library:apply_theme(extension_stroke, "border", "Color")
+        local button = library:create("TextButton", {
+            Parent = search_extension,
+            Position = dim2(0, 0, 0, 0),
+            Size = dim2(1, 0, 1, 0),
+            BackgroundTransparency = 1,
             BorderSizePixel = 0,
             AutoButtonColor = false,
             Name = "Search",
             Text = "",
-            ZIndex = 5,
+            ZIndex = 6,
         })
-        library:create("UICorner", {Parent = button, CornerRadius = dim(0, 5)})
         library:create("ImageLabel", {
             Parent = button,
             Name = "Icon",
@@ -103,7 +144,7 @@ return function(__kaeryn)
             BorderSizePixel = 0,
             Image = library:resolve_icon("search"),
             ImageColor3 = rgb(255, 255, 255),
-            ZIndex = 6,
+            ZIndex = 7,
         })
         window.search_button = button
 
@@ -274,6 +315,20 @@ return function(__kaeryn)
             query:CaptureFocus()
         end
         library:connection(button.Activated, open)
+        library:connection(menu_close_button.Activated, function()
+            library:unload_menu()
+        end)
+        local function update_header_actions()
+            local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(800, 600)
+            local main_right = items.main.AbsolutePosition.X + items.main.AbsoluteSize.X
+            local protrudes = main_right + 35 <= viewport.X - 8
+            local right_offset = protrudes and -9 or -44
+            search_extension.Position = dim2(1, right_offset, 0.5, 0)
+            menu_close_button.Position = dim2(1, right_offset, 0.5, 0)
+        end
+        library:connection(items.main:GetPropertyChangedSignal("AbsolutePosition"), update_header_actions)
+        library:connection(items.main:GetPropertyChangedSignal("AbsoluteSize"), update_header_actions)
+        update_header_actions()
         library:connection(close_button.Activated, close_search)
         library:connection(query:GetPropertyChangedSignal("Text"), render_results)
         library:connection(uis.InputBegan, function(input, processed)
@@ -286,6 +341,7 @@ return function(__kaeryn)
         local function resize_panel()
             local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(800, 600)
             panel.Size = dim2(0, math.min(500, math.max(180, viewport.X - 24)), 0, math.min(410, math.max(180, viewport.Y - 24)))
+            update_header_actions()
         end
         library:connection(ws:GetPropertyChangedSignal("CurrentCamera"), function()
             if ws.CurrentCamera then

@@ -90,7 +90,7 @@ Metadata includes `source` (`user`, `config`, `code`, or `initialization`), `pha
 
 ## Search, language, dialogs, and responsive layouts
 
-Every window includes a control search button; `Ctrl+K` opens it on desktop. Search checks control names, IDs, flags, descriptions, and their tab/section path. Selecting a result opens the right tab and scrolls to the control. You can also use the search API directly:
+Every window includes a Lucide close button and a control-search button in a square attached directly to its right. The close button destroys the UI; `Ctrl+K` opens search on desktop. Search checks control names, IDs, flags, descriptions, and their tab/section path. Selecting a result opens the right tab and scrolls to the control. You can also use the search API directly:
 
 ```lua
 window.search.open()
