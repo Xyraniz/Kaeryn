@@ -893,7 +893,7 @@ function library:mouse_in_frame(uiobject)
     return (y_cond and x_cond)
 end
 
-function library:draggify(frame, handle)
+function library:draggify(frame, handle, additional_handle)
     local active_drag
     local position_tween
 
@@ -970,10 +970,10 @@ function library:draggify(frame, handle)
         library:tween(scale, {Scale = 1}, Enum.EasingStyle.Quint, 0.25)
     end
 
-    local function begin_drag(input, drag_handle)
+    local function begin_drag(input)
         local input_type = input.UserInputType
         if active_drag or (input_type ~= Enum.UserInputType.MouseButton1 and input_type ~= Enum.UserInputType.Touch) then return end
-        if not frame.Parent or not frame.Visible or (drag_handle and (not drag_handle.Parent or not drag_handle.Visible)) then return end
+        if not frame.Parent or not frame.Visible or (handle and (not handle.Parent or not handle.Visible)) then return end
         if position_tween then
             position_tween:Cancel()
             position_tween = nil
@@ -1005,14 +1005,11 @@ function library:draggify(frame, handle)
     end
 
     if handle then
-        local handles = type(handle) == "table" and handle or {handle}
-        for _, drag_handle in ipairs(handles) do
-            if drag_handle and drag_handle.Parent then
-                drag_handle.Active = true
-                library:connection(drag_handle.InputBegan, function(input)
-                    begin_drag(input, drag_handle)
-                end)
-            end
+        handle.Active = true
+        library:connection(handle.InputBegan, begin_drag)
+        if additional_handle and additional_handle ~= handle then
+            additional_handle.Active = true
+            library:connection(additional_handle.InputBegan, begin_drag)
         end
     else
         library:connection(uis.InputBegan, function(input)

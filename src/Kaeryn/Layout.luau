@@ -422,8 +422,8 @@ function library:queue_mobile_layout()
     end)
 end
 
-function library:mobile_drag(handle, frame)
-    library:draggify(frame, handle)
+function library:mobile_drag(handle, frame, additional_handle)
+    library:draggify(frame, handle, additional_handle)
 end
 
 function library:unload_menu()
