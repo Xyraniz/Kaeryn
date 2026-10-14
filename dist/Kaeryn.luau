@@ -10871,10 +10871,9 @@ return function(__kaeryn)
         local function update_header_actions()
             local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(800, 600)
             local main_right = items.main.AbsolutePosition.X + items.main.AbsoluteSize.X
-            local protrudes = main_right + 35 <= viewport.X - 8
-            local right_offset = protrudes and -9 or -44
-            search_extension.Position = dim2(1, right_offset, 0.5, 0)
-            menu_close_button.Position = dim2(1, right_offset, 0.5, 0)
+            local protrudes = main_right + 43 <= viewport.X - 8
+            search_extension.Position = dim2(1, protrudes and -1 or -44, 0.5, 0)
+            menu_close_button.Position = dim2(1, protrudes and -9 or -52, 0.5, 0)
         end
         library:connection(items.main:GetPropertyChangedSignal("AbsolutePosition"), update_header_actions)
         library:connection(items.main:GetPropertyChangedSignal("AbsoluteSize"), update_header_actions)
