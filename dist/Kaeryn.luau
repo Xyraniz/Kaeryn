@@ -10629,73 +10629,68 @@ return function(__kaeryn)
 
     function library:init_search(window)
         local items = window.items
-        local menu_close_button = library:create("TextButton", {
+        local action_bar = library:create("Frame", {
             Parent = items.multi_holder,
-            AnchorPoint = Vector2.new(1, 0.5),
-            Position = dim2(1, -9, 0.5, -2),
-            Size = dim2(0, 44, 0, 44),
-            BackgroundColor3 = themes.preset.surface_hover,
+            Name = "HeaderActions",
+            AnchorPoint = vec2(0, 0.5),
+            Position = dim2(1, 0, 0.5, -2),
+            Size = dim2(0, 48, 0, 100),
+            BackgroundColor3 = rgb(0, 0, 0),
             BackgroundTransparency = 0,
             BorderSizePixel = 0,
-            AutoButtonColor = false,
-            Name = "CloseMenu",
-            Text = "",
             ZIndex = 83,
         })
-        library:apply_theme(menu_close_button, "surface_hover", "BackgroundColor3")
-        local close_icon = library:create("ImageLabel", {
-            Parent = menu_close_button,
-            Name = "Icon",
-            AnchorPoint = vec2(0.5, 0.5),
-            Position = dim2(0.5, 0, 0.5, 0),
-            Size = dim2(0, 16, 0, 16),
-            BackgroundTransparency = 1,
+        library:create("UICorner", {Parent = action_bar, CornerRadius = dim(0, 11)})
+        library:create("UIStroke", {Parent = action_bar, Color = rgb(37, 37, 41), Thickness = 1})
+        library:create("Frame", {
+            Parent = action_bar,
+            Name = "SquareLeftEdge",
+            Position = dim2(0, 0, 0, 0),
+            Size = dim2(0, 11, 1, 0),
+            BackgroundColor3 = rgb(0, 0, 0),
             BorderSizePixel = 0,
-            Image = library:resolve_icon("x"),
-            ImageColor3 = rgb(255, 255, 255),
             ZIndex = 84,
         })
-        library:apply_theme(close_icon, "text", "ImageColor3")
-        local search_extension = library:create("Frame", {
-            Parent = items.multi_holder,
-            Name = "SearchExtension",
-            AnchorPoint = vec2(0, 0.5),
-            Position = dim2(1, -9, 0.5, 0),
-            Size = dim2(0, 44, 0, 44),
-            BackgroundColor3 = themes.preset.surface_hover,
-            BorderSizePixel = 0,
-            ZIndex = 5,
-        })
-        local extension_stroke = library:create("UIStroke", {
-            Parent = search_extension,
-            Color = themes.preset.border,
-            Thickness = 1,
-        })
-        library:apply_theme(search_extension, "surface_hover", "BackgroundColor3")
-        library:apply_theme(extension_stroke, "border", "Color")
-        local button = library:create("TextButton", {
-            Parent = search_extension,
-            Position = dim2(0, 0, 0, 0),
-            Size = dim2(1, 0, 1, 0),
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            AutoButtonColor = false,
-            Name = "Search",
-            Text = "",
-            ZIndex = 6,
-        })
-        library:create("ImageLabel", {
-            Parent = button,
-            Name = "Icon",
-            AnchorPoint = vec2(0.5, 0.5),
-            Position = dim2(0.5, 0, 0.5, 0),
-            Size = dim2(0, 18, 0, 18),
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            Image = library:resolve_icon("search"),
-            ImageColor3 = rgb(255, 255, 255),
-            ZIndex = 7,
-        })
+
+        local function create_action_button(name, icon_name, y, icon_size)
+            local action_button = library:create("TextButton", {
+                Parent = action_bar,
+                Name = name,
+                Position = dim2(0, 4, 0, y),
+                Size = dim2(0, 40, 0, 40),
+                BackgroundColor3 = themes.preset.surface_hover,
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                AutoButtonColor = false,
+                Text = "",
+                ZIndex = 85,
+            })
+            library:create("UICorner", {Parent = action_button, CornerRadius = dim(0, 8)})
+            library:apply_theme(action_button, "surface_hover", "BackgroundColor3")
+            local icon = library:create("ImageLabel", {
+                Parent = action_button,
+                Name = "Icon",
+                AnchorPoint = vec2(0.5, 0.5),
+                Position = dim2(0.5, 0, 0.5, 0),
+                Size = dim2(0, icon_size, 0, icon_size),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                Image = library:resolve_icon(icon_name),
+                ImageColor3 = rgb(255, 255, 255),
+                ZIndex = 86,
+            })
+            library:apply_theme(icon, "text", "ImageColor3")
+            library:connection(action_button.MouseEnter, function()
+                action_button.BackgroundTransparency = 0
+            end)
+            library:connection(action_button.MouseLeave, function()
+                action_button.BackgroundTransparency = 1
+            end)
+            return action_button
+        end
+
+        local menu_close_button = create_action_button("CloseMenu", "x", 4, 16)
+        local button = create_action_button("Search", "search", 56, 18)
         window.search_button = button
 
         local overlay = library:create("Frame", {
@@ -10871,12 +10866,24 @@ return function(__kaeryn)
         local function update_header_actions()
             local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(800, 600)
             local main_right = items.main.AbsolutePosition.X + items.main.AbsoluteSize.X
-            local protrudes = main_right + 43 <= viewport.X - 8
-            search_extension.Position = dim2(1, protrudes and -1 or -44, 0.5, 0)
-            menu_close_button.Position = dim2(1, protrudes and -9 or -52, 0.5, 0)
+            local protrudes = main_right + 48 <= viewport.X - 8
+            local header_top = items.multi_holder.AbsolutePosition.Y
+            local header_height = items.multi_holder.AbsoluteSize.Y
+            local bar_height = action_bar.AbsoluteSize.Y
+            if header_height <= 0 then header_height = items.multi_holder.Size.Y.Offset end
+            if bar_height <= 0 then bar_height = action_bar.Size.Y.Offset end
+            local y_offset = -2
+            local min_y_offset = bar_height * 0.5 - header_top - header_height * 0.5
+            local max_y_offset = viewport.Y - header_top - header_height * 0.5 - bar_height * 0.5
+            if min_y_offset <= max_y_offset then
+                y_offset = math.clamp(y_offset, min_y_offset, max_y_offset)
+            end
+            action_bar.Position = dim2(1, protrudes and 0 or -48, 0.5, y_offset)
         end
         library:connection(items.main:GetPropertyChangedSignal("AbsolutePosition"), update_header_actions)
         library:connection(items.main:GetPropertyChangedSignal("AbsoluteSize"), update_header_actions)
+        library:connection(items.multi_holder:GetPropertyChangedSignal("AbsolutePosition"), update_header_actions)
+        library:connection(items.multi_holder:GetPropertyChangedSignal("AbsoluteSize"), update_header_actions)
         update_header_actions()
         library:connection(close_button.Activated, close_search)
         library:connection(query:GetPropertyChangedSignal("Text"), render_results)
