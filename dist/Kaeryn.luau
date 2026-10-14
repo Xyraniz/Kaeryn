@@ -10882,7 +10882,7 @@ return function(__kaeryn)
             local protrudes = main_right + bar_width <= viewport.X - 8
             local header = items.multi_holder
             local header_center_scale = header.Position.Y.Scale + header.Size.Y.Scale * 0.5
-            local header_center_offset = header.Position.Y.Offset + header.Size.Y.Offset * 0.5 + 10
+            local header_center_offset = header.Position.Y.Offset + header.Size.Y.Offset * 0.5 + 26
             action_bar.Position = dim2(1, protrudes and 0 or -action_bar.Size.X.Offset,
                 header_center_scale, header_center_offset)
         end
