@@ -10629,11 +10629,18 @@ return function(__kaeryn)
 
     function library:init_search(window)
         local items = window.items
+        for _, parent in ipairs({items.multi_holder, items.main}) do
+            for _, child in ipairs(parent:GetChildren()) do
+                if child.Name == "CloseMenu" or child.Name == "SearchExtension" or child.Name == "HeaderActions" then
+                    child:Destroy()
+                end
+            end
+        end
         local action_bar = library:create("Frame", {
-            Parent = items.multi_holder,
+            Parent = items.main,
             Name = "HeaderActions",
             AnchorPoint = vec2(0, 0.5),
-            Position = dim2(1, 0, 0.5, -2),
+            Position = dim2(1, 0, 0, 0),
             Size = dim2(0, 48, 0, 100),
             BackgroundColor3 = rgb(0, 0, 0),
             BackgroundTransparency = 0,
@@ -10866,24 +10873,20 @@ return function(__kaeryn)
         local function update_header_actions()
             local viewport = ws.CurrentCamera and ws.CurrentCamera.ViewportSize or vec2(800, 600)
             local main_right = items.main.AbsolutePosition.X + items.main.AbsoluteSize.X
-            local protrudes = main_right + 48 <= viewport.X - 8
-            local header_top = items.multi_holder.AbsolutePosition.Y
-            local header_height = items.multi_holder.AbsoluteSize.Y
-            local bar_height = action_bar.AbsoluteSize.Y
-            if header_height <= 0 then header_height = items.multi_holder.Size.Y.Offset end
-            if bar_height <= 0 then bar_height = action_bar.Size.Y.Offset end
-            local y_offset = -2
-            local min_y_offset = bar_height * 0.5 - header_top - header_height * 0.5
-            local max_y_offset = viewport.Y - header_top - header_height * 0.5 - bar_height * 0.5
-            if min_y_offset <= max_y_offset then
-                y_offset = math.clamp(y_offset, min_y_offset, max_y_offset)
-            end
-            action_bar.Position = dim2(1, protrudes and 0 or -48, 0.5, y_offset)
+            local bar_width = action_bar.AbsoluteSize.X
+            if bar_width <= 0 then bar_width = action_bar.Size.X.Offset end
+            local protrudes = main_right + bar_width <= viewport.X - 8
+            local header = items.multi_holder
+            local header_center_scale = header.Position.Y.Scale + header.Size.Y.Scale * 0.5
+            local header_center_offset = header.Position.Y.Offset + header.Size.Y.Offset * 0.5 - 2
+            action_bar.Position = dim2(1, protrudes and 0 or -action_bar.Size.X.Offset,
+                header_center_scale, header_center_offset)
         end
         library:connection(items.main:GetPropertyChangedSignal("AbsolutePosition"), update_header_actions)
         library:connection(items.main:GetPropertyChangedSignal("AbsoluteSize"), update_header_actions)
-        library:connection(items.multi_holder:GetPropertyChangedSignal("AbsolutePosition"), update_header_actions)
-        library:connection(items.multi_holder:GetPropertyChangedSignal("AbsoluteSize"), update_header_actions)
+        library:connection(items.multi_holder:GetPropertyChangedSignal("Position"), update_header_actions)
+        library:connection(items.multi_holder:GetPropertyChangedSignal("Size"), update_header_actions)
+        library:connection(action_bar:GetPropertyChangedSignal("AbsoluteSize"), update_header_actions)
         update_header_actions()
         library:connection(close_button.Activated, close_search)
         library:connection(query:GetPropertyChangedSignal("Text"), render_results)
