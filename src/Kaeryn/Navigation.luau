@@ -556,21 +556,13 @@ function library:seperator(properties)
 end
 
 local function resize_auto_sections(column)
-    local count = #column._sections
-    if count == 0 then return end
-
-    local size = 1 / count
     for _, section in ipairs(column._sections) do
-        section.size = size
+        local content_size = math.max(section._elements_layout.AbsoluteContentSize.Y + 15, section.items.elements.AbsoluteSize.Y)
+        local height = math.max(92, math.ceil(content_size + 57))
+        section.size = height
         local outline = section.items.outline
         if outline and outline.Parent then
-            outline.Size = dim2(library.section_content_width, 0, size, -10)
-        end
-        for _, mobile_section in ipairs(library.mobile_sections) do
-            if mobile_section.outline == outline then
-                mobile_section.size = size
-                break
-            end
+            outline.Size = dim2(library.section_content_width, 0, 0, height)
         end
     end
 end
@@ -586,6 +578,7 @@ function library:column(properties)
             Name = "\0";
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(0, 0, cfg.size, 0);
+            AutomaticSize = Enum.AutomaticSize.Y;
             BorderSizePixel = 0;
             BackgroundColor3 = rgb(255, 255, 255)
         });
@@ -606,6 +599,7 @@ function library:column(properties)
             HorizontalFlex = Enum.UIFlexAlignment.None;
             Padding = dim(0, 10);
             FillDirection = Enum.FillDirection.Vertical;
+            VerticalFlex = Enum.UIFlexAlignment.None;
             SortOrder = Enum.SortOrder.LayoutOrder
         });
     end
@@ -617,11 +611,17 @@ function library:sub_tab(properties)
     local cfg = {items = {}, order = properties.order or 0; size = properties.size or 1}
 
     local items = cfg.items; do
-        items[ "tab_parent" ] = library:create( library.is_mobile and "ScrollingFrame" or "Frame" , {
+        items[ "tab_parent" ] = library:create( "ScrollingFrame" , {
             Parent = self.items[ "tab" ];
             BackgroundTransparency = 1;
             Name = "\0";
             Size = dim2(0,0,cfg.size,0);
+            Active = true;
+            ScrollingEnabled = true;
+            ScrollingDirection = Enum.ScrollingDirection.Y;
+            AutomaticCanvasSize = Enum.AutomaticSize.Y;
+            ScrollBarThickness = 3;
+            CanvasSize = dim_offset(0, 0);
             BorderColor3 = rgb(0, 0, 0);
             BorderSizePixel = 0;
             Visible = true;
@@ -630,16 +630,12 @@ function library:sub_tab(properties)
 
         if library.is_mobile then
             local page = items.tab_parent
-            page.Active = true
-            page.ScrollBarThickness = 3
-            page.ScrollingDirection = Enum.ScrollingDirection.Y
-            page.CanvasSize = dim_offset(0, 0)
             insert(library.mobile_pages, page)
         end
         library:create( "UIListLayout" , {
             FillDirection = Enum.FillDirection.Horizontal;
             HorizontalFlex = Enum.UIFlexAlignment.Fill;
-            VerticalFlex = Enum.UIFlexAlignment.Fill;
+            VerticalFlex = Enum.UIFlexAlignment.None;
             Parent = items[ "tab_parent" ];
             Padding = dim(0, 7);
             SortOrder = Enum.SortOrder.LayoutOrder;
@@ -681,7 +677,7 @@ function library:section(properties)
             Name = "\0";
             Parent = self.items[ "column" ];
             BorderColor3 = rgb(0, 0, 0);
-            Size = dim2(0, 0, cfg.size, -10);
+            Size = dim2(library.section_content_width, 0, 0, 92);
             BorderSizePixel = 0;
             BackgroundTransparency = layer_transparency;
             BackgroundColor3 = rgb(25, 25, 29)
@@ -724,8 +720,9 @@ function library:section(properties)
         items[ "scrolling" ] = library:create( "ScrollingFrame" , {
             ScrollBarImageColor3 = rgb(44, 44, 46);
             Active = true;
-            AutomaticCanvasSize = Enum.AutomaticSize.Y;
-            ScrollBarThickness = 2;
+            ScrollingEnabled = false;
+            AutomaticCanvasSize = Enum.AutomaticSize.None;
+            ScrollBarThickness = 0;
             Parent = items[ "inline" ];
             Name = "\0";
             Size = dim2(1, 0, 1, -40);
@@ -930,14 +927,16 @@ function library:section(properties)
         cfg.toggle_section(cfg.default)
     end
 
+    cfg._elements_layout = elements_layout
+
     if library.is_mobile then
-        items.scrolling.ScrollingEnabled = false
-        items.scrolling.AutomaticCanvasSize = Enum.AutomaticSize.None
-        items.scrolling.ScrollBarThickness = 0
         insert(library.mobile_sections, {outline = items.outline, layout = elements_layout, elements = items.elements, scrolling = items.scrolling, size = cfg.size})
-        library:connection(elements_layout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-            library:queue_mobile_layout()
-        end)
+    end
+    library:connection(elements_layout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+        resize_auto_sections(self)
+        if library.is_mobile then library:queue_mobile_layout() end
+    end)
+    if library.is_mobile then
         library:queue_mobile_layout()
     end
     insert(self._sections, cfg)

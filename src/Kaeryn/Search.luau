@@ -59,7 +59,7 @@ return function(__kaeryn)
             if library.unloaded or control._destroyed then return end
             local root = control._ui_root
             if not root or not root.Parent then return end
-            local scrolling = section and section.items and section.items.scrolling
+            local scrolling = page and page.items and page.items.tab_parent
             if scrolling and scrolling:IsA("ScrollingFrame") then
                 local offset = root.AbsolutePosition.Y - scrolling.AbsolutePosition.Y + scrolling.CanvasPosition.Y
                 scrolling.CanvasPosition = vec2(0, math.max(0, offset - 18))
