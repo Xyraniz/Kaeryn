@@ -658,7 +658,7 @@ function library:section(properties)
         end
     end
     local background_transparency = properties.background_transparency
-    if background_transparency == nil then background_transparency = 0 end
+    if background_transparency == nil then background_transparency = 1 end
     assert(type(background_transparency) == "number" and background_transparency == background_transparency
         and background_transparency >= 0 and background_transparency <= 1,
         "section background_transparency must be a number between 0 and 1")

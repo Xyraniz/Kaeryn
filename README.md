@@ -172,7 +172,7 @@ window:SetBackgroundImageTransparency(0.6)
 window:SetBackgroundImage(nil) -- clear it
 ```
 
-Sections can also reveal the window background through their cards. Set `background_transparency` from `0` (opaque) to `1` (invisible) when creating a section, or update it later with `SetBackgroundTransparency()`:
+Sections are transparent by default, so controls flow without a solid card behind them. Set `background_transparency` from `0` (opaque) to `1` (invisible) when creating a section to add or tune a card background, or update it later with `SetBackgroundTransparency()`:
 
 ```lua
 local ranges = column:section({
