@@ -16,6 +16,11 @@ return function(__kaeryn)
     local fonts = __kaeryn.fonts
     local configure_settings_folder = __kaeryn.configure_settings_folder
 
+local function valid_transparency(value)
+    return type(value) == "number" and value == value and math.abs(value) < math.huge
+        and value >= 0 and value <= 1
+end
+
 function library:window(properties)
     assert(not library.unloaded, "Kaeryn has been unloaded")
     assert(not library.items, "This Kaeryn instance already has a window; load a new instance for another window")
@@ -77,6 +82,9 @@ function library:window(properties)
         };
         min_size = properties.min_size or properties.MinSize or vec2(420, 320);
         max_size = properties.max_size or properties.MaxSize;
+        chrome_transparency = 0.1;
+        tab_transparency = 1;
+        _transparency_components = {chrome = {}, tabs = {}, backgrounds = {}};
         selected_tab;
         items = {};
 
@@ -91,6 +99,24 @@ function library:window(properties)
         assert(cfg.max_size.X >= cfg.min_size.X and cfg.max_size.Y >= cfg.min_size.Y, "window max_size must be greater than or equal to min_size")
     end
     cfg.folder = configure_settings_folder(config_folder_option)
+    function cfg:_register_transparency_component(kind, update)
+        local components = self._transparency_components[kind]
+        if not components or type(update) ~= "function" then return false end
+        table.insert(components, update)
+        local value
+        if kind == "chrome" then value = self.chrome_transparency
+        elseif kind == "tabs" then value = self.tab_transparency
+        else value = self._section_transparency end
+        if value ~= nil then update(value) end
+        return true
+    end
+
+    local function update_components(kind, value)
+        for _, update in ipairs(cfg._transparency_components[kind]) do
+            update(value)
+        end
+    end
+
     if type(library.load_auto_config) == "function" then
         library:load_auto_config()
     end
@@ -125,8 +151,9 @@ function library:window(properties)
             );
             BorderColor3 = rgb(0, 0, 0);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(14, 14, 16)
+            BackgroundColor3 = themes.preset.background
         });
+        library:apply_theme(items["main"], "background", "BackgroundColor3")
 
         items["background_image"] = library:create("ImageLabel", {
             Parent = items.main;
@@ -147,15 +174,16 @@ function library:window(properties)
             CornerRadius = dim(0, 10)
         });
 
-        library:create( "UIStroke" , {
-            Color = rgb(23, 23, 29);
+        items["main_stroke"] = library:create( "UIStroke" , {
+            Color = themes.preset.border;
             Parent = items[ "main" ];
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         });
+        library:apply_theme(items["main_stroke"], "border", "Color")
 
         items[ "side_frame" ] = library:create( "Frame" , {
             Parent = items[ "main" ];
-            BackgroundTransparency = 0.1;
+            BackgroundTransparency = cfg.chrome_transparency;
             Name = "\0";
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(0, 196, 1, -25);
@@ -164,15 +192,16 @@ function library:window(properties)
         });
         library:apply_theme(items[ "side_frame" ], "background", "BackgroundColor3")
 
-        library:create( "Frame" , {
+        items["sidebar_separator"] = library:create( "Frame" , {
             AnchorPoint = vec2(1, 0);
             Parent = items[ "side_frame" ];
             Position = dim2(1, 0, 0, 0);
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(0, 1, 1, 0);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(21, 21, 23)
+            BackgroundColor3 = themes.preset.border
         });
+        library:apply_theme(items["sidebar_separator"], "border", "BackgroundColor3")
 
         items[ "button_holder" ] = library:create( "ScrollingFrame" , {
             Parent = items[ "side_frame" ];
@@ -246,7 +275,7 @@ function library:window(properties)
         items[ "multi_holder" ] = library:create( "Frame" , {
             Parent = items[ "main" ];
             Name = "\0";
-            BackgroundTransparency = 0.1;
+            BackgroundTransparency = cfg.chrome_transparency;
             Position = dim2(0, 196, 0, 0);
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(1, -196, 0, 56);
@@ -255,15 +284,16 @@ function library:window(properties)
         }); cfg.multi_holder = items[ "multi_holder" ];
         library:apply_theme(items[ "multi_holder" ], "background", "BackgroundColor3")
 
-        library:create( "Frame" , {
+        items["header_separator"] = library:create( "Frame" , {
             AnchorPoint = vec2(0, 1);
             Parent = items[ "multi_holder" ];
             Position = dim2(0, 0, 1, 0);
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(1, 0, 0, 1);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(21, 21, 23)
+            BackgroundColor3 = themes.preset.border
         });
+        library:apply_theme(items["header_separator"], "border", "BackgroundColor3")
 
         items[ "shadow" ] = library:create( "ImageLabel" , {
             ImageColor3 = rgb(0, 0, 0);
@@ -291,9 +321,10 @@ function library:window(properties)
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(1, -196, 1, -81);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(14, 14, 16);
+            BackgroundColor3 = themes.preset.surface;
             ZIndex = 2;
         });
+        library:apply_theme(items["global_fade"], "surface", "BackgroundColor3")
 
         library:create( "UICorner" , {
             Parent = items[ "shadow" ];
@@ -484,7 +515,7 @@ function library:window(properties)
 
     function cfg:SetBackgroundImageTransparency(transparency)
         if self._destroyed_window then return false, "window has been destroyed" end
-        if type(transparency) ~= "number" or transparency ~= transparency or transparency < 0 or transparency > 1 then
+        if not valid_transparency(transparency) then
             return false, "background transparency must be a number between 0 and 1"
         end
         self.background_transparency = transparency
@@ -494,12 +525,81 @@ function library:window(properties)
 
     function cfg:SetSidebarTransparency(transparency)
         if self._destroyed_window then return false, "window has been destroyed" end
-        if type(transparency) ~= "number" or transparency ~= transparency or transparency < 0 or transparency > 1 then
+        if not valid_transparency(transparency) then
             return false, "sidebar transparency must be a number between 0 and 1"
         end
         self.sidebar_transparency = transparency
-        local layer_transparency = math.sqrt(transparency)
-        items.side_frame.BackgroundTransparency = 1 - (1 - layer_transparency) ^ 2
+        items.side_frame.BackgroundTransparency = transparency
+        return true
+    end
+
+    function cfg:SetChromeTransparency(transparency)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if not valid_transparency(transparency) then
+            return false, "chrome transparency must be a number between 0 and 1"
+        end
+        self.chrome_transparency = transparency
+        self.sidebar_transparency = transparency
+        items.side_frame.BackgroundTransparency = transparency
+        items.multi_holder.BackgroundTransparency = transparency
+        items.sidebar_separator.BackgroundTransparency = transparency
+        items.header_separator.BackgroundTransparency = transparency
+        update_components("chrome", transparency)
+        return true
+    end
+
+    function cfg:SetTabTransparency(transparency)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if not valid_transparency(transparency) then
+            return false, "tab transparency must be a number between 0 and 1"
+        end
+        self.tab_transparency = transparency
+        update_components("tabs", transparency)
+        return true
+    end
+
+    function cfg:SetBackgroundTransparency(transparency)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if not valid_transparency(transparency) then
+            return false, "background transparency must be a number between 0 and 1"
+        end
+        self._section_transparency = transparency
+        update_components("backgrounds", transparency)
+        return true
+    end
+
+    function cfg:SetInterfaceTransparency(transparency)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if not valid_transparency(transparency) then
+            return false, "interface transparency must be a number between 0 and 1"
+        end
+        self.interface_transparency = transparency
+        self:SetChromeTransparency(transparency)
+        self:SetTabTransparency(transparency)
+        self:SetBackgroundTransparency(transparency)
+        return true
+    end
+
+    function cfg:_fade_navigation()
+        if self._destroyed_window then return nil end
+        if self._global_fade_tween then self._global_fade_tween:Cancel() end
+        local transparency = self.interface_transparency
+        if transparency == nil then transparency = self.chrome_transparency end
+        items.global_fade.BackgroundTransparency = 0.7 + 0.3 * transparency
+        self._global_fade_tween = library:tween(items.global_fade,
+            {BackgroundTransparency = 1}, Enum.EasingStyle.Quad, 0.4)
+        return self._global_fade_tween
+    end
+
+    function cfg:_fire_destroy()
+        if self._destroyed_window then return false end
+        if self:IsOpen() then self:Close() end
+        self._destroyed_window = true
+        if self._global_fade_tween then self._global_fade_tween:Cancel(); self._global_fade_tween = nil end
+        table.clear(self._transparency_components.chrome)
+        table.clear(self._transparency_components.tabs)
+        table.clear(self._transparency_components.backgrounds)
+        fire_lifecycle("destroy")
         return true
     end
 
@@ -537,14 +637,6 @@ function library:window(properties)
     function cfg:Toggle()
         if self:IsOpen() then self:Close() else self:Open() end
         return self:IsOpen()
-    end
-
-    function cfg:_fire_destroy()
-        if self._destroyed_window then return false end
-        if self:IsOpen() then self:Close() end
-        self._destroyed_window = true
-        fire_lifecycle("destroy")
-        return true
     end
 
     function cfg:Destroy()
@@ -648,6 +740,7 @@ function library:window(properties)
         return cfg:Close()
     end
 
+    library.window_config = cfg
     library:init_search(cfg)
     if library.is_mobile then library:queue_mobile_layout() end
 

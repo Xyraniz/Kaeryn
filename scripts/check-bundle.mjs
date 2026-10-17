@@ -31,6 +31,25 @@ if (!bundle.includes('return __kaeryn_require("src/Kaeryn/Init.luau")')) {
 if (!bundle.includes("function library:resolve_flag") || !bundle.includes("function library:set_theme")) {
     throw new Error("Bundle is missing the flag or theme API");
 }
+const windowSource = sourceText.get("src/Kaeryn/Window.luau");
+for (const api of ["SetChromeTransparency", "SetTabTransparency", "SetBackgroundTransparency", "SetInterfaceTransparency"]) {
+    if (!windowSource.includes(`function cfg:${api}(`)) throw new Error(`Window is missing ${api}`);
+}
+if (!/items\.side_frame\.BackgroundTransparency\s*=\s*transparency/.test(windowSource)) {
+    throw new Error("Sidebar transparency is no longer applied directly to its single surface");
+}
+const navigation = sourceText.get("src/Kaeryn/Navigation.luau");
+if (navigation.includes("local layer_transparency = math.sqrt(background_transparency)")) {
+    throw new Error("Sections still stack multiple semi-transparent backgrounds");
+}
+if (navigation.includes('library:tween(items[ "button" ], {BackgroundTransparency = 0})')
+    || navigation.includes('library:tween(data.button, {BackgroundTransparency = 0})')) {
+    throw new Error("Navigation selection still forces tab backgrounds opaque");
+}
+const search = sourceText.get("src/Kaeryn/Search.luau");
+if (/action_button\.BackgroundTransparency\s*=\s*[01](?:\D|$)/.test(search)) {
+    throw new Error("Header action hover still forces a fixed background opacity");
+}
 if (!bundle.includes("function library:begin_pointer_drag") || !bundle.includes("function library:load_config")) {
     throw new Error("Bundle is missing the input or config API");
 }
@@ -45,7 +64,6 @@ if (sourceText.get("src/Kaeryn/Config/ConfigManager.luau").indexOf("config_valid
 if (!/section:keybind\(\{name = "Menu Bind", callback = function\(enabled, change\)\s*if change and change\.source == "user" and change\.phase == "change" then\s*window\.toggle_menu\(enabled\)/.test(sourceText.get("src/Kaeryn/Config/ConfigUI.luau"))) {
     throw new Error("Config loading can unexpectedly change the window visibility");
 }
-const navigation = sourceText.get("src/Kaeryn/Navigation.luau");
 const holderStart = navigation.indexOf('items[ "multi_section_button_holder" ] =');
 const holderEnd = navigation.indexOf('library:create( "UIListLayout" ,', holderStart);
 const holderSetup = navigation.slice(holderStart, holderEnd);

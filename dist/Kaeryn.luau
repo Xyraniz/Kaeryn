@@ -9310,7 +9310,7 @@ function library:tab(properties)
 
         items[ "button" ] = library:create( "TextButton" , {
             FontFace = fonts.font;
-            TextColor3 = rgb(255, 255, 255);
+            TextColor3 = themes.preset.muted;
             BorderColor3 = rgb(0, 0, 0);
             Text = "";
             Parent = self.items[ "button_holder" ];
@@ -9320,8 +9320,11 @@ function library:tab(properties)
             Size = dim2(1, 0, 0, 35);
             BorderSizePixel = 0;
             TextSize = 16;
-            BackgroundColor3 = rgb(29, 29, 29)
+            BackgroundColor3 = themes.preset.surface
         });
+        library:apply_theme(items["button"], "surface", "BackgroundColor3")
+        library:apply_theme(items["button"], "surface_alt", "BackgroundColor3")
+        library:apply_theme(items["button"], "surface_hover", "BackgroundColor3")
 
         items[ "icon" ] = library:create( "ImageLabel" , {
             ImageColor3 = themes.preset.muted;
@@ -9375,6 +9378,7 @@ function library:tab(properties)
             BackgroundColor3 = rgb(255, 255, 255)
         });
         library:apply_theme(items[ "name" ], "muted", "TextColor3")
+        library:apply_theme(items[ "name" ], "accent", "TextColor3")
 
         library:create( "UIPadding" , {
             Parent = items[ "name" ];
@@ -9388,11 +9392,41 @@ function library:tab(properties)
         });
 
         library:create( "UIStroke" , {
-            Color = rgb(23, 23, 29);
+            Color = themes.preset.border;
             Parent = items[ "button" ];
             Enabled = false;
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         });
+
+        local tab_active, tab_hovered = false, false
+        local tab_transparency = self.tab_transparency or 1
+        local function apply_tab_visual()
+            items.button.BackgroundTransparency = tab_transparency
+            local token = tab_hovered and "surface_hover" or tab_active and "surface_alt" or "surface"
+            items.button.BackgroundColor3 = themes.preset[token]
+            items.icon.ImageColor3 = tab_active and themes.preset.accent or themes.preset.muted
+            items.name.TextColor3 = tab_active and themes.preset.accent or themes.preset.muted
+            if items.compact_mark then
+                items.compact_mark.TextColor3 = tab_active and themes.preset.accent or themes.preset.muted
+            end
+        end
+        cfg._apply_nav_state = function(active)
+            tab_active = active
+            apply_tab_visual()
+        end
+        self:_register_transparency_component("tabs", function(value)
+            tab_transparency = value
+            apply_tab_visual()
+        end)
+        library:connection(items.button.MouseEnter, function()
+            tab_hovered = true
+            apply_tab_visual()
+        end)
+        library:connection(items.button.MouseLeave, function()
+            tab_hovered = false
+            apply_tab_visual()
+        end)
+        apply_tab_visual()
 
         items[ "multi_section_button_holder" ] = library:create( "ScrollingFrame" , {
             Parent = library.cache;
@@ -9455,7 +9489,7 @@ function library:tab(properties)
             local multi_items = data.items; do
                 multi_items[ "button" ] = library:create( "TextButton" , {
                     FontFace = fonts.font;
-                    TextColor3 = rgb(255, 255, 255);
+                    TextColor3 = themes.preset.muted;
                     BorderColor3 = rgb(0, 0, 0);
                     AutoButtonColor = false;
                     Text = "";
@@ -9467,8 +9501,11 @@ function library:tab(properties)
                     BorderSizePixel = 0;
                     AutomaticSize = Enum.AutomaticSize.X;
                     TextSize = 16;
-                    BackgroundColor3 = rgb(25, 25, 29)
+                    BackgroundColor3 = themes.preset.surface
                 });
+                library:apply_theme(multi_items["button"], "surface", "BackgroundColor3")
+                library:apply_theme(multi_items["button"], "surface_alt", "BackgroundColor3")
+                library:apply_theme(multi_items["button"], "surface_hover", "BackgroundColor3")
 
                 multi_items[ "name" ] = library:create( "TextLabel" , {
                     FontFace = fonts.font;
@@ -9486,6 +9523,7 @@ function library:tab(properties)
                     BackgroundColor3 = rgb(255, 255, 255)
                 });
                 library:apply_theme(multi_items[ "name" ], "muted", "TextColor3")
+                library:apply_theme(multi_items[ "name" ], "accent", "TextColor3")
 
                 library:create( "UIPadding" , {
                     Parent = multi_items[ "name" ];
@@ -9556,6 +9594,35 @@ function library:tab(properties)
             data.page = multi_items[ "tab" ]
             data.parent = setmetatable(data, library):sub_tab({}).items[ "tab_parent" ]
 
+            local page_hovered = false
+            local page_transparency = self.tab_transparency or 1
+            local page_accent_tween
+            local function apply_page_visual()
+                data.button.BackgroundTransparency = page_transparency
+                local token = page_hovered and "surface_hover" or data._active and "surface_alt" or "surface"
+                data.button.BackgroundColor3 = themes.preset[token]
+                data.text.TextColor3 = data._active and themes.preset.accent or themes.preset.muted
+            end
+            data._apply_nav_state = apply_page_visual
+            data._animate_nav_indicator = function(active)
+                if page_accent_tween then page_accent_tween:Cancel() end
+                page_accent_tween = library:tween(data.accent,
+                    {BackgroundTransparency = active and 0 or 1}, Enum.EasingStyle.Quad)
+            end
+            self:_register_transparency_component("tabs", function(value)
+                page_transparency = value
+                apply_page_visual()
+            end)
+            library:connection(data.button.MouseEnter, function()
+                page_hovered = true
+                apply_page_visual()
+            end)
+            library:connection(data.button.MouseLeave, function()
+                page_hovered = false
+                apply_page_visual()
+            end)
+            apply_page_visual()
+
             function data:OnEnter(callback)
                 assert(type(callback) == "function", "OnEnter expects a function")
                 self._on_enter = callback
@@ -9577,6 +9644,8 @@ function library:tab(properties)
             local function leave_page(page)
                 if not page or not page._active then return end
                 page._active = false
+                page._apply_nav_state()
+                page._animate_nav_indicator(false)
                 if page._on_leave then safe_callback(page._on_leave, page) end
                 for scope_index = #page._scopes, 1, -1 do
                     page._scopes[scope_index]:Destroy()
@@ -9601,25 +9670,20 @@ function library:tab(properties)
                 if page and page ~= data then leave_page(page) end
 
                 if page and page.text ~= data.text then
-                    self.items[ "global_fade" ].BackgroundTransparency = 0
-                    library:tween(self.items[ "global_fade" ], {BackgroundTransparency = 1}, Enum.EasingStyle.Quad, 0.4)
+                    self:_fade_navigation()
 
                     local old_size = page.page.Size
                     page.page.Size = dim2(1, -20, 1, -20)
                 end
 
                 if page then
-                    library:tween(page.text, {TextColor3 = themes.preset.muted})
-                    library:tween(page.accent, {BackgroundTransparency = 1})
-                    library:tween(page.button, {BackgroundTransparency = 1})
-
                     page.page.Visible = false
                     page.page.Parent = library[ "cache" ]
                 end
 
-                library:tween(data.text, {TextColor3 = rgb(255, 255, 255)})
-                library:tween(data.accent, {BackgroundTransparency = 0})
-                library:tween(data.button, {BackgroundTransparency = 0})
+                data._active = true
+                data._apply_nav_state()
+                data._animate_nav_indicator(true)
                 library:tween(data.page, {Size = dim2(1, 0, 1, 0)}, Enum.EasingStyle.Quad, 0.4)
 
                 data.page.Visible = true
@@ -9633,7 +9697,7 @@ function library:tab(properties)
                 return true
             end
 
-            multi_items[ "button" ].Activated:Connect(function()
+            library:connection(multi_items[ "button" ].Activated, function()
                 data.open_page()
             end)
 
@@ -9652,6 +9716,8 @@ function library:tab(properties)
                 local current = previous_tab.current_multi
                 if current._active then
                     current._active = false
+                    current._apply_nav_state()
+                    current._animate_nav_indicator(false)
                     if current._on_leave then safe_callback(current._on_leave, current) end
                     for scope_index = #current._scopes, 1, -1 do
                         current._scopes[scope_index]:Destroy()
@@ -9663,9 +9729,7 @@ function library:tab(properties)
 
         if selected_tab then
             if selected_tab[ 4 ] ~= items[ "tab_holder" ] then
-                self.items[ "global_fade" ].BackgroundTransparency = 0
-
-                library:tween(self.items[ "global_fade" ], {BackgroundTransparency = 1}, Enum.EasingStyle.Quad, 0.4)
+                self:_fade_navigation()
                 local side = library.responsive_sidebar_width or 196
                 local header = library.responsive_header_height or 56
                 if not library.is_mobile then
@@ -9674,12 +9738,7 @@ function library:tab(properties)
                 end
             end
 
-            library:tween(selected_tab[ 1 ], {BackgroundTransparency = 1})
-            library:tween(selected_tab[ 2 ], {ImageColor3 = themes.preset.muted})
-            library:tween(selected_tab[ 3 ], {TextColor3 = themes.preset.muted})
-            if selected_tab[6] then
-                library:tween(selected_tab[6], {TextColor3 = themes.preset.muted})
-            end
+            if previous_tab and previous_tab._apply_nav_state then previous_tab._apply_nav_state(false) end
 
             selected_tab[ 4 ].Visible = false
             selected_tab[ 4 ].Parent = library[ "cache" ]
@@ -9687,12 +9746,7 @@ function library:tab(properties)
             selected_tab[ 5 ].Parent = library[ "cache" ]
         end
 
-        library:tween(items[ "button" ], {BackgroundTransparency = 0})
-        library:tween(items[ "icon" ], {ImageColor3 = themes.preset.accent})
-        library:tween(items[ "name" ], {TextColor3 = rgb(255, 255, 255)})
-        if items["compact_mark"] then
-            library:tween(items["compact_mark"], {TextColor3 = themes.preset.accent})
-        end
+        cfg._apply_nav_state(true)
         if not library.is_mobile then
             local side = library.responsive_sidebar_width or 196
             local header = library.responsive_header_height or 56
@@ -9718,6 +9772,8 @@ function library:tab(properties)
         library:close_element()
         if not skip_default_page and cfg.current_multi and not cfg.current_multi._active then
             cfg.current_multi._active = true
+            cfg.current_multi._apply_nav_state()
+            cfg.current_multi._animate_nav_indicator(true)
             if cfg.current_multi._on_enter then safe_callback(cfg.current_multi._on_enter, cfg.current_multi) end
         elseif cfg.pages[1] and not skip_default_page then
             local opened, reason = cfg.pages[1].open_page()
@@ -9728,7 +9784,7 @@ function library:tab(properties)
         return true
     end
 
-    items[ "button" ].Activated:Connect(function()
+    library:connection(items[ "button" ].Activated, function()
         cfg.open_tab()
     end)
 
@@ -9900,7 +9956,10 @@ function library:section(properties)
     assert(type(background_transparency) == "number" and background_transparency == background_transparency
         and background_transparency >= 0 and background_transparency <= 1,
         "section background_transparency must be a number between 0 and 1")
-    local layer_transparency = math.sqrt(background_transparency)
+    local window = library.window
+    if window and window._section_transparency ~= nil then
+        background_transparency = window._section_transparency
+    end
     local cfg = {
         name = properties.name or properties.Name or "section";
         side = properties.side or properties.Side or "left";
@@ -9921,9 +9980,10 @@ function library:section(properties)
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(library.section_content_width, 0, 0, 92);
             BorderSizePixel = 0;
-            BackgroundTransparency = layer_transparency;
-            BackgroundColor3 = rgb(25, 25, 29)
+            BackgroundTransparency = background_transparency;
+            BackgroundColor3 = themes.preset.surface
         });
+        library:apply_theme(items["outline"], "surface", "BackgroundColor3")
 
         library:create( "UICorner" , {
             Parent = items[ "outline" ];
@@ -9937,20 +9997,20 @@ function library:section(properties)
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(1, -2, 1, -2);
             BorderSizePixel = 0;
-            BackgroundTransparency = layer_transparency;
-            BackgroundColor3 = rgb(22, 22, 24)
+            BackgroundTransparency = 1;
+            BackgroundColor3 = themes.preset.surface
         });
+        library:apply_theme(items["inline"], "surface", "BackgroundColor3")
 
         function cfg:SetBackgroundTransparency(transparency)
             if type(transparency) ~= "number" or transparency ~= transparency or transparency < 0 or transparency > 1 then
                 return false, "section background transparency must be a number between 0 and 1"
             end
             self.background_transparency = transparency
-            local layer_transparency = math.sqrt(transparency)
-            items.outline.BackgroundTransparency = layer_transparency
-            items.inline.BackgroundTransparency = layer_transparency
-            items.button.BackgroundTransparency = layer_transparency
-            items.header_separator.BackgroundTransparency = layer_transparency
+            items.outline.BackgroundTransparency = transparency
+            items.inline.BackgroundTransparency = 1
+            items.button.BackgroundTransparency = 1
+            items.header_separator.BackgroundTransparency = transparency
             return true
         end
 
@@ -9960,7 +10020,7 @@ function library:section(properties)
         });
 
         items[ "scrolling" ] = library:create( "ScrollingFrame" , {
-            ScrollBarImageColor3 = rgb(44, 44, 46);
+            ScrollBarImageColor3 = themes.preset.muted;
             Active = true;
             ScrollingEnabled = false;
             AutomaticCanvasSize = Enum.AutomaticSize.None;
@@ -9975,6 +10035,7 @@ function library:section(properties)
             BorderSizePixel = 0;
             CanvasSize = dim2(0, 0, 0, 0)
         });
+        library:apply_theme(items["scrolling"], "muted", "ScrollBarImageColor3")
 
         items[ "elements" ] = library:create( "Frame" , {
             BorderColor3 = rgb(0, 0, 0);
@@ -10002,7 +10063,7 @@ function library:section(properties)
 
         items[ "button" ] = library:create( "TextButton" , {
             FontFace = fonts.font;
-            TextColor3 = rgb(255, 255, 255);
+            TextColor3 = themes.preset.text;
             BorderColor3 = rgb(0, 0, 0);
             Text = "";
             AutoButtonColor = false;
@@ -10012,16 +10073,18 @@ function library:section(properties)
             Size = dim2(1, -2, 0, 35);
             BorderSizePixel = 0;
             TextSize = 16;
-            BackgroundTransparency = layer_transparency;
-            BackgroundColor3 = rgb(19, 19, 21)
+            BackgroundTransparency = 1;
+            BackgroundColor3 = themes.preset.surface_alt
         });
+        library:apply_theme(items["button"], "surface_alt", "BackgroundColor3")
 
         library:create( "UIStroke" , {
-            Color = rgb(23, 23, 29);
+            Color = themes.preset.border;
             Parent = items[ "button" ];
             Enabled = false;
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         });
+        library:apply_theme(items["button"]:FindFirstChildOfClass("UIStroke"), "border", "Color")
 
         library:create( "UICorner" , {
             Parent = items[ "button" ];
@@ -10058,6 +10121,7 @@ function library:section(properties)
             TextSize = 16;
             BackgroundColor3 = rgb(255, 255, 255)
         });
+        library:apply_theme(items["section_title"], "text", "TextColor3")
 
         items["header_separator"] = library:create( "Frame" , {
             AnchorPoint = vec2(0, 1);
@@ -10066,9 +10130,10 @@ function library:section(properties)
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(1, 0, 0, 1);
             BorderSizePixel = 0;
-            BackgroundTransparency = layer_transparency;
-            BackgroundColor3 = rgb(36, 36, 37)
+            BackgroundTransparency = background_transparency;
+            BackgroundColor3 = themes.preset.border
         });
+        library:apply_theme(items["header_separator"], "border", "BackgroundColor3")
 
         if cfg.fading_toggle then
             items[ "toggle" ] = library:create( "TextButton" , {
@@ -10170,6 +10235,12 @@ function library:section(properties)
     end
 
     cfg._elements_layout = elements_layout
+
+    if window and window._register_transparency_component then
+        window:_register_transparency_component("backgrounds", function(transparency)
+            cfg:SetBackgroundTransparency(transparency)
+        end)
+    end
 
     if library.is_mobile then
         insert(library.mobile_sections, {outline = items.outline, layout = elements_layout, elements = items.elements, scrolling = items.scrolling, size = cfg.size})
@@ -10645,22 +10716,32 @@ return function(__kaeryn)
             AnchorPoint = vec2(0, 0.5),
             Position = dim2(1, 0, 0, 0),
             Size = dim2(0, 48, 0, 100),
-            BackgroundColor3 = rgb(0, 0, 0),
-            BackgroundTransparency = 0,
+            BackgroundColor3 = themes.preset.surface,
+            BackgroundTransparency = math.sqrt(window.chrome_transparency),
             BorderSizePixel = 0,
             ZIndex = 83,
         })
+        items.header_actions = action_bar
+        library:apply_theme(action_bar, "surface", "BackgroundColor3")
         library:create("UICorner", {Parent = action_bar, CornerRadius = dim(0, 11)})
-        library:create("UIStroke", {Parent = action_bar, Color = rgb(37, 37, 41), Thickness = 1})
-        library:create("Frame", {
+        items.header_actions_stroke = library:create("UIStroke", {
+            Parent = action_bar,
+            Color = themes.preset.border,
+            Transparency = window.chrome_transparency,
+            Thickness = 1,
+        })
+        library:apply_theme(items.header_actions_stroke, "border", "Color")
+        items.header_actions_edge = library:create("Frame", {
             Parent = action_bar,
             Name = "SquareLeftEdge",
             Position = dim2(0, 0, 0, 0),
             Size = dim2(0, 11, 1, 0),
-            BackgroundColor3 = rgb(0, 0, 0),
+            BackgroundColor3 = themes.preset.surface,
+            BackgroundTransparency = math.sqrt(window.chrome_transparency),
             BorderSizePixel = 0,
             ZIndex = 84,
         })
+        library:apply_theme(items.header_actions_edge, "surface", "BackgroundColor3")
 
         local function create_action_button(name, icon_name, y, icon_size)
             local action_button = library:create("TextButton", {
@@ -10686,15 +10767,16 @@ return function(__kaeryn)
                 BackgroundTransparency = 1,
                 BorderSizePixel = 0,
                 Image = library:resolve_icon(icon_name),
-                ImageColor3 = rgb(255, 255, 255),
+                ImageColor3 = themes.preset.text,
                 ZIndex = 86,
             })
             library:apply_theme(icon, "text", "ImageColor3")
+            library:apply_theme(icon, "accent", "ImageColor3")
             library:connection(action_button.MouseEnter, function()
-                action_button.BackgroundTransparency = 0
+                icon.ImageColor3 = themes.preset.accent
             end)
             library:connection(action_button.MouseLeave, function()
-                action_button.BackgroundTransparency = 1
+                icon.ImageColor3 = themes.preset.text
             end)
             return action_button
         end
@@ -10702,6 +10784,12 @@ return function(__kaeryn)
         local menu_close_button = create_action_button("CloseMenu", "x", 4, 16)
         local button = create_action_button("Search", "search", 56, 18)
         window.search_button = button
+        window:_register_transparency_component("chrome", function(transparency)
+            local layer_transparency = math.sqrt(transparency)
+            items.header_actions.BackgroundTransparency = layer_transparency
+            items.header_actions_edge.BackgroundTransparency = layer_transparency
+            items.header_actions_stroke.Transparency = transparency
+        end)
 
         local overlay = library:create("Frame", {
             Parent = library.items,
@@ -11086,6 +11174,11 @@ return function(__kaeryn)
     local fonts = __kaeryn.fonts
     local configure_settings_folder = __kaeryn.configure_settings_folder
 
+local function valid_transparency(value)
+    return type(value) == "number" and value == value and math.abs(value) < math.huge
+        and value >= 0 and value <= 1
+end
+
 function library:window(properties)
     assert(not library.unloaded, "Kaeryn has been unloaded")
     assert(not library.items, "This Kaeryn instance already has a window; load a new instance for another window")
@@ -11147,6 +11240,9 @@ function library:window(properties)
         };
         min_size = properties.min_size or properties.MinSize or vec2(420, 320);
         max_size = properties.max_size or properties.MaxSize;
+        chrome_transparency = 0.1;
+        tab_transparency = 1;
+        _transparency_components = {chrome = {}, tabs = {}, backgrounds = {}};
         selected_tab;
         items = {};
 
@@ -11161,6 +11257,24 @@ function library:window(properties)
         assert(cfg.max_size.X >= cfg.min_size.X and cfg.max_size.Y >= cfg.min_size.Y, "window max_size must be greater than or equal to min_size")
     end
     cfg.folder = configure_settings_folder(config_folder_option)
+    function cfg:_register_transparency_component(kind, update)
+        local components = self._transparency_components[kind]
+        if not components or type(update) ~= "function" then return false end
+        table.insert(components, update)
+        local value
+        if kind == "chrome" then value = self.chrome_transparency
+        elseif kind == "tabs" then value = self.tab_transparency
+        else value = self._section_transparency end
+        if value ~= nil then update(value) end
+        return true
+    end
+
+    local function update_components(kind, value)
+        for _, update in ipairs(cfg._transparency_components[kind]) do
+            update(value)
+        end
+    end
+
     if type(library.load_auto_config) == "function" then
         library:load_auto_config()
     end
@@ -11195,8 +11309,9 @@ function library:window(properties)
             );
             BorderColor3 = rgb(0, 0, 0);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(14, 14, 16)
+            BackgroundColor3 = themes.preset.background
         });
+        library:apply_theme(items["main"], "background", "BackgroundColor3")
 
         items["background_image"] = library:create("ImageLabel", {
             Parent = items.main;
@@ -11217,15 +11332,16 @@ function library:window(properties)
             CornerRadius = dim(0, 10)
         });
 
-        library:create( "UIStroke" , {
-            Color = rgb(23, 23, 29);
+        items["main_stroke"] = library:create( "UIStroke" , {
+            Color = themes.preset.border;
             Parent = items[ "main" ];
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         });
+        library:apply_theme(items["main_stroke"], "border", "Color")
 
         items[ "side_frame" ] = library:create( "Frame" , {
             Parent = items[ "main" ];
-            BackgroundTransparency = 0.1;
+            BackgroundTransparency = cfg.chrome_transparency;
             Name = "\0";
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(0, 196, 1, -25);
@@ -11234,15 +11350,16 @@ function library:window(properties)
         });
         library:apply_theme(items[ "side_frame" ], "background", "BackgroundColor3")
 
-        library:create( "Frame" , {
+        items["sidebar_separator"] = library:create( "Frame" , {
             AnchorPoint = vec2(1, 0);
             Parent = items[ "side_frame" ];
             Position = dim2(1, 0, 0, 0);
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(0, 1, 1, 0);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(21, 21, 23)
+            BackgroundColor3 = themes.preset.border
         });
+        library:apply_theme(items["sidebar_separator"], "border", "BackgroundColor3")
 
         items[ "button_holder" ] = library:create( "ScrollingFrame" , {
             Parent = items[ "side_frame" ];
@@ -11316,7 +11433,7 @@ function library:window(properties)
         items[ "multi_holder" ] = library:create( "Frame" , {
             Parent = items[ "main" ];
             Name = "\0";
-            BackgroundTransparency = 0.1;
+            BackgroundTransparency = cfg.chrome_transparency;
             Position = dim2(0, 196, 0, 0);
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(1, -196, 0, 56);
@@ -11325,15 +11442,16 @@ function library:window(properties)
         }); cfg.multi_holder = items[ "multi_holder" ];
         library:apply_theme(items[ "multi_holder" ], "background", "BackgroundColor3")
 
-        library:create( "Frame" , {
+        items["header_separator"] = library:create( "Frame" , {
             AnchorPoint = vec2(0, 1);
             Parent = items[ "multi_holder" ];
             Position = dim2(0, 0, 1, 0);
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(1, 0, 0, 1);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(21, 21, 23)
+            BackgroundColor3 = themes.preset.border
         });
+        library:apply_theme(items["header_separator"], "border", "BackgroundColor3")
 
         items[ "shadow" ] = library:create( "ImageLabel" , {
             ImageColor3 = rgb(0, 0, 0);
@@ -11361,9 +11479,10 @@ function library:window(properties)
             BorderColor3 = rgb(0, 0, 0);
             Size = dim2(1, -196, 1, -81);
             BorderSizePixel = 0;
-            BackgroundColor3 = rgb(14, 14, 16);
+            BackgroundColor3 = themes.preset.surface;
             ZIndex = 2;
         });
+        library:apply_theme(items["global_fade"], "surface", "BackgroundColor3")
 
         library:create( "UICorner" , {
             Parent = items[ "shadow" ];
@@ -11554,7 +11673,7 @@ function library:window(properties)
 
     function cfg:SetBackgroundImageTransparency(transparency)
         if self._destroyed_window then return false, "window has been destroyed" end
-        if type(transparency) ~= "number" or transparency ~= transparency or transparency < 0 or transparency > 1 then
+        if not valid_transparency(transparency) then
             return false, "background transparency must be a number between 0 and 1"
         end
         self.background_transparency = transparency
@@ -11564,12 +11683,81 @@ function library:window(properties)
 
     function cfg:SetSidebarTransparency(transparency)
         if self._destroyed_window then return false, "window has been destroyed" end
-        if type(transparency) ~= "number" or transparency ~= transparency or transparency < 0 or transparency > 1 then
+        if not valid_transparency(transparency) then
             return false, "sidebar transparency must be a number between 0 and 1"
         end
         self.sidebar_transparency = transparency
-        local layer_transparency = math.sqrt(transparency)
-        items.side_frame.BackgroundTransparency = 1 - (1 - layer_transparency) ^ 2
+        items.side_frame.BackgroundTransparency = transparency
+        return true
+    end
+
+    function cfg:SetChromeTransparency(transparency)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if not valid_transparency(transparency) then
+            return false, "chrome transparency must be a number between 0 and 1"
+        end
+        self.chrome_transparency = transparency
+        self.sidebar_transparency = transparency
+        items.side_frame.BackgroundTransparency = transparency
+        items.multi_holder.BackgroundTransparency = transparency
+        items.sidebar_separator.BackgroundTransparency = transparency
+        items.header_separator.BackgroundTransparency = transparency
+        update_components("chrome", transparency)
+        return true
+    end
+
+    function cfg:SetTabTransparency(transparency)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if not valid_transparency(transparency) then
+            return false, "tab transparency must be a number between 0 and 1"
+        end
+        self.tab_transparency = transparency
+        update_components("tabs", transparency)
+        return true
+    end
+
+    function cfg:SetBackgroundTransparency(transparency)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if not valid_transparency(transparency) then
+            return false, "background transparency must be a number between 0 and 1"
+        end
+        self._section_transparency = transparency
+        update_components("backgrounds", transparency)
+        return true
+    end
+
+    function cfg:SetInterfaceTransparency(transparency)
+        if self._destroyed_window then return false, "window has been destroyed" end
+        if not valid_transparency(transparency) then
+            return false, "interface transparency must be a number between 0 and 1"
+        end
+        self.interface_transparency = transparency
+        self:SetChromeTransparency(transparency)
+        self:SetTabTransparency(transparency)
+        self:SetBackgroundTransparency(transparency)
+        return true
+    end
+
+    function cfg:_fade_navigation()
+        if self._destroyed_window then return nil end
+        if self._global_fade_tween then self._global_fade_tween:Cancel() end
+        local transparency = self.interface_transparency
+        if transparency == nil then transparency = self.chrome_transparency end
+        items.global_fade.BackgroundTransparency = 0.7 + 0.3 * transparency
+        self._global_fade_tween = library:tween(items.global_fade,
+            {BackgroundTransparency = 1}, Enum.EasingStyle.Quad, 0.4)
+        return self._global_fade_tween
+    end
+
+    function cfg:_fire_destroy()
+        if self._destroyed_window then return false end
+        if self:IsOpen() then self:Close() end
+        self._destroyed_window = true
+        if self._global_fade_tween then self._global_fade_tween:Cancel(); self._global_fade_tween = nil end
+        table.clear(self._transparency_components.chrome)
+        table.clear(self._transparency_components.tabs)
+        table.clear(self._transparency_components.backgrounds)
+        fire_lifecycle("destroy")
         return true
     end
 
@@ -11607,14 +11795,6 @@ function library:window(properties)
     function cfg:Toggle()
         if self:IsOpen() then self:Close() else self:Open() end
         return self:IsOpen()
-    end
-
-    function cfg:_fire_destroy()
-        if self._destroyed_window then return false end
-        if self:IsOpen() then self:Close() end
-        self._destroyed_window = true
-        fire_lifecycle("destroy")
-        return true
     end
 
     function cfg:Destroy()
@@ -11718,6 +11898,7 @@ function library:window(properties)
         return cfg:Close()
     end
 
+    library.window_config = cfg
     library:init_search(cfg)
     if library.is_mobile then library:queue_mobile_layout() end
 

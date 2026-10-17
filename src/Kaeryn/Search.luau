@@ -92,22 +92,32 @@ return function(__kaeryn)
             AnchorPoint = vec2(0, 0.5),
             Position = dim2(1, 0, 0, 0),
             Size = dim2(0, 48, 0, 100),
-            BackgroundColor3 = rgb(0, 0, 0),
-            BackgroundTransparency = 0,
+            BackgroundColor3 = themes.preset.surface,
+            BackgroundTransparency = math.sqrt(window.chrome_transparency),
             BorderSizePixel = 0,
             ZIndex = 83,
         })
+        items.header_actions = action_bar
+        library:apply_theme(action_bar, "surface", "BackgroundColor3")
         library:create("UICorner", {Parent = action_bar, CornerRadius = dim(0, 11)})
-        library:create("UIStroke", {Parent = action_bar, Color = rgb(37, 37, 41), Thickness = 1})
-        library:create("Frame", {
+        items.header_actions_stroke = library:create("UIStroke", {
+            Parent = action_bar,
+            Color = themes.preset.border,
+            Transparency = window.chrome_transparency,
+            Thickness = 1,
+        })
+        library:apply_theme(items.header_actions_stroke, "border", "Color")
+        items.header_actions_edge = library:create("Frame", {
             Parent = action_bar,
             Name = "SquareLeftEdge",
             Position = dim2(0, 0, 0, 0),
             Size = dim2(0, 11, 1, 0),
-            BackgroundColor3 = rgb(0, 0, 0),
+            BackgroundColor3 = themes.preset.surface,
+            BackgroundTransparency = math.sqrt(window.chrome_transparency),
             BorderSizePixel = 0,
             ZIndex = 84,
         })
+        library:apply_theme(items.header_actions_edge, "surface", "BackgroundColor3")
 
         local function create_action_button(name, icon_name, y, icon_size)
             local action_button = library:create("TextButton", {
@@ -133,15 +143,16 @@ return function(__kaeryn)
                 BackgroundTransparency = 1,
                 BorderSizePixel = 0,
                 Image = library:resolve_icon(icon_name),
-                ImageColor3 = rgb(255, 255, 255),
+                ImageColor3 = themes.preset.text,
                 ZIndex = 86,
             })
             library:apply_theme(icon, "text", "ImageColor3")
+            library:apply_theme(icon, "accent", "ImageColor3")
             library:connection(action_button.MouseEnter, function()
-                action_button.BackgroundTransparency = 0
+                icon.ImageColor3 = themes.preset.accent
             end)
             library:connection(action_button.MouseLeave, function()
-                action_button.BackgroundTransparency = 1
+                icon.ImageColor3 = themes.preset.text
             end)
             return action_button
         end
@@ -149,6 +160,12 @@ return function(__kaeryn)
         local menu_close_button = create_action_button("CloseMenu", "x", 4, 16)
         local button = create_action_button("Search", "search", 56, 18)
         window.search_button = button
+        window:_register_transparency_component("chrome", function(transparency)
+            local layer_transparency = math.sqrt(transparency)
+            items.header_actions.BackgroundTransparency = layer_transparency
+            items.header_actions_edge.BackgroundTransparency = layer_transparency
+            items.header_actions_stroke.Transparency = transparency
+        end)
 
         local overlay = library:create("Frame", {
             Parent = library.items,
