@@ -7,7 +7,6 @@ local gui_service = game:GetService("GuiService")
 local lighting = game:GetService("Lighting")
 local run = game:GetService("RunService")
 local stats = game:GetService("Stats")
-local coregui = game:GetService("CoreGui")
 local debris = game:GetService("Debris")
 local tween_service = game:GetService("TweenService")
 local sound_service = game:GetService("SoundService")
@@ -34,6 +33,7 @@ local numkey = NumberSequenceKeypoint.new
 
 local camera = ws.CurrentCamera
 local lp = players.LocalPlayer
+local playergui = lp:WaitForChild("PlayerGui")
 local mouse = lp:GetMouse()
 
 local max = math.max
@@ -326,7 +326,7 @@ return {
     lighting = lighting,
     run = run,
     stats = stats,
-    coregui = coregui,
+    playergui = playergui,
     debris = debris,
     tween_service = tween_service,
     sound_service = sound_service,

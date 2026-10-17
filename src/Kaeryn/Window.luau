@@ -2,7 +2,7 @@ return function(__kaeryn)
     local uis = __kaeryn.uis
     local ws = __kaeryn.ws
     local gui_service = __kaeryn.gui_service
-    local coregui = __kaeryn.coregui
+    local playergui = __kaeryn.playergui
     local vec2 = __kaeryn.vec2
     local dim2 = __kaeryn.dim2
     local dim = __kaeryn.dim
@@ -122,17 +122,19 @@ function library:window(properties)
     end
 
     library[ "items" ] = library:create( "ScreenGui" , {
-        Parent = coregui;
+        Parent = playergui;
         Name = "\0";
         Enabled = true;
+        ResetOnSpawn = false;
         ZIndexBehavior = Enum.ZIndexBehavior.Global;
         IgnoreGuiInset = true;
     });
 
     library[ "other" ] = library:create( "ScreenGui" , {
-        Parent = coregui;
+        Parent = playergui;
         Name = "\0";
         Enabled = false;
+        ResetOnSpawn = false;
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling;
         IgnoreGuiInset = true;
     });

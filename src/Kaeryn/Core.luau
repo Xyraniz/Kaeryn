@@ -2,7 +2,7 @@ return function(__kaeryn)
     local uis = __kaeryn.uis
     local ws = __kaeryn.ws
     local run = __kaeryn.run
-    local coregui = __kaeryn.coregui
+    local playergui = __kaeryn.playergui
     local tween_service = __kaeryn.tween_service
     local dim2 = __kaeryn.dim2
     local rgb = __kaeryn.rgb
@@ -1017,7 +1017,7 @@ function library:draggify(frame, handle, additional_handle)
             if input_type ~= Enum.UserInputType.MouseButton1 and input_type ~= Enum.UserInputType.Touch then return end
             local position = pointer_position(input)
             local inside_window = false
-            for _, object in ipairs(coregui:GetGuiObjectsAtPosition(position.X, position.Y)) do
+            for _, object in ipairs(playergui:GetGuiObjectsAtPosition(position.X, position.Y)) do
                 if object == frame or frame:IsAncestorOf(object) then
                     inside_window = true
                     local ancestor = object
@@ -1025,8 +1025,6 @@ function library:draggify(frame, handle, additional_handle)
                         if ancestor:IsA("GuiButton") or ancestor:IsA("TextBox") then return end
                         ancestor = ancestor.Parent
                     end
-                elseif object:IsA("GuiButton") or object:IsA("TextBox") then
-                    return
                 end
             end
             if inside_window then begin_drag(input) end
